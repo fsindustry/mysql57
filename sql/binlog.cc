@@ -9609,6 +9609,9 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     goto commit_stage;
   }
   DEBUG_SYNC(thd, "waiting_in_the_middle_of_flush_stage");
+
+  // TODO raft step1 : send binlog event to consensus server
+
   flush_error= process_flush_stage_queue(&total_bytes, &do_rotate,
                                                  &wait_queue);
 
