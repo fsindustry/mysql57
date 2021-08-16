@@ -8964,6 +8964,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   ha_flush_logs(NULL, true);
   DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
   assign_automatic_gtids_to_flush_group(first_seen);
+
+  // TODO raft step1 : send binlog event to consensus server
+
   /* Flush thread caches to binary log. */
   for (THD *head= first_seen ; head ; head = head->next_to_commit)
   {
@@ -9609,9 +9612,6 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     goto commit_stage;
   }
   DEBUG_SYNC(thd, "waiting_in_the_middle_of_flush_stage");
-
-  // TODO raft step1 : send binlog event to consensus server
-
   flush_error= process_flush_stage_queue(&total_bytes, &do_rotate,
                                                  &wait_queue);
 
