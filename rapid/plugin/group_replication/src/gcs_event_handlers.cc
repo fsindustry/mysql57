@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -553,18 +553,10 @@ Plugin_gcs_events_handler::on_view_changed(const Gcs_view& new_view,
 
   if (!is_leaving)
   {
-    std::string view_id_representation= "";
-    Gcs_view *view= gcs_module->get_current_view();
-    if (view != NULL)
-    {
-      view_id_representation= view->get_view_id().get_representation();
-      delete view;
-    }
-
     log_message(MY_INFORMATION_LEVEL,
                 "Group membership changed to %s on view %s.",
                 group_member_mgr->get_string_current_view_active_hosts().c_str(),
-                view_id_representation.c_str());
+                new_view.get_view_id().get_representation().c_str());
   }
   else
   {

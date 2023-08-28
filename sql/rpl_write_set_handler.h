@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #ifndef RPL_WRITE_SET_HANDLER_INCLUDED
 #define RPL_WRITE_SET_HANDLER_INCLUDED
 
+#include "my_global.h"
+
 extern const char *transaction_write_set_hashing_algorithms[];
 
 class THD;
@@ -45,6 +47,6 @@ const char* get_write_set_algorithm_string(unsigned int algorithm);
 
   @return true if an issues exists adding the pke, false otherwise
 */
-bool add_pke(TABLE *table, THD *thd);
+bool add_pke(TABLE *table, THD *thd, const uchar *record);
 
 #endif

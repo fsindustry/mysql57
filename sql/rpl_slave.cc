@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,9 +378,9 @@ static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slav
 
 static PSI_thread_info all_slave_threads[]=
 {
-  { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_io, "slave_io", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL},
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_GLOBAL}
 };
 
 static PSI_memory_info all_slave_memory[]=
@@ -1714,6 +1714,9 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli->abort_slave= 1;
+
+    DEBUG_SYNC(current_thd, "terminate_slave_threads_after_set_abort_slave");
+
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
@@ -3220,6 +3223,21 @@ when it try to get the value of TIME_ZONE global variable from master.";
   }
   else
     mi->checksum_alg_before_fd= binary_log::BINLOG_CHECKSUM_ALG_OFF;
+
+  if (DBUG_EVALUATE_IF("bug32442749_simulate_null_checksum", 1, 0))
+  {
+    const char query[]= "SET @master_binlog_checksum= NULL";
+    int rc = mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)));
+    if (rc != 0) {
+        errmsg= "The slave I/O thread stops because a fatal error is encountered "
+          "when it tried to SET @master_binlog_checksum.";
+        err_code= ER_SLAVE_FATAL_ERROR;
+        sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
+        mysql_free_result(mysql_store_result(mysql));
+        goto err;
+    }
+    mysql_free_result(mysql_store_result(mysql));
+  }
 
   if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1))
   {
@@ -7298,6 +7316,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
   rli->sql_thread_kill_accepted= false;
+  rli->last_event_start_time = 0;
 
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
@@ -8589,6 +8608,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
+    if (!gtid_ev.is_valid())
+    {
+      global_sid_lock->unlock();
+      goto err;
+    }
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock->unlock();
     if (gtid.sidno < 0)
@@ -10472,6 +10496,10 @@ int reset_slave(THD *thd)
   Execute a RESET SLAVE statement.
   Locks slave threads and unlocks the slave threads after executing
   reset slave.
+  The method also takes the mi->channel_wrlock; if this {mi} object
+  is deleted (when the parameter reset_all is true) its destructor unlocks
+  the lock. In case of error, the method shall always unlock the
+  mi channel lock.
 
   @param thd        Pointer to THD object of the client thread executing the
                     statement.
@@ -10571,7 +10599,14 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
   {
     bool is_default= !strcmp(mi->get_channel(), channel_map.get_default_channel());
 
-    channel_map.delete_mi(mi->get_channel());
+    // delete_mi will call mi->channel_unlock in case it succeeds
+    if (channel_map.delete_mi(mi->get_channel()))
+    {
+      mi->channel_unlock();
+      error= ER_UNKNOWN_ERROR;
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      goto err;
+    }
 
     if (is_default)
     {

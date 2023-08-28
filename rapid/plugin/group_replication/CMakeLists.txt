@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2023, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_BINARY_DIR}/include/                   # config.h
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${SSL_INCLUDE_DIRS}                            # SSL include dirs
-  ${LZ4_INCLUDE_DIR}                             # LZ4
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include/sql_service
@@ -166,6 +165,8 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 # add the definition to build XCom with SSL support
 ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 
+DOWNGRADE_OPENSSL3_DEPRECATION_WARNINGS(
+    libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.c)
 
 IF(WITH_UNIT_TESTS)
   ADD_CONVENIENCE_LIBRARY(gr_unit_test_resource

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1385,6 +1385,7 @@ static void *test_thread(void *arg)
   THR_LOCK_DATA *multi_locks[MAX_LOCK_COUNT];
   my_thread_id id;
   mysql_cond_t COND_thr_lock;
+  COND_thr_lock.m_psi = NULL;
 
   id= param + 1; /* Main thread uses value 0. */
   mysql_cond_init(0, &COND_thr_lock);

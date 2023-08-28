@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,8 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
 {
   DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
   assert(gtid.sidno <= get_max_sidno());
+  assert(gtid.gno > 0);
+  assert(gtid.gno < GNO_END);
   Node *n= (Node *)my_malloc(key_memory_Sid_map_Node,
                              sizeof(Node), MYF(MY_WME));
   if (n == NULL)

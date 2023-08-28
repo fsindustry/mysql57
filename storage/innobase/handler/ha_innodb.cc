@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -1507,13 +1507,12 @@ innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
-	trx_t*	trx	= prebuilt->trx;
+	trx_t*  trx     = prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1545,9 +1544,8 @@ innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
@@ -1584,6 +1582,36 @@ innobase_srv_conc_force_exit_innodb(
 	if (trx->declared_to_be_inside_innodb) {
 		srv_conc_force_exit_innodb(trx);
 	}
+}
+
+ibool
+skip_concurrency_ticket(row_prebuilt_t* prebuilt) {
+	/* Since there are no locks on instrinsic tables,
+	we should skip this for intrinsic temporary tables.*/
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return true;
+	}
+
+	THD *thd =  prebuilt->trx->mysql_thd;
+	if (thd == NULL) {
+		thd = current_thd;
+	}
+	/* Skip concurrency ticket in following cases
+	 (a) while implicitly updating GTID table.This
+	 is to avoid deadlock otherwise possible with
+	 low innodb_thread_concurrency.
+	 Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket
+	 -> wait for GTID flush.
+	 GTID Background: Write to GTID table -> wait for innodb ticket.
+         (b) For attachable transaction. If a attachable trx in
+	 thread asks for a ticket while the main transaction
+	 has reserved a ticket. */
+	if (thd && (thd_has_active_attachable_trx(thd)
+		|| thd_is_operating_gtid_table_implicitly(thd))) {
+		return true;
+	}
+
+	return false;
 }
 
 /******************************************************************//**
@@ -4962,7 +4990,11 @@ ha_innobase::index_type(
 {
 	dict_index_t*	index = innobase_get_index(keynr);
 
-	if (index && index->type & DICT_FTS) {
+	if (index == NULL) {
+		return("NONE");
+	}
+
+	if (index->type & DICT_FTS) {
 		return("FULLTEXT");
 	} else if (dict_index_is_spatial(index)) {
 		return("SPATIAL");
@@ -8714,7 +8746,7 @@ ha_innobase::index_read(
 	/* Note that if the index for which the search template is built is not
 	necessarily m_prebuilt->index, but can also be the clustered index */
 
-	if (m_prebuilt->sql_stat_start) {
+	if (m_prebuilt->sql_stat_start && !can_reuse_mysql_template()) {
 		build_template(false);
 	}
 
@@ -16780,26 +16812,31 @@ ha_innobase::get_auto_increment(
 
 	(3) It is restricted only for insert operations. */
 
+
 	if (increment > 1 && thd_sql_command(m_user_thd) != SQLCOM_ALTER_TABLE
 	    && autoinc < col_max_value) {
 
-		ulonglong	prev_auto_inc = autoinc;
+		ulonglong diff = ULLONG_MAX - autoinc;
+		/* Check for overflow */
+		if (increment <= diff) {
 
-		autoinc = ((autoinc - 1) + increment - offset)/ increment;
+			ulonglong prev_auto_inc = autoinc;
 
-		autoinc = autoinc * increment + offset;
+			autoinc = ((autoinc - 1) + increment - offset)/ increment;
 
-		/* If autoinc exceeds the col_max_value then reset
-		to old autoinc value. Because in case of non-strict
-		sql mode, boundary value is not considered as error. */
+			autoinc = autoinc * increment + offset;
 
-		if (autoinc >= col_max_value) {
-			autoinc = prev_auto_inc;
+			/* If autoinc exceeds the col_max_value then reset
+			to old autoinc value. Because in case of non-strict
+			sql mode, boundary value is not considered as error. */
+
+			if (autoinc >= col_max_value) {
+				autoinc = prev_auto_inc;
+			}
+
+			ut_ad(autoinc > 0);
 		}
-
-		ut_ad(autoinc > 0);
 	}
-
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
 
@@ -20760,20 +20797,19 @@ given col_no.
 @param[in]	update		updated parent vector.
 @param[in]	col_no		base column position of the child table to check
 @return updated field from the parent update vector, else NULL */
-static
 dfield_t*
 innobase_get_field_from_update_vector(
 	dict_foreign_t*	foreign,
 	upd_t*		update,
-	ulint		col_no)
+	uint32_t	col_no)
 {
 	dict_table_t*	parent_table = foreign->referenced_table;
 	dict_index_t*	parent_index = foreign->referenced_index;
-	ulint		parent_field_no;
-	ulint		parent_col_no;
-	ulint		child_col_no;
+	uint32_t	parent_field_no;
+	uint32_t	parent_col_no;
+	uint32_t	child_col_no;
 
-	for (ulint i = 0; i < foreign->n_fields; i++) {
+	for (uint32_t i = 0; i < foreign->n_fields; i++) {
 		child_col_no = dict_index_get_nth_col_no(
 			foreign->foreign_index, i);
 		if (child_col_no != col_no) {
@@ -20783,7 +20819,7 @@ innobase_get_field_from_update_vector(
 		parent_field_no = dict_table_get_nth_col_pos(
 			parent_table, parent_col_no);
 
-		for (ulint j = 0; j < update->n_fields; j++) {
+		for (uint32_t j = 0; j < update->n_fields; j++) {
 			upd_field_t*	parent_ufield
 				= &update->fields[j];
 
@@ -20863,7 +20899,7 @@ innobase_get_computed_value(
 	for (ulint i = 0; i < col->num_base; i++) {
 		dict_col_t*			base_col = col->base_col[i];
 		const dfield_t*			row_field = NULL;
-		ulint				col_no = base_col->ind;
+		uint32_t			col_no = base_col->ind;
 		const mysql_row_templ_t*	templ
 			= index->table->vc_templ->vtempl[col_no];
 		const byte*			data;

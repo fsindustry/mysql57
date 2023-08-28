@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1329,6 +1329,7 @@ void clean_up(bool print_message)
 #endif
   }
   table_def_start_shutdown();
+  delegates_shutdown();
   plugin_shutdown();
   delete_optimizer_cost_module();
   ha_end();
@@ -3423,6 +3424,10 @@ int warn_self_signed_ca()
   return ret_val;
 }
 
+static void push_deprecated_tls_option_no_replacement(const char *tls_version) {
+  sql_print_warning(ER_DEFAULT(ER_WARN_DEPRECATED_TLS_VERSION), tls_version);
+}
+
 #endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
@@ -3449,6 +3454,12 @@ static int init_ssl()
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
     long ssl_ctx_flags= process_tls_version(opt_tls_version);
+
+    if (!(ssl_ctx_flags & SSL_OP_NO_TLSv1))
+      push_deprecated_tls_option_no_replacement("TLSv1");
+    if (!(ssl_ctx_flags & SSL_OP_NO_TLSv1_1))
+      push_deprecated_tls_option_no_replacement("TLSv1.1");
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,
@@ -4693,37 +4704,43 @@ int mysqld_main(int argc, char **argv)
       opt_keyring_migration_destination ||
       migrate_connect_options)
   {
-    Migrate_keyring mk;
-    if (mk.init(remaining_argc, remaining_argv,
-                opt_keyring_migration_source,
-                opt_keyring_migration_destination,
-                opt_keyring_migration_user,
-                opt_keyring_migration_host,
-                opt_keyring_migration_password,
-                opt_keyring_migration_socket,
-                opt_keyring_migration_port))
+    int exit_state = MYSQLD_ABORT_EXIT;
+    while (true)
     {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
+      Migrate_keyring mk;
+      if (mk.init(remaining_argc, remaining_argv,
+                  opt_keyring_migration_source,
+                  opt_keyring_migration_destination,
+                  opt_keyring_migration_user,
+                  opt_keyring_migration_host,
+                  opt_keyring_migration_password,
+                  opt_keyring_migration_socket,
+                  opt_keyring_migration_port))
+      {
+        sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                        "failed");
+        log_error_dest= "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      if (mk.execute())
+      {
+        sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                        "failed");
+        log_error_dest= "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
+                            "successful");
       log_error_dest= "stderr";
       flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
+      exit_state = MYSQLD_SUCCESS_EXIT;
+      break;
     }
-
-    if (mk.execute())
-    {
-      sql_print_error(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                      "failed");
-      log_error_dest= "stderr";
-      flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-
-    sql_print_information(ER_DEFAULT(ER_KEYRING_MIGRATION_STATUS),
-                          "successful");
-    log_error_dest= "stderr";
-    flush_error_log_messages();
-    unireg_abort(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(exit_state);
   }
 
   /*

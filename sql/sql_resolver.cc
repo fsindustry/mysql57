@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3105,10 +3105,7 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl)
       reference. There is possibility that this view reference could
       be used elsewhere in the query
     */
-    if (*o->item == o->item_ptr &&
-        (!o->item_ptr->has_subquery() ||
-         !o->item_ptr->walk(&Item::is_direct_view_ref,
-                            Item::WALK_SUBQUERY_PREFIX, NULL))) {
+    if (*o->item == o->item_ptr) {
       (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
                        pointer_cast<uchar *>(sl));
     }

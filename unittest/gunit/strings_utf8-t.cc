@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,7 +185,7 @@ TEST_F(StringsUTF8Test, MyWellFormedLenUtf8)
 
 TEST_F(StringsUTF8Test, MyIsmbcharUtf8)
 {
-  char utf8_src[8];
+  char utf8_src[8] = { 0 };
 
   /* valid utf8 charaters, testing for boundry values */
   utf8_src[0]= '\x00';
@@ -362,7 +362,7 @@ TEST_F(StringsUTF8mb4Test, MyWellFormedLenUtf8mb4)
 
 TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4)
 {
-  char utf8_src[8];
+  char utf8_src[8] = { 0 };
 
   /* valid utf8mb4 charaters, testing for boundry values */
   utf8_src[0]= '\x00';

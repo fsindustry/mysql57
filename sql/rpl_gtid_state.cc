@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -471,7 +471,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
   while (true)
   {
     const Gtid_set::Interval *iv= ivit.get();
-    rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
+    rpl_gno next_interval_start= iv != NULL ? iv->start : GNO_END;
     while (next_candidate.gno < next_interval_start &&
            DBUG_EVALUATE_IF("simulate_gno_exhausted", false, true))
     {
@@ -486,7 +486,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
       my_error(ER_GNO_EXHAUSTED, MYF(0));
       DBUG_RETURN(-1);
     }
-    if (next_candidate.gno <= iv->end)
+    if (next_candidate.gno < iv->end)
       next_candidate.gno= iv->end;
     ivit.next();
   }

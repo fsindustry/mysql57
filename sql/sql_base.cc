@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6013,9 +6013,11 @@ restart:
     }
   }
 
-  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  /* Accessing data in XA_IDLE or XA_PREPARED or when an error(rm_error) is set
+     by the resource manager, is not allowed. */
   if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+      (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true) ||
+       thd->get_transaction()->xid_state()->xa_trans_rolled_back()))
     DBUG_RETURN(true);
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,10 +68,16 @@ TEST_F(FatalSignalDeathTest, Segfault)
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-#elif defined(__SANITIZE_ADDRESS__)
+#elif defined(HAVE_ASAN)
   /* gcc 4.8.1 with '-fsanitize=address -O1' */
   /* Newer versions of ASAN give other error message, disable it */
   // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+#elif defined(__APPLE__) && defined(__aarch64__) && defined(NDEBUG)
+  // Disable also in non-debug mode on MacOS 11 arm, with -O1 or above, we get
+  // Result: died but not with expected error.
+  // Expected: contains regular expression ".* UTC - mysqld got signal .*"
+  // Actual msg:
+  // We do get: "Trace/BPT trap: 5" but not as part of the matcher input in
 #else
   int *pint= NULL;
   /*

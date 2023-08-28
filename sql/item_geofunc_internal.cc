@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ merge_components(my_bool *pnull_value)
   if (is_comp_no_overlapped())
     return;
 
-  POS pos;
+  POS pos = {{NULL, NULL}, {NULL, NULL}};
   Item_func_spatial_operation ifso(pos, NULL, NULL,
                                    Item_func_spatial_operation::op_union);
   bool do_again= true;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -434,6 +434,17 @@ int delegates_init()
 #endif
 
   return 0;
+}
+
+void delegates_shutdown()
+{
+  if (opt_replication_optimize_for_static_plugin_config)
+  {
+    opt_replication_optimize_for_static_plugin_config= false;
+    delegates_acquire_locks();
+    delegates_update_lock_type();
+    delegates_release_locks();
+  }
 }
 
 void delegates_destroy()

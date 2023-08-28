@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2023, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -5585,7 +5585,7 @@ os_file_write_page(
 	if ((ulint) n_bytes != n && !os_has_said_disk_full) {
 
 		ib::error()
-			<< "Write to file " << name << "failed at offset "
+			<< "Write to file " << name << " failed at offset "
 			<< offset << ", " << n
 			<< " bytes should have been written,"
 			" only " << n_bytes << " were written."
@@ -8660,29 +8660,11 @@ Compression::deserialize(
 
 	case Compression::LZ4:
 
-		if (dblwr_recover) {
-
-			ret = LZ4_decompress_safe(
-				reinterpret_cast<char*>(ptr),
-				reinterpret_cast<char*>(dst),
-				header.m_compressed_size,
-				header.m_original_size);
-
-		} else {
-
-			/* This can potentially read beyond the input
-			buffer if the data is malformed. According to
-			the LZ4 documentation it is a little faster
-			than the above function. When recovering from
-			the double write buffer we can afford to us the
-			slower function above. */
-
-			ret = LZ4_decompress_fast(
-				reinterpret_cast<char*>(ptr),
-				reinterpret_cast<char*>(dst),
-				header.m_original_size);
-		}
-
+                ret = LZ4_decompress_safe(
+                        reinterpret_cast<char*>(ptr),
+                        reinterpret_cast<char*>(dst),
+                        header.m_compressed_size,
+                        header.m_original_size);
 		if (ret < 0) {
 
 			if (block != NULL) {

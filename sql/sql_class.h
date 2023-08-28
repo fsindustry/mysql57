@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2214,6 +2214,8 @@ private:
   NET     net;                          // client connection descriptor
   String  packet;                       // dynamic buffer for network I/O
 public:
+  const NET *get_net() const { return &net; }
+
   void set_skip_readonly_check()
   {
     skip_readonly_check= true;
@@ -3698,6 +3700,12 @@ public:
   /**
     @return true if there is an active attachable transaction.
   */
+  int is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
+
+  /**
+    @return true if there is an active attachable readonly transaction.
+  */
   bool is_attachable_ro_transaction_active() const
   { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
 
@@ -4468,8 +4476,10 @@ public:
     Reset thd->rewritten_query. Protected with the LOCK_thd_query mutex.
   */
   void reset_rewritten_query() {
-    String empty;
-    swap_rewritten_query(empty);
+    if (rewritten_query().length()) {
+      String empty;
+      swap_rewritten_query(empty);
+    }
   }
 
   /**

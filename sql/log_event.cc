@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4772,6 +4772,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length))
       {
+        parser_state.m_input.m_has_digest = true;
         assert(thd->m_digest == NULL);
         thd->m_digest= & thd->m_digest_state;
         assert(thd->m_statement_psi == NULL);
@@ -6688,7 +6689,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
       !is_relay_log_event() &&
       !in_group)
   {
-    if (!is_mts_db_partitioned(rli) && server_id != ::server_id)
+    if (!is_mts_db_partitioned(rli) && (server_id != ::server_id || rli->replicate_same_server_id))
     {
       // force the coordinator to start a new binlog segment.
       static_cast<Mts_submode_logical_clock*>
@@ -10548,16 +10549,69 @@ end:
     */
     (void) close_record_scan(); 
 
-  if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-      (saved_m_curr_row == m_curr_row))
-  {
-    /* we need to unpack the AI so that positions get updated */
-    m_curr_row= m_curr_row_end;
-    unpack_current_row(rli, &m_cols_ai);
-  }
+  int unpack_error = skip_after_image_for_update_event(rli, saved_m_curr_row);
+  if (!error) error = unpack_error;
+
   m_table->default_column_bitmaps();
   DBUG_RETURN(error);
 
+}
+
+int Update_rows_log_event::skip_after_image_for_update_event(
+    const Relay_log_info *rli, const uchar *curr_bi_start) {
+  if (m_curr_row == curr_bi_start && m_curr_row_end != NULL) {
+    /*
+      This handles the case that the BI was read successfully, but an
+      error happened while looking up the row.  In this case, the AI
+      has not been read, so the read position is between the two
+      images.  In case the error is idempotent, we need to move the
+      position to the end of the row, and therefore we skip past the
+      AI.
+
+      The normal behavior is:
+
+      When unpack_row reads a row image, and there is no error,
+      unpack_row sets m_curr_row_end to point to the end of the image,
+      and leaves m_curr_row to point at the beginning.
+
+      The AI is read from Update_rows_log_event::do_exec_row. Before
+      calling unpack_row, do_exec_row sets m_curr_row=m_curr_row_end,
+      so that it actually reads the AI. And again, if there is no
+      error, unpack_row sets m_curr_row_end to point to the end of the
+      AI.
+
+      Thus, the positions are moved as follows:
+
+                          +--------------+--------------+
+                          | BI           | AI           |  NULL
+                          +--------------+--------------+
+      0. Initial values   ^m_curr_row                      ^m_curr_row_end
+      1. Read BI, no error
+                          ^m_curr_row    ^m_curr_row_end
+      2. Lookup BI
+      3. Set m_curr_row
+                                         ^m_curr_row
+                                         ^m_curr_row_end
+      4. Read AI, no error
+                                        ^m_curr_row    ^m_curr_row_end
+
+      If an error happened while reading the BI (e.g. corruption),
+      then we should not try to read the AI here.  Therefore we do not
+      read the AI if m_curr_row_end==NULL.
+
+      If an error happened while looking up BI, then we should try to
+      read AI here. Then we know m_curr_row_end points to beginning of
+      AI, so we come here, set m_curr_row=m_curr_row_end, and read the
+      AI.
+
+      If an error happened while reading the AI, then we should not
+      try to read the AI again.  Therefore we do not read the AI if
+      m_curr_row==curr_bi_start.
+    */
+    m_curr_row = m_curr_row_end;
+    return unpack_current_row(rli, &m_cols_ai);
+  }
+  return 0;
 }
 
 int Rows_log_event::do_hash_row(Relay_log_info const *rli)
@@ -11580,6 +11634,16 @@ Rows_log_event::do_update_pos(Relay_log_info *rli)
   {
     rli->inc_event_relay_log_pos();
   }
+
+  DBUG_EXECUTE_IF( "wait_after_do_update_pos",
+   {
+     const char act[] =
+         "now signal "
+         "signal.after_do_update_pos_waiting "
+         "wait_for "
+         "signal.after_do_update_pos_continue";
+     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+   };);
 
   DBUG_RETURN(error);
 }
@@ -13373,6 +13437,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   const_cast<Relay_log_info*>(rli)->rows_query_ev= this;
   /* Tell worker not to free the event */
   worker= NULL;
+  DBUG_EXECUTE_IF("error_on_rows_query_event_apply", { DBUG_RETURN(1); };);
   DBUG_RETURN(0);
 }
 #endif
@@ -13405,7 +13470,20 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
              ANONYMOUS_GROUP : GTID_GROUP;
   sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
+  //GNO sanity check
+  if (spec.type == GTID_GROUP) {
+    if (gtid_info_struct.rpl_gtid_gno <= 0 || gtid_info_struct.rpl_gtid_gno >= GNO_END)
+      goto err;
+  } else { //ANONYMOUS_GTID_LOG_EVENT
+    if (gtid_info_struct.rpl_gtid_gno != 0)
+      goto err;
+  }
   spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
+
+  DBUG_VOID_RETURN;
+
+err:
+  is_valid_param= false;
   DBUG_VOID_RETURN;
 }
 
@@ -13464,10 +13542,15 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(uint32, bool, int64, int64, const Gtid_specification)");
   server_id= server_id_arg;
   common_header->unmasked_server_id= server_id_arg;
+  is_valid_param= true;
 
   if (spec_arg.type == GTID_GROUP)
   {
-    assert(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.sidno > 0);
+    assert(spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.gno < GNO_END);
+    if (spec_arg.gtid.gno <= 0 || spec_arg.gtid.gno >= GNO_END)
+      is_valid_param= false;
     spec.set(spec_arg.gtid);
     global_sid_lock->rdlock();
     sid= global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
@@ -13492,7 +13575,6 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
-  is_valid_param= true;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -13580,6 +13662,11 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   sid.copy_to(ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
+#ifndef NDEBUG
+  if (DBUG_EVALUATE_IF("send_invalid_gno_to_replica", true, false))
+    int8store(ptr_buffer, GNO_END);
+  else
+#endif
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 

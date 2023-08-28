@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -755,7 +755,8 @@ bool Sql_cmd_xa_end::trans_xa_end(THD *thd)
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
   if (m_xa_opt != XA_NONE)
     my_error(ER_XAER_INVAL, MYF(0));
-  else if (!xid_state->has_state(XID_STATE::XA_ACTIVE))
+  else if (!xid_state->has_state(XID_STATE::XA_ACTIVE) &&
+           !xid_state->has_state(XID_STATE::XA_ROLLBACK_ONLY))
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
   else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));

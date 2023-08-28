@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2599,7 +2599,7 @@ static int check_func_bool(THD *thd, st_mysql_sys_var *var,
   {
     if (value->val_int(value, &tmp) < 0)
       goto err;
-    if (tmp > 1)
+    if (tmp > 1 || tmp < 0)
       goto err;
     result= (int) tmp;
   }

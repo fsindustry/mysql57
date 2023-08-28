@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2023, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -322,6 +322,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_func_rlike
   item_timefunc
   item_like
   join_tab_sort
@@ -330,6 +331,7 @@ SET(SERVER_TESTS
   json_path
   locking_service
   log_throttle
+  log_timestamp
   make_sortkey
   mdl_sync
   my_decimal

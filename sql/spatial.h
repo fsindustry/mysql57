@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -819,6 +819,16 @@ public:
   */
   class Flags_t
   {
+    void initialize_bits_to_zero()
+    {
+      bo = 0;
+      dim = 0;
+      nomem = 0;
+      geotype = 0;
+      nbytes = 0;
+      props = 0;
+      zm = 0;
+    }
   public:
     Flags_t(const Flags_t &o)
     {
@@ -829,7 +839,7 @@ public:
     Flags_t()
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      memset(this, 0, sizeof(*this));
+      initialize_bits_to_zero();
       bo= wkb_ndr;
       dim= GEOM_DIM - 1;
       nomem= 1;
@@ -838,7 +848,7 @@ public:
     Flags_t(wkbType type, size_t len)
     {
       compile_time_assert(sizeof(*this) == sizeof(uint64));
-      memset(this, 0, sizeof(*this));
+      initialize_bits_to_zero();
       geotype= type;
       nbytes= len;
       bo= wkb_ndr;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2023, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +93,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
     assert(spec.type == GTID_GROUP);
     assert(spec.gtid.sidno >= 1);
     assert(spec.gtid.gno >= 1);
+    assert(spec.gtid.gno < GNO_END);
     while (true)
     {
       // loop invariant: we should always hold global_sid_lock.rdlock
@@ -128,6 +129,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         thd->variables.gtid_next= spec;
         assert(thd->owned_gtid.sidno >= 1);
         assert(thd->owned_gtid.gno >= 1);
+        assert(thd->owned_gtid.gno < GNO_END);
         break;
       }
       // GTID owned by someone (other thread)

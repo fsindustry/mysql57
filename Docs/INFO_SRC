@@ -1,7 +1,7 @@
-commit: c4c5d6d70953f6ed4d054c51334f9027145c458d
-date: 2021-03-26 12:22:25 +0530
-build-date: 2021-03-26 06:59:12 +0000
-short: c4c5d6d7095
-branch: mysql-5.7.34-release
+commit: 4346a1d04fc6ef8683bd16e5bc35ff6a7993b493
+date: 2023-06-21 14:58:21 +0200
+build-date: 2023-06-21 13:02:22 +0000
+short: 4346a1d04fc
+branch: mysql-5.7.43-release
 
-MySQL source 5.7.34
+MySQL source 5.7.43

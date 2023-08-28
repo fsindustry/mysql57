@@ -2,12 +2,12 @@
 .\"     Title: mysqldump
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/25/2021
+.\"      Date: 06/20/2023
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.7
 .\"  Language: English
 .\"
-.TH "MYSQLDUMP" "1" "03/25/2021" "MySQL 5\&.7" "MySQL Database System"
+.TH "MYSQLDUMP" "1" "06/20/2023" "MySQL 5\&.7" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -296,6 +296,10 @@ mysqldump [options] \-\-result\-file=dump\&.sql
 .\}
 .sp .5v
 .RE
+.PP
+It is not recommended to load a dump file when GTIDs are enabled on the server (gtid_mode=ON), if your dump file includes system tables\&.
+\fBmysqldump\fR
+issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&.
 Performance and Scalability Considerations
 .PP
 mysqldump
@@ -671,6 +675,22 @@ Section\ \&6.4.1.4, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 The
 \fB\-\-server\-public\-key\-path\fR
 option was added in MySQL 5\&.7\&.23\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-skip\-mysql\-schema\fR
+Do not drop the
+mysql
+schema when the dump file is restored\&. By default, the schema is dropped\&.
+.sp
+This option was added in MySQL 5\&.7\&.36\&.
 .RE
 .sp
 .RS 4
@@ -1597,23 +1617,18 @@ evaluates to
 ON)\&.
 .RE
 .sp
-.if n \{\
+Using this option with the
+\fB\-\-single\-transaction\fR
+option can lead to inconsistencies in the output\&. If
+\fB\-\-set\-gtid\-purged=ON\fR
+is required, it can be used with
+\fB\-\-lock\-all\-tables\fR, but this can prevent parallel queries while
+\fBmysqldump\fR
+is being run\&.
 .sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
 It is not recommended to load a dump file when GTIDs are enabled on the server (gtid_mode=ON), if your dump file includes system tables\&.
 \fBmysqldump\fR
 issues DML instructions for the system tables which use the non\-transactional MyISAM storage engine, and this combination is not permitted when GTIDs are enabled\&. Also be aware that loading a dump file from a server with GTIDs enabled, into another server with GTIDs enabled, causes different transaction identifiers to be generated\&.
-.sp .5v
-.RE
 .RE
 Format Options
 .PP
@@ -1736,6 +1751,12 @@ BLOB
 types,
 BIT, all spatial data types, and other non\-binary data types when used with the
 binary character set\&.
+.sp
+The
+\fB\-\-hex\-blob\fR
+option is ignored when the
+\fB\-\-tab\fR
+is used\&.
 .RE
 .sp
 .RS 4
@@ -1947,7 +1968,7 @@ includes the XML namespace, as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-xml \-u root world City\fR
+$> \fBmysqldump \-\-xml \-u root world City\fR
 <?xml version="1\&.0"?>
 <mysqldump xmlns:xsi="http://www\&.w3\&.org/2001/XMLSchema\-instance">
 <database name="world">
@@ -2183,7 +2204,7 @@ Multiple triggers are permitted\&.
 dumps triggers in activation order so that when the dump file is reloaded, triggers are created in the same activation order\&. However, if a
 \fBmysqldump\fR
 dump file contains multiple triggers for a table that have the same trigger event and action time, an error occurs for attempts to load the dump file into an older server that does not support multiple triggers\&. (For a workaround, see
-Section\ \&2.12.3, \(lqDowngrade Notes\(rq; you can convert triggers to be compatible with older servers\&.)
+Section\ \&2.11.3, \(lqDowngrade Notes\(rq; you can convert triggers to be compatible with older servers\&.)
 .RE
 .sp
 .RS 4
@@ -2290,6 +2311,28 @@ statements\&.
 .\}
 \fB\-\-max\-allowed\-packet=\fR\fB\fIvalue\fR\fR
 The maximum size of the buffer for client/server communication\&. The default is 24MB, the maximum is 1GB\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+The value of this option is specific to
+\fBmysqldump\fR
+and should not be confused with the MySQL server\*(Aqs
+max_allowed_packet
+system variable; the server value cannot be exceeded by a single packet from
+\fBmysqldump\fR, regardless of any setting for the
+\fBmysqldump\fR
+option, even if the latter is larger\&.
+.sp .5v
+.RE
 .RE
 .sp
 .RS 4
@@ -2457,7 +2500,7 @@ statement, reloading the file requires privileges sufficient to execute that sta
 .br
 For upgrades to MySQL 5\&.7 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.11.3, \(lqChanges in MySQL 5.7\(rq\&.
+Section\ \&2.10.3, \(lqChanges in MySQL 5.7\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2579,6 +2622,10 @@ InnoDB, because then it dumps the consistent state of the database at the time w
 START TRANSACTION
 was issued without blocking any applications\&.
 .sp
+The RELOAD or FLUSH_TABLES privilege is required with
+\fB\-\-single\-transaction\fR
+if both gtid_mode=ON and \-\-set\-gtid=purged=ON|AUTO\&. This requirement was added in MySQL 8\&.0\&.32\&.
+.sp
 When using this option, you should keep in mind that only
 InnoDB
 tables are dumped in a consistent state\&. For example, any
@@ -2608,6 +2655,13 @@ option are mutually exclusive because
 LOCK TABLES
 causes any pending transactions to be committed implicitly\&.
 .sp
+Using
+\fB\-\-single\-transaction\fR
+together with the
+\fB\-\-set\-gtid\-purged\fR
+option is not recommended; doing so can lead to inconsistencies in the output of
+\fBmysqldump\fR\&.
+.sp
 To dump large tables, combine the
 \fB\-\-single\-transaction\fR
 option with the
@@ -2630,7 +2684,7 @@ option turns on several settings that work together to perform a fast dump opera
 \fB\-\-opt\fR
 is on by default\&. Thus you rarely if ever specify
 \-\-opt\&. Instead, you can turn these settings off as a group by specifying
-\-\-skip\-opt, the optionally re\-enable certain settings by specifying the associated options later on the command line\&.
+\-\-skip\-opt, then optionally re\-enable certain settings by specifying the associated options later on the command line\&.
 .RE
 .sp
 .RS 4
@@ -2857,6 +2911,15 @@ InnoDB
 CREATE TABLESPACE
 statements\&.
 .PP
+\fBmysqldump\fR
+always strips the
+NO_AUTO_CREATE_USER
+SQL mode as
+NO_AUTO_CREATE_USER
+is not compatible with MySQL 8\&.0\&. It remains stripped even when importing back into MySQL 5\&.7, which means that stored routines could behave differently after restoring a dump if they rely upon this particular sql_mode\&. It is stripped as of
+\fBmysqldump\fR
+5\&.7\&.24\&.
+.PP
 It is not recommended to restore from a dump made using
 \fBmysqldump\fR
 to a MySQL 5\&.6\&.9 or earlier server that has GTIDs enabled\&. See
@@ -2877,7 +2940,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2023, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
