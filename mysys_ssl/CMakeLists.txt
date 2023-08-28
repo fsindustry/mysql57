@@ -25,7 +25,8 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/mysys_ssl
                     ${CMAKE_SOURCE_DIR}/mysys
-                    ${SSL_INCLUDE_DIRS})
+                    ${SSL_INCLUDE_DIRS}
+                    SYSTEM ${BOOST_INCLUDE_DIR})
 
 IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
@@ -49,6 +50,7 @@ SET(MYSYS_SSL_SOURCES
     my_md5.cc
     my_rnd.cc
     my_murmur3.cc
+    my_crypt.cc
     ${MYSYS_AES_IMPLEMENTATION}
    )
 

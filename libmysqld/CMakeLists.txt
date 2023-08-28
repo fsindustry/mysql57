@@ -38,6 +38,10 @@ INCLUDE_DIRECTORIES(
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
 )
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+)
 
 # We should generate these separately for libmysqld to avoid
 # compiling them for libmysqld while they are generated for sql.
@@ -111,14 +115,11 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_table_access.cc
   ../sql/rpl_context.cc
   ../sql/rpl_trx_boundary_parser.cc
+  ../sql/userstat.cc
   ${IMPORTED_SOURCES}
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-INCLUDE_DIRECTORIES(SYSTEM
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
-  )
 
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
@@ -168,6 +169,11 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Suppress warnings for gcc-12 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES ../sql/item_geofunc_buffer.cc)
+ENDIF()
+
 # Segfault in boost::geometry code at high optimization levels
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
@@ -191,14 +197,12 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
-# gcc 7.2.0 complains:
-# boost/geometry/algorithms/detail/expand/indexed.hpp:81
-# *((void*)& box +24) may be used uninitialized
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    ../sql/geometry_rtree.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-bounds FILES ../sql/spatial.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES ../sql/spatial.cc)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
@@ -207,6 +211,14 @@ IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     COMPILE_FLAGS "-Wno-free-nonheap-object -Wno-unused-label")
+ENDIF()
+
+IF(MY_COMPILER_IS_GNU OR
+   MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-unused-label")
 ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 
@@ -261,7 +273,11 @@ ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
 
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
-ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
+# sql_yacc.cc includes lex_token.h, that is why both
+# GenServerSource and GenDigestServerSource must be generated before
+# sql_embedded target build
+ADD_DEPENDENCIES(sql_embedded
+  GenError GenServerSource GenYaccEmbeddedSource GenDigestServerSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a

@@ -29,6 +29,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
+#include <mysql_com.h>
 #include "heap.h"
 #include "my_thread_local.h"
 
@@ -38,11 +39,12 @@ static int flag=0,verbose=0,remove_ant=0,flags[50];
 
 int main(int argc, char **argv)
 {
-  int i,j,error,deleted;
+  int i,j,error,deleted MY_ATTRIBUTE((__unused__));
   HP_INFO *file;
   uchar record[128],key[32];
   const char *filename;
   HP_KEYDEF keyinfo[10];
+  HP_COLUMNDEF columndef[2];
   HA_KEYSEG keyseg[4];
   HP_CREATE_INFO hp_create_info;
   HP_SHARE *tmp_share;
@@ -59,6 +61,10 @@ int main(int argc, char **argv)
   hp_create_info.reclength= 30;
   hp_create_info.max_records= (ulong) flag*100000L;
   hp_create_info.min_records= 10UL;
+  hp_create_info.columns= 2;
+  hp_create_info.columndef= columndef;
+  hp_create_info.fixed_key_fieldnr= 30;
+  hp_create_info.fixed_data_size= sizeof(char*) * 2;
 
   keyinfo[0].keysegs=1;
   keyinfo[0].seg=keyseg;
@@ -70,11 +76,20 @@ int main(int argc, char **argv)
   keyinfo[0].seg[0].null_bit= 0;
   keyinfo[0].flag = HA_NOSAME;
 
+  memset(columndef, 0, 2 * sizeof(HP_COLUMNDEF));
+  columndef[0].type= MYSQL_TYPE_STRING;
+  columndef[0].offset= 1;
+  columndef[0].length= 6;
+  columndef[1].type= MYSQL_TYPE_STRING;
+  columndef[1].offset= 7;
+  columndef[1].length= 23;
+
   deleted=0;
   memset(flags, 0, sizeof(flags));
 
   printf("- Creating heap-file\n");
-  if (heap_create(filename, &hp_create_info, &tmp_share, &unused) ||
+  if (heap_create(filename, &hp_create_info,
+                  &tmp_share, &unused) ||
       !(file= heap_open(filename, 2)))
     goto err;
   printf("- Writing records:s\n");

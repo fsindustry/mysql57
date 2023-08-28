@@ -74,6 +74,9 @@ BEGIN
                                 'group_replication_group_name')
     ORDER BY VARIABLE_NAME;
 
+  SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+    WHERE variable_name = 'debug_sync';
+
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
   SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
@@ -117,6 +120,12 @@ BEGIN
     FROM INFORMATION_SCHEMA.ROUTINES;
   -- Dump all views, only those in the sys schema should exist
   SELECT * FROM INFORMATION_SCHEMA.VIEWS;
+
+  -- Dump all created compression dictionaries if InnoDB is enabled
+  IF ((SELECT COUNT(*) FROM information_schema.engines
+       WHERE engine = 'InnoDB' AND support IN ('YES', 'DEFAULT')) = 1) THEN
+    SELECT * FROM information_schema.xtradb_zip_dict ORDER BY name;
+  END IF;
 
   SHOW GLOBAL STATUS LIKE 'slave_open_temp_tables';
 

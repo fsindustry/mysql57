@@ -29,4 +29,3 @@ SET DEBUG_SYNC='now SIGNAL analyze.finish';
 --reap
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
-

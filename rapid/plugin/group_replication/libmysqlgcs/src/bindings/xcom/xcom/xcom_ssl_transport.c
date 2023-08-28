@@ -139,19 +139,17 @@ static DH *get_dh2048(void)
   {
     BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
     BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-    if (!p || !g
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-        || !DH_set0_pqg(dh, p, NULL, g)
-#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
-    ) {
-      /* DH_free() will free 'p' and 'g' at once. */
-      DH_free(dh);
-      return NULL;
-    }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     dh->p= p;
     dh->g= g;
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+    if (! dh->p || ! dh->g)
+#else
+    if (!DH_set0_pqg(dh, p, NULL, g))
+#endif
+    {
+      DH_free(dh);
+      dh= NULL;
+    }
   }
   return(dh);
 }
@@ -635,7 +633,7 @@ void xcom_destroy_ssl()
 int ssl_verify_server_cert(SSL *ssl, const char* server_hostname)
 {
   X509 *server_cert= NULL;
-  char *cn= NULL;
+  const char *cn= NULL;
   int cn_loc= -1;
   ASN1_STRING *cn_asn1= NULL;
   X509_NAME_ENTRY *cn_entry= NULL;

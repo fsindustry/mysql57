@@ -301,8 +301,8 @@ command ok
 1
 0 rows affected
 SCHEMA_NAME	DIGEST	DIGEST_TEXT	COUNT_STAR
-null	3d4fc22e33e10d7235eced3c75a84c2c	SELECT ? 	1
-null	d24da32343f2b799f8a7ba1bdc45f83b	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
+null	3e334f40198e0b2d2d3732777c7a44ad	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
+null	3fff4c5a5ca5e1e484663cab257efd1e	SELECT ? 	1
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

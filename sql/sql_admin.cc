@@ -1040,6 +1040,9 @@ send_result_message:
 
     if (table->table)
     {
+      const bool skip_flush=
+        (operator_func == &handler::ha_analyze)
+        && (table->table->file->ha_table_flags() & HA_ONLINE_ANALYZE);
       if (table->table->s->tmp_table)
       {
         /*
@@ -1049,7 +1052,7 @@ send_result_message:
         if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
       }
-      else if (open_for_modify || fatal_error)
+      else if ((!skip_flush && open_for_modify) || fatal_error)
       {
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
                          table->db, table->table_name, FALSE);
@@ -1215,7 +1218,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error;
-  thd->enable_slow_log= opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                          "analyze", lock_type, 1, 0, 0, 0,
                          &handler::ha_analyze, 0);
@@ -1268,7 +1271,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
-  thd->enable_slow_log= opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
     mysql_recreate_table(thd, first_table, true) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
@@ -1299,7 +1302,7 @@ bool Sql_cmd_repair_table::execute(THD *thd)
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table,
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
-  thd->enable_slow_log= opt_log_slow_admin_statements;
+  thd->set_slow_log_for_admin_command();
   res= mysql_admin_table(thd, first_table, &thd->lex->check_opt, "repair",
                          TL_WRITE, 1,
                          MY_TEST(thd->lex->check_opt.sql_flags & TT_USEFRM),

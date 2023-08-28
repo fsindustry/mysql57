@@ -24,6 +24,7 @@
 #define _SQL_PROFILE_H
 
 #include "my_global.h"
+#include "my_sys.h"     // IO_CACHE
 
 class Item;
 struct TABLE_LIST;
@@ -178,11 +179,15 @@ public:
 */
 class PROF_MEASUREMENT
 {
-private:
-  friend class QUERY_PROFILE;
-  friend class PROFILING;
-
   QUERY_PROFILE *profile;
+
+  char *allocated_status_memory;
+
+  void set_label(const char *status_arg, const char *function_arg, 
+                  const char *file_arg, unsigned int line_arg);
+  void clean_up();
+
+public:
   const char *status;
 #ifdef HAVE_GETRUSAGE
   struct rusage rusage;
@@ -196,12 +201,7 @@ private:
 
   ulong m_seq;
   double time_usecs;
-  char *allocated_status_memory;
-
-  void set_label(const char *status_arg, const char *function_arg, 
-                  const char *file_arg, unsigned int line_arg);
-  void clean_up();
-  
+  double cpu_time_usecs;
   PROF_MEASUREMENT();
   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg);
   PROF_MEASUREMENT(QUERY_PROFILE *profile_arg, const char *status_arg,
@@ -247,6 +247,11 @@ private:
 
   /* Show this profile.  This is called by PROFILING. */
   bool show(uint options);
+
+public:
+
+  PROFILING * get_profiling() const { return profiling; };
+
 };
 
 
@@ -292,10 +297,14 @@ public:
 
   /* SHOW PROFILES */
   bool show_profiles();
+  bool enabled_getrusage() const;
 
   /* ... from INFORMATION_SCHEMA.PROFILING ... */
   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
+
   void cleanup();
+
+  int print_current(IO_CACHE *log_file) const;
 };
 
 #  endif /* HAVE_PROFILING */

@@ -140,7 +140,7 @@ int my_aes_get_size(uint32 source_length, enum my_aes_opmode mode);
   @retval FALSE  IV not needed
 */
 
-my_bool my_aes_needs_iv(my_aes_opmode opmode);
+my_bool my_aes_needs_iv(enum my_aes_opmode opmode);
 
 
 C_MODE_END

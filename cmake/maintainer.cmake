@@ -23,15 +23,6 @@
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security -Wvla")
 
-# The default =3 given by -Wextra is a bit too strict for our code.
-IF(CMAKE_COMPILER_IS_GNUCXX)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wimplicit-fallthrough=2"
-    HAVE_IMPLICIT_FALLTHROUGH)
-  IF(HAVE_IMPLICIT_FALLTHROUGH)
-    SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wimplicit-fallthrough=2")
-  ENDIF()
-ENDIF()
-
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
@@ -44,6 +35,14 @@ SET(MY_CXX_WARNING_FLAGS
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_CXX_WARNING_FLAGS
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
+
+# Suppress warnings for clang-15 or newer
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_C_COMPILER_VERSION VERSION_LESS 15.0)
+  STRING_APPEND(MY_C_WARNING_FLAGS " -Wno-deprecated-non-prototype")
+ENDIF()
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 15.0)
+  STRING_APPEND(MY_CXX_WARNING_FLAGS " -Wno-unused-parameter -Wno-unused-but-set-variable")
 ENDIF()
 
 # Turn on Werror (warning => error) when using maintainer mode.

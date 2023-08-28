@@ -28,15 +28,15 @@
 #include "keyring_key.h"
 #include "i_keyring_io.h"
 #include "logger.h"
-#include <sys_vars_shared.h> //For PolyLock, AutoWLock, AutoRLock
 #include "i_keys_container.h"
 #include "keyring_memory.h"
+#include "i_system_keys_container.h"
 
 #include <vector>
 
-namespace keyring {
-
 extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
+
+namespace keyring {
 
 class Keys_container : public IKeys_container
 {
@@ -81,6 +81,7 @@ protected:
   ILogger *logger;
   IKeyring_io *keyring_io;
   std::string keyring_storage_url;
+  boost::movelib::unique_ptr<ISystem_keys_container> system_keys_container;
 };
 
 } //namespace keyring

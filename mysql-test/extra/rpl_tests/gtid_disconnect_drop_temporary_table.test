@@ -92,7 +92,7 @@ while ($i <= 4)
   --echo # Disconnecting.
   --disconnect con1
 
-  if (`SELECT @@GLOBAL.binlog_format != 'ROW'`)
+  if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
   {
     # Verify that the binlog contains the expected events.
     --let $event_sequence= (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*)
@@ -110,7 +110,7 @@ while ($i <= 4)
   --connection master
   --let $gtid_step_gtid_mode_agnostic= 1
   --let $gtid_step_count= 0
-  if (`SELECT @@GLOBAL.binlog_format != 'ROW'`)
+  if (`SELECT @@GLOBAL.binlog_format = 'STATEMENT'`)
   {
     --let $gtid_step_count= 1
   }

@@ -88,7 +88,7 @@ handler_create_thd(
 	}
 
 	my_thread_init();
-	thd = new THD;
+	thd = new (std::nothrow) THD;
 
 	if (!thd) {
 		return(NULL);

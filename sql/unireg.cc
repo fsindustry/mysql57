@@ -279,6 +279,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 
   create_info->extra_size+= 2 + create_info->encrypt_type.length;
 
+  if (create_info->was_encryption_key_id_set)
+    create_info->extra_size += strlen("ENCRYPTION_KEY_ID") + 4;
+
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys, key_info)) < 0)
   {
@@ -467,6 +470,17 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       goto err;
   }
 
+  if (create_info->was_encryption_key_id_set)
+  {
+      uchar encryption_key_id_buff[4];
+      int4store(encryption_key_id_buff, create_info->encryption_key_id);
+
+      if (mysql_file_write(file, (uchar*) "ENCRYPTION_KEY_ID",
+                           strlen("ENCRYPTION_KEY_ID"), MYF(MY_NABP)) ||
+          mysql_file_write(file, encryption_key_id_buff, 4, MYF(MY_NABP)))
+        goto err;
+  }
+
   mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
   if (mysql_file_write(file, forminfo, 288, MYF_RW) ||
       mysql_file_write(file, screen_buff, info_length, MYF_RW) ||
@@ -545,6 +559,8 @@ int rea_create_table(THD *thd, const char *path,
   char frm_name[FN_REFLEN + 1];
   strxnmov(frm_name, sizeof(frm_name) - 1, path, reg_ext, NullS);
 
+  file->adjust_create_info_for_frm(create_info);
+
   if (mysql_create_frm(thd, frm_name, db, table_name, create_info,
                        create_fields, keys, key_info, file))
 
@@ -560,7 +576,8 @@ int rea_create_table(THD *thd, const char *path,
     goto err_handler_frm;
 
   if (!no_ha_table &&
-       ha_create_table(thd, path, db, table_name, create_info, 0))
+       ha_create_table(thd, path, db, table_name, create_info,
+                       &create_fields, 0))
     goto err_handler;
   DBUG_RETURN(0);
 
@@ -666,7 +683,15 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   key_parts=0;
   for (key=keyinfo,end=keyinfo+key_count ; key != end ; key++)
   {
-    int2store(pos, static_cast<uint16>(key->flags ^ HA_NOSAME));
+    /* Replace HA_CLUSTERING with HA_SPATIAL | HA_FULLTEXT to allow storing
+    TokuDB keys without changing the FRM format.  */
+    uint16 key_flags= static_cast<uint16>(key->flags);
+    if (key->flags & HA_CLUSTERING)
+    {
+      key_flags|= HA_SPATIAL;
+      key_flags|= HA_FULLTEXT;
+    }
+    int2store(pos, (key_flags ^ HA_NOSAME));
     int2store(pos+2,key->key_length);
     pos[4]= (uchar) key->user_defined_key_parts;
     pos[5]= (uchar) key->algorithm;

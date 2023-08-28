@@ -217,7 +217,9 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
                         worker_table_data, worker_file_data, &msg))
     goto err;
 
-  if (!(rli= new Relay_log_info(is_slave_recovery
+  try
+  {
+    rli= new Relay_log_info(is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
                                 ,&key_relay_log_info_run_lock,
                                 &key_relay_log_info_data_lock,
@@ -231,7 +233,8 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
                                 , instances, channel,
                                 (rli_option != INFO_REPOSITORY_TABLE
                                  && rli_option != INFO_REPOSITORY_FILE)
-                                )))
+                                );
+  } catch (std::bad_alloc&)  
   {
     msg= msg_alloc;
     goto err;
@@ -420,7 +423,9 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
   char *pos= my_stpcpy(worker_file_data.name, worker_file_data.pattern);
   sprintf(pos, "%u", worker_id + 1);
 
-  if (!(worker= new Slave_worker(rli
+  try
+  {
+    worker= new Slave_worker(rli
 #ifdef HAVE_PSI_INTERFACE
                                  ,&key_relay_log_info_run_lock,
                                  &key_relay_log_info_data_lock,
@@ -432,9 +437,11 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
                                  &key_relay_log_info_sleep_cond
 #endif
                                  , worker_id, rli->get_channel()
-                                )))
+                                );
+  } catch (std::bad_alloc&)
+  {
     goto err;
-
+  }
 
   if(init_repositories(worker_table_data, worker_file_data, rli_option,
                        worker_id + 1, &handler_src, &handler_dest, &msg))
@@ -594,6 +601,8 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   bool error= true;
   enum_return_check return_check_src= ERROR_CHECKING_REPOSITORY;
   enum_return_check return_check_dst= ERROR_CHECKING_REPOSITORY;
+  bool binlog_prot_acquired= false;
+  THD * const thd= current_thd;
   DBUG_ENTER("Rpl_info_factory::decide_repository");
 
   if (option == INFO_REPOSITORY_DUMMY)
@@ -650,6 +659,23 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
         goto err;
 
       /*
+        Acquire a backup binlog protection lock, because Rpl_info::copy_info()
+        will modify master binary log coordinates.
+      */
+      if (thd && !thd->backup_binlog_lock.is_acquired())
+      {
+        const ulong timeout= thd->variables.lock_wait_timeout;
+
+        DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+
+        if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                       timeout))
+          goto err;
+
+        binlog_prot_acquired= true;
+      }
+
+      /*
         Transfer information from source to destination and delete the
         source. Note this is not fault-tolerant and a crash before removing
         source may cause the next restart to fail as is_src and is_dest may
@@ -694,6 +720,11 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   }
 
 err:
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    thd->backup_binlog_lock.release_protection(thd);
+  }
   DBUG_RETURN(error); 
 }
 

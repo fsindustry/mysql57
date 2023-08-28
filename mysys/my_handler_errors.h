@@ -77,8 +77,8 @@ static const char *handler_error_messages[]=
   "There's no partition in table for the given value",
   "Row-based binlogging of row failed",
   "Index needed in foreign key constraint",
-  "Upholding foreign key constraints would lead to a duplicate key error in "
-  "some other table",
+  ("Upholding foreign key constraints would lead to a duplicate key error in "
+   "some other table"),
   "Table needs to be upgraded before it can be used",
   "Table is read only",
   "Failed to get next auto increment value",
@@ -117,6 +117,8 @@ static const char *handler_error_messages[]=
   "Incorrect file name",
   "Operation is not allowed",
   "Compute generate value failed",
+  "Destination schema does not exist",
+  "Partitioning can't be initialized",
   "Too many nested sub-expressions in a full-text search"
 };
 

@@ -408,6 +408,7 @@ enum enum_commands {
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
+  Q_FORCE_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
   Q_RESULT_FORMAT_VERSION,
@@ -510,6 +511,7 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
+  "force-rmdir",
   "list_files",
   "list_files_write_file",
   "list_files_append_file",
@@ -803,8 +805,9 @@ public:
         DBUG_VOID_RETURN;
       }
 
-      DBUG_PRINT("info", ("Read %lu bytes from file, buf: %s",
-                          (unsigned long)bytes, buf));
+      DBUG_PRINT("info",
+                 ("Read %lu bytes from file, buf: %.*s", (unsigned long)bytes,
+                  static_cast<int>(bytes), buf));
 
       char* show_from= buf + bytes;
       while(show_from > buf && lines > 0 )
@@ -3160,7 +3163,23 @@ FILE* my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
   }
 #endif /* _WIN32 */
 
-  return popen(ds_cmd->str, mode);
+  errno= 0;
+  FILE *file= popen(ds_cmd->str, mode);
+  if (file == NULL)
+  {
+    if (errno != 0)
+    {
+      fprintf(stderr, "mysqltest: popen failed with errno %d (%s)\n", errno,
+              strerror(errno));
+    }
+    else
+    {
+      fprintf(stderr,
+              "mysqltest: popen returned NULL without setting errno "
+              "(out-of-memory?)\n");
+    }
+  }
+  return file;
 }
 
 
@@ -3911,17 +3930,78 @@ void do_mkdir(struct st_command *command)
   DBUG_VOID_RETURN;
 }
 
+
+/*
+  SYNOPSIS
+  do_force_rmdir
+  command    - command handle
+  ds_dirname - pointer to dynamic string containing directory informtion
+
+  DESCRIPTION
+  force-rmdir <dir_name>
+  Remove the directory <dir_name>
+*/
+
+static void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname)
+{
+  DBUG_ENTER("do_force_rmdir");
+
+  char dir_name[FN_REFLEN];
+  my_strncpy_trunc(dir_name, ds_dirname->str, sizeof(dir_name));
+
+  /* Note that my_dir sorts the list if not given any flags */
+  MY_DIR *dir_info= my_dir(ds_dirname->str, MYF(MY_DONT_SORT | MY_WANT_STAT));
+
+  if (dir_info && dir_info->number_off_files > 2)
+  {
+    /* Storing the length of the path to the file, so it can be reused */
+    size_t length= ds_dirname->length;
+
+    /* Delete the directory recursively */
+    for (uint i= 0; i < dir_info->number_off_files; i++)
+    {
+      FILEINFO *file= dir_info->dir_entry + i;
+
+      /* Skip the names "." and ".." */
+      if (!strcmp(file->name, ".") ||
+          !strcmp(file->name, ".."))
+        continue;
+
+      ds_dirname->length= length;
+      char dir_separator[2]= {FN_LIBCHAR, 0};
+      dynstr_append(ds_dirname, dir_separator);
+      dynstr_append(ds_dirname, file->name);
+
+      if (MY_S_ISDIR(file->mystat->st_mode))
+        /* It's a directory */
+        do_force_rmdir(command, ds_dirname);
+      else
+        /* It's a file */
+        my_delete(ds_dirname->str, MYF(0));
+    }
+  }
+
+  my_dirend(dir_info);
+  int error= rmdir(dir_name) != 0;
+  handle_command_error(command, error);
+
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   SYNOPSIS
   do_rmdir
   command	called command
+  force         Recursively delete a directory if the value is set to true,
+                otherwise delete an empty direcory
 
   DESCRIPTION
   rmdir <dir_name>
   Remove the empty directory <dir_name>
 */
 
-void do_rmdir(struct st_command *command)
+static void do_rmdir(struct st_command *command, bool force)
 {
   int error;
   static DYNAMIC_STRING ds_dirname;
@@ -3935,8 +4015,13 @@ void do_rmdir(struct st_command *command)
                      ' ');
 
   DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
-  error= rmdir(ds_dirname.str) != 0;
-  handle_command_error(command, error);
+  if (force)
+    do_force_rmdir(command, &ds_dirname);
+  else
+  {
+    error= rmdir(ds_dirname.str) != 0;
+    handle_command_error(command, error);
+  }
   dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
@@ -4413,12 +4498,16 @@ void do_send_quit(struct st_command *command)
 void do_change_user(struct st_command *command)
 {
   MYSQL *mysql = &cur_con->mysql;
-  static DYNAMIC_STRING ds_user, ds_passwd, ds_db;
+  static DYNAMIC_STRING ds_user, ds_passwd, ds_db, ds_reconnect;
+  bool reconnect = true;
   const struct command_arg change_user_args[] = {
     { "user", ARG_STRING, FALSE, &ds_user, "User to connect as" },
     { "password", ARG_STRING, FALSE, &ds_passwd, "Password used when connecting" },
     { "database", ARG_STRING, FALSE, &ds_db, "Database to select after connect" },
+    { "reconnect", ARG_STRING, FALSE, &ds_reconnect, "Reconnect on fail" },
   };
+  const char *reconnect_on_fail = "reconnect_on_fail";
+  const char *do_not_reconnect_on_fail = "do_not_reconnect_on_fail";
 
   DBUG_ENTER("do_change_user");
 
@@ -4444,20 +4533,40 @@ void do_change_user(struct st_command *command)
       dynstr_set(&ds_db, mysql->db);
   }
 
-  DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' database: '%s'",
-                      cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
+  if (ds_reconnect.length != 0)
+  {
+    if (strcmp(ds_reconnect.str, do_not_reconnect_on_fail) == 0)
+      reconnect= false;
+    else if (strcmp(ds_reconnect.str, reconnect_on_fail) == 0)
+      reconnect= true;
+    else
+      die("Wrong value specified for 'reconnect' parameter. "
+          "Allowed value are '%s' and '%s'",
+          do_not_reconnect_on_fail, reconnect_on_fail);
+  }
+
+  DBUG_PRINT("info",("connection: '%s' user: '%s' password: '%s' "
+                     "database: '%s' reconnect: '%s'",
+                     cur_con->name, ds_user.str, ds_passwd.str, ds_db.str,
+                     reconnect ? "true" : "false"));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
   {
     handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
                  mysql_sqlstate(mysql), &ds_res);
-    mysql->reconnect= 1;
-    mysql_reconnect(&cur_con->mysql);
+    if (reconnect)
+    {
+      mysql->reconnect= 1;
+      mysql_reconnect(&cur_con->mysql);
+    }
   }
+  else
+    handle_no_error(command);
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
   dynstr_free(&ds_db);
+  dynstr_free(&ds_reconnect);
 
   DBUG_VOID_RETURN;
 }
@@ -5080,6 +5189,25 @@ int query_get_string(MYSQL* mysql, const char* query,
 
 
 /**
+  A wrapper around kill call that prints diagnostics if the call failed with
+  any other error than ESRCH.
+
+  @param pid    Process id
+  @param sig    Signal to send to process
+  @return The return value of kill call
+*/
+static int my_kill(int pid, int sig)
+{
+  const int result= kill(pid, sig);
+  if (result == -1 && errno != ESRCH)
+  {
+    log_msg("kill(%d, %d) returned errno %d (%s)", pid, sig, errno,
+            strerror(errno));
+  }
+  return result;
+}
+
+/**
   Check if process is active.
 
   @param pid  Process id.
@@ -5104,7 +5232,7 @@ static bool is_process_active(int pid)
 
   return true;
 #else
-  return (kill(pid, 0) == 0);
+  return (my_kill(pid, 0) == 0);
 #endif
 }
 
@@ -5129,7 +5257,7 @@ static bool kill_process(int pid)
 
   CloseHandle(proc);
 #else
-  killed= (kill(pid, SIGKILL) == 0);
+  killed= (my_kill(pid, SIGKILL) == 0);
 #endif
   return killed;
 }
@@ -5198,7 +5326,9 @@ static void abort_process(int pid, const char *path)
     verbose_msg("OpenProcess failed: %d\n", err);
   }
 #else
-  kill(pid, SIGABRT);
+  log_msg("shutdown_server timeout exceeded, SIGABRT set to the server PID %d",
+          pid);
+  my_kill(pid, SIGABRT);
 #endif
 }
 
@@ -5219,7 +5349,7 @@ static void abort_process(int pid, const char *path)
 
 void do_shutdown_server(struct st_command *command)
 {
-  long timeout=60;
+  long timeout=600;
   int pid, error= 0;
   std::string ds_file_name;
   MYSQL* mysql = &cur_con->mysql;
@@ -8154,7 +8284,17 @@ void handle_error(struct st_command *command,
   }
 
   if (command->abort_on_error)
+  {
+    if (err_errno == ER_NO_SUCH_THREAD)
+    {
+      /* No such thread id, let's dump the available ones */
+      fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+              "dumping processlist\n", command->query);
+      show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+    }
+
     die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
+  }
 
   DBUG_PRINT("info", ("expected_errors.count: %d",
                       command->expected_errors.count));
@@ -8200,9 +8340,18 @@ void handle_error(struct st_command *command,
   if (command->expected_errors.count > 0)
   {
     if (command->expected_errors.err[0].type == ERR_ERRNO)
+    {
+      if (err_errno == ER_NO_SUCH_THREAD)
+      {
+        /* No such thread id, let's dump the available ones */
+        fprintf(stderr, "mysqltest: query '%s returned ER_NO_SUCH_THREAD, "
+                "dumping processlist\n", command->query);
+        show_query(&cur_con->mysql, "SHOW PROCESSLIST");
+      }
       die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
           command->query, err_errno, err_error,
           command->expected_errors.err[0].code.errnum);
+    }
     else
       die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
           command->query, err_sqlstate, err_error,
@@ -9500,7 +9649,8 @@ int main(int argc, char **argv)
       case Q_REMOVE_FILE: do_remove_file(command); break;
       case Q_REMOVE_FILES_WILDCARD: do_remove_files_wildcard(command); break;
       case Q_MKDIR: do_mkdir(command); break;
-      case Q_RMDIR: do_rmdir(command); break;
+      case Q_RMDIR: do_rmdir(command, 0); break;
+      case Q_FORCE_RMDIR: do_rmdir(command, 1); break;
       case Q_LIST_FILES: do_list_files(command); break;
       case Q_LIST_FILES_WRITE_FILE:
         do_list_files_write_file_command(command, FALSE);
@@ -10108,7 +10258,8 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING* result,
       */
       if (size1 < (size_t) r)
         r= size1;
-    // fallthrough: all cases till next break are executed
+    // fallthrough
+    // all cases till next break are executed
     case 'e':
     case 'E':
       if (isdigit(*(from + size + 1)))

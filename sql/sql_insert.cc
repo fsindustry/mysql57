@@ -773,7 +773,11 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       error= 1;
       break;
     }
-    error= write_record(thd, insert_table, &info, &update);
+    error= insert_table->file->ha_upsert(thd,
+                                         insert_update_list,
+                                         insert_value_list);
+    if (error == ENOTSUP)
+      error= write_record(thd, insert_table, &info, &update);
     if (error)
       break;
     thd->get_stmt_da()->inc_current_row_for_condition();
@@ -902,13 +906,15 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   if (thd->is_error())
     goto exit_without_my_ok;
 
+  ha_rows row_count;
+
   if (insert_many_values.elements == 1 &&
       (!(thd->variables.option_bits & OPTION_WARNINGS) || !thd->cuted_fields))
   {
-    my_ok(thd, info.stats.copied + info.stats.deleted +
-          (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
-           info.stats.touched : info.stats.updated),
-          id);
+    row_count= info.stats.copied + info.stats.deleted +
+      (thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
+       info.stats.touched : info.stats.updated);
+    my_ok(thd, row_count, id);
   }
   else
   {
@@ -926,8 +932,10 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
                   (long) thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
+    row_count= info.stats.copied + info.stats.deleted + updated;
+    my_ok(thd, row_count, id, buff);
   }
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(FALSE);
 
 exit_without_my_ok:
@@ -2189,7 +2197,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
   /* Decide the logging format prior to preparing table/record metadata */
-  res= res || thd->decide_logging_format(table_list);
+  res= res || thd->decide_logging_format(table_list, false);
   if (!res)
   {
      prepare_triggers_for_insert_stmt(table);
@@ -2369,6 +2377,7 @@ bool Query_result_insert::send_eof()
 
   error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
+  bulk_insert_started= false;
   if (!error && thd->is_error())
     error= thd->get_stmt_da()->mysql_errno();
 
@@ -2453,6 +2462,7 @@ bool Query_result_insert::send_eof()
      thd->first_successful_insert_id_in_prev_stmt :
      (info.stats.copied ? autoinc_value_of_last_inserted_row : 0));
   my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(0);
 }
 
@@ -2476,8 +2486,10 @@ void Query_result_insert::abort_result_set()
       if tables are not locked yet (bulk insert is not started yet
       in this case).
     */
-    if (bulk_insert_started)
+    if (bulk_insert_started) {
       table->file->ha_end_bulk_insert();
+      bulk_insert_started= false;
+    }
 
     /*
       If at least one row has been inserted/modified and will stay in
@@ -2837,6 +2849,10 @@ int Query_result_create::prepare2()
       if (error)
         return error;
 
+      create_table->table->set_binlog_drop_if_temp(
+        !thd->is_current_stmt_binlog_disabled()
+        && !thd->is_current_stmt_binlog_format_row());
+
       TABLE const *const table = *tables;
       create_table->table->set_binlog_drop_if_temp(
         !thd->is_current_stmt_binlog_disabled()
@@ -3167,6 +3183,7 @@ bool Sql_cmd_insert::execute(THD *thd)
                   };);
 
   thd->lex->clear_values_map();
+  DEBUG_SYNC(thd, "after_mysql_insert");
   return res;
 }
 

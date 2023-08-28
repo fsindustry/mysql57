@@ -1570,7 +1570,10 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE), m_indexed(false),
+   is_created_from_null_item(FALSE),
+   zip_dict_name(null_lex_cstr),
+   zip_dict_data(null_lex_cstr),
+   m_indexed(false),
    m_warnings_pushed(0),
    gcol_info(0), stored_in_db(TRUE)
 
@@ -1744,6 +1747,31 @@ bool Field::send_binary(Protocol *protocol)
     return protocol->store_null();
   String *res= val_str(&tmp);
   return res ? protocol->store(res) : protocol->store_null();
+}
+
+/**
+  Checks if the current field definition and provided create field
+  definition have different compression attributes.
+
+  @param   new_field   create field definition to compare with
+
+  @return
+    true  - if compression attributes are different
+    false - if compression attributes are identical.
+*/
+bool Field::has_different_compression_attributes_with(
+  const Create_field& new_field) const
+{
+  if (new_field.column_format() != COLUMN_FORMAT_TYPE_COMPRESSED &&
+      column_format() != COLUMN_FORMAT_TYPE_COMPRESSED)
+    return false;
+
+  if (new_field.column_format() != column_format()) return true;
+
+  if ((zip_dict_name.str == NULL) && (new_field.zip_dict_name.str == NULL))
+    return false;
+
+  return !::is_equal(&new_field.zip_dict_name, &zip_dict_name);
 }
 
 
@@ -2219,8 +2247,13 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
     never be quite sure which parts of the server will break.
   */
   tmp->unireg_check= Field::NONE;
+  /* COMPRESSED column format flag must not be cleared here */
+  bool has_compressed_flag =
+    (tmp->column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
   tmp->flags&= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG |
                 ZEROFILL_FLAG | BINARY_FLAG | ENUM_FLAG | SET_FLAG);
+  if (has_compressed_flag)
+    tmp->set_column_format(COLUMN_FORMAT_TYPE_COMPRESSED);
   tmp->reset_fields();
   return tmp;
 }
@@ -7998,8 +8031,13 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 
 uint Field_varstring::is_equal(Create_field *new_field)
 {
+  /*
+    changing column format to/from compressed or changing associated
+    compression dictionary must result in table rebuild
+  */
   if (new_field->sql_type == real_type() &&
-      new_field->charset == field_charset)
+      new_field->charset == field_charset &&
+      !has_different_compression_attributes_with(*new_field))
   {
     if (new_field->length == max_display_length())
       return IS_EQUAL_YES;
@@ -8508,7 +8546,7 @@ void Field_blob::make_sort_key(uchar *to, size_t length)
   uchar *blob;
   size_t blob_length=get_length();
 
-  if (!blob_length)
+  if (!blob_length && field_charset->pad_char == 0)
     memset(to, 0, length);
   else
   {
@@ -8521,19 +8559,20 @@ void Field_blob::make_sort_key(uchar *to, size_t length)
       */
       length-= packlength;
       pos= to+length;
+      uint key_length= MY_MIN(blob_length, length);
 
       switch (packlength) {
       case 1:
-        *pos= (char) blob_length;
+        *pos= (char) key_length;
         break;
       case 2:
-        mi_int2store(pos, blob_length);
+        mi_int2store(pos, key_length);
         break;
       case 3:
-        mi_int3store(pos, blob_length);
+        mi_int3store(pos, key_length);
         break;
       case 4:
-        mi_int4store(pos, blob_length);
+        mi_int4store(pos, key_length);
         break;
       }
     }
@@ -8656,9 +8695,14 @@ uint Field_blob::max_packed_col_length()
 
 uint Field_blob::is_equal(Create_field *new_field)
 {
+  /*
+    changing column format to/from compressed or changing associated
+    compression dictionary must result in table rebuild
+  */
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
-          new_field->pack_length == pack_length());
+          new_field->pack_length == pack_length() &&
+          !has_different_compression_attributes_with(*new_field));
 }
 
 
@@ -8810,7 +8854,8 @@ Field_json *Field_json::clone() const
 uint Field_json::is_equal(Create_field *new_field)
 {
   // All JSON fields are compatible with each other.
-  return (new_field->sql_type == real_type());
+  return (new_field->sql_type == real_type() &&
+          !has_different_compression_attributes_with(*new_field));
 }
 
 
@@ -9123,6 +9168,27 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
+}
+
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  using namespace json_binary;
+  /*
+    The length is 0 if NULL has been inserted into a NOT NULL column
+    using INSERT IGNORE or similar. If so, interpret the value as the
+    JSON null literal.
+  */
+  Value        null_literal(Value::LITERAL_NULL);
+  Json_wrapper aw(a_length == 0 ? null_literal : parse_binary(a, a_length));
+  Json_wrapper bw(b_length == 0 ? null_literal : parse_binary(b, b_length));
+  return aw.compare(bw);
 }
 
 
@@ -10550,6 +10616,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_interval_list     Interval list (if any.)
   @param fld_charset           Column charset.
   @param fld_geom_type         Column geometry type (if any.)
+  @param fld_zip_dict_name     Column compression dictionary.
   @param fld_gcol_info         Generated column data
 
   @retval
@@ -10565,6 +10632,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
                         const CHARSET_INFO *fld_charset, uint fld_geom_type,
+                        const LEX_CSTRING *fld_zip_dict_name,
                         Generated_column *fld_gcol_info)
 {
   uint sign_len, allowed_type_modifier= 0;
@@ -10989,6 +11057,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
     DBUG_RETURN(TRUE);
   }
 
+  zip_dict_name= *fld_zip_dict_name;
   DBUG_RETURN(FALSE); /* success */
 }
 
@@ -11294,6 +11363,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   unireg_check(old_field->unireg_check),
   charset(old_field->charset()),		// May be NULL ptr
   field(old_field),
+  zip_dict_name(old_field->zip_dict_name),
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)
 {
@@ -11405,7 +11475,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     length
 */
 
-uint32 Field_blob::char_length()
+uint32 Field_blob::char_length() const
 {
   switch (packlength)
   {

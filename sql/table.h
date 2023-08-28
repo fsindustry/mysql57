@@ -601,6 +601,8 @@ struct TABLE_SHARE
   LEX_STRING comment;			/* Comment about table */
   LEX_STRING compress;			/* Compression algorithm */
   LEX_STRING encrypt_type;		/* encryption algorithm */
+  uint32_t encryption_key_id;
+  bool was_encryption_key_id_set;
   const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;
@@ -746,6 +748,12 @@ struct TABLE_SHARE
   */ 
   const File_parser *view_def;
 
+  /**
+    True in the case if tokudb read-free-replication is used for the table
+    without explicit pk and corresponding warning was issued to disable
+    repeated warning.
+  */
+  bool rfr_lookup_warning;
 
   /*
     Set share's table cache key and update its db and table name appropriately.
@@ -902,6 +910,12 @@ struct TABLE_SHARE
                             uint deadlock_weight);
   /** Release resources and free memory occupied by the table share. */
   void destroy();
+
+  /**
+    Checks if TABLE_SHARE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
 };
 
 
@@ -1466,7 +1480,26 @@ public:
   */
   void cleanup_gc_items();
 
- /**
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag.
+  */
+  bool has_compressed_columns() const;
+
+  /**
+    Checks if TABLE has at least one field with
+    COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    zip_dict.
+  */
+  bool has_compressed_columns_with_dictionaries() const;
+
+  /**
+    Updates zip_dict_name in the TABLE's field definitions based on the
+    values from the supplied list of Create_field objects.
+  */
+  void update_compressed_columns_info(const List<Create_field>& fields);
+
+  /**
    Check if table contains any records.
 
    @param      thd     The thread object
@@ -3075,6 +3108,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table);
 bool update_generated_read_fields(uchar *buf, TABLE *table,
                                   uint active_index= MAX_KEY);
 
+ulong get_form_pos(File file, uchar *head);
 #endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

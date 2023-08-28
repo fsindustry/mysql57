@@ -302,6 +302,12 @@ enum enum_alter_inplace_result {
 */
 #define HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN (1LL << 47)
 
+/**
+  There is no need to evict the table from the table definition cache having
+  run ANALYZE TABLE on it
+ */
+#define HA_ONLINE_ANALYZE             (1LL << 48)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -315,6 +321,7 @@ enum enum_alter_inplace_result {
 */
 #define HA_KEY_SCAN_NOT_ROR     128 
 #define HA_DO_INDEX_COND_PUSHDOWN  256 /* Supports Index Condition Pushdown */
+#define HA_CLUSTERED_INDEX      512     /* Data is clustered on this key */
 
 /* operations for disable/enable indexes */
 #define HA_KEY_SWITCH_NONUNIQ      0
@@ -415,7 +422,9 @@ enum legacy_db_type
   DB_TYPE_MARIA,
   /** Performance schema engine. */
   DB_TYPE_PERFORMANCE_SCHEMA,
-  DB_TYPE_FIRST_DYNAMIC=42,
+  DB_TYPE_TOKUDB=41,
+  DB_TYPE_ROCKSDB=42,
+  DB_TYPE_FIRST_DYNAMIC=43,
   DB_TYPE_DEFAULT=127 // Must be last
 };
 
@@ -423,13 +432,18 @@ enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT,
                 /** Unused. Reserved for future versions. */
-                ROW_TYPE_PAGE };
+                ROW_TYPE_PAGE,
+                ROW_TYPE_TOKU_UNCOMPRESSED, ROW_TYPE_TOKU_ZLIB,
+                ROW_TYPE_TOKU_SNAPPY, ROW_TYPE_TOKU_QUICKLZ,
+                ROW_TYPE_TOKU_LZMA, ROW_TYPE_TOKU_FAST, ROW_TYPE_TOKU_SMALL,
+                ROW_TYPE_TOKU_DEFAULT };
 
 /* Specifies data storage format for individual columns */
 enum column_format_type {
   COLUMN_FORMAT_TYPE_DEFAULT=   0, /* Not specified (use engine default) */
   COLUMN_FORMAT_TYPE_FIXED=     1, /* FIXED format */
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2  /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_DYNAMIC=   2, /* DYNAMIC format */
+  COLUMN_FORMAT_TYPE_COMPRESSED= 3  /* COMPRESSED format*/
 };
 
 enum enum_binlog_func {
@@ -537,6 +551,8 @@ namespace AQP {
 /** ENCRYPTION="Y" used during table create. */
 #define HA_CREATE_USED_ENCRYPT          (1L << 27)
 
+#define HA_CREATE_USED_ENCRYPTION_KEY_ID (1L << 28)
+
 /*
   These structures are used to pass information from a set of SQL commands
   on add/drop/change tablespace definitions to the proper hton.
@@ -593,6 +609,8 @@ class st_alter_tablespace : public Sql_alloc
   bool wait_until_completed;
   const char *ts_comment;
   enum tablespace_access_mode ts_access_mode;
+  bool encrypt;
+  LEX_STRING encrypt_type;
   bool is_tablespace_command()
   {
     return ts_cmd_type == CREATE_TABLESPACE      ||
@@ -623,6 +641,8 @@ class st_alter_tablespace : public Sql_alloc
     wait_until_completed= TRUE;
     ts_comment= NULL;
     ts_access_mode= TS_NOT_DEFINED;
+    encrypt= false;
+    encrypt_type = LEX_STRING();
   }
 };
 
@@ -636,14 +656,17 @@ struct TABLE;
 enum enum_schema_tables
 {
   SCH_CHARSETS= 0,
+  SCH_CLIENT_STATS,
   SCH_COLLATIONS,
   SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
   SCH_COLUMNS,
   SCH_COLUMN_PRIVILEGES,
+  SCH_INDEX_STATS,
   SCH_ENGINES,
   SCH_EVENTS,
   SCH_FILES,
   SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_TEMPORARY_TABLES,
   SCH_GLOBAL_VARIABLES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
@@ -666,8 +689,12 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
+  SCH_TABLE_STATS,
+  SCH_TEMPORARY_TABLES,
+  SCH_THREAD_STATS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
+  SCH_USER_STATS,
   SCH_VARIABLES,
   SCH_VIEWS
 };
@@ -682,6 +709,41 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
 extern st_plugin_int *hton2plugin[MAX_HA];
+
+/** Create compression dictionary result type. */
+enum handler_create_zip_dict_result
+{
+  HA_CREATE_ZIP_DICT_OK,             /*!< zip_dict successfully created */
+  HA_CREATE_ZIP_DICT_ALREADY_EXISTS, /*!< zip dict with such name already
+                                          exists */
+  HA_CREATE_ZIP_DICT_NAME_TOO_LONG,  /*!< zip dict name is too long */
+  HA_CREATE_ZIP_DICT_DATA_TOO_LONG,  /*!< zip dict data is too long */
+  HA_CREATE_ZIP_DICT_READ_ONLY,      /*!< cannot create in read-only mode */
+  HA_CREATE_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_CREATE_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                     /*!< out of disk space */
+  HA_CREATE_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                     /*!< too many concurrent transactions */
+  HA_CREATE_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                          creation */
+};
+
+/** Drop compression dictionary result type. */
+enum handler_drop_zip_dict_result
+{
+  HA_DROP_ZIP_DICT_OK,             /*!< zip_dict successfully dropped */
+  HA_DROP_ZIP_DICT_DOES_NOT_EXIST, /*!< zip dict with such name does not
+                                        exist */
+  HA_DROP_ZIP_DICT_IS_REFERENCED,  /*!< zip dict is in use */
+  HA_DROP_ZIP_DICT_READ_ONLY,      /*!< cannot drop in read-only mode */
+  HA_DROP_ZIP_DICT_OUT_OF_MEMORY,  /*!< out of memory */
+  HA_DROP_ZIP_DICT_OUT_OF_FILE_SPACE,
+                                   /*!< out of disk space */
+  HA_DROP_ZIP_DICT_TOO_MANY_CONCURRENT_TRXS,
+                                   /*!< too many concurrent transactions */
+  HA_DROP_ZIP_DICT_UNKNOWN_ERROR   /*!< unknown error during zip_dict
+                                        removal */
+};
 
 class handler;
 /*
@@ -773,6 +835,7 @@ struct handlerton
    void (*drop_database)(handlerton *hton, char* path);
    int (*panic)(handlerton *hton, enum ha_panic_function flag);
    int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
+   int (*clone_consistent_snapshot)(handlerton *hton, THD *thd, THD *from_thd);
    /**
      Flush the log(s) of storage engine(s).
 
@@ -783,6 +846,7 @@ struct handlerton
      @retval true Error
    */
    bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
+   int (*store_binlog_info)(handlerton *hton, THD *thd);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    /*
      The flag values are defined in sql_partition.h.
@@ -814,6 +878,20 @@ struct handlerton
    int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
                         class Item *cond, 
                         enum enum_schema_tables);
+   my_bool (*flush_changed_page_bitmaps)(void);
+   my_bool (*purge_changed_page_bitmaps)(ulonglong lsn);
+
+   /**
+      Get the list of foreign keys referencing a specified table
+
+      @param thd        The thread handle
+      @param path       Path to the table
+      @param f_key_list[out]    The list of foreign keys
+
+      @return error code or zero for success
+    */
+   int (*get_parent_fk_list)(THD *thd, const char *path,
+                             List<FOREIGN_KEY_INFO>* f_key_list);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -1001,6 +1079,49 @@ struct handlerton
   */
   bool (*is_reserved_db_name)(handlerton *hton, const char *name);
 
+ /**
+    @brief
+    Fix empty UUID of tablespaces of an engine. This is used when engine encrypts
+    tablespaces as part of initialization. These tablespaces will have empty UUID
+    because UUID is generated after all plugins are initialized. This API will be
+    called by server only after UUID is available.
+    @returns false on success,
+             true on failure
+  */
+  bool (*fix_tablespaces_empty_uuid)(void);
+
+  /**
+    Creates a new compression dictionary with the specified data for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+    @param data                       compression dictionary data
+    @param data_len                   compression dictionary data length
+
+    @return a valid #handler_create_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_create_zip_dict_result (*create_zip_dict)(handlerton *hton,
+    THD* thd, const char* name, ulong* name_len, const char* data,
+    ulong* data_len);
+  /**
+    Deletes a compression dictionary for this SE.
+
+    @param hton                       handletron object.
+    @param thd                        thread descriptor.
+    @param name                       compression dictionary name
+    @param name_len                   compression dictionary name length
+
+    @return a valid #handler_drop_zip_dict_result value.
+
+    This interface is optional, so not every SE needs to implement it.
+  */
+  handler_drop_zip_dict_result (*drop_zip_dict)(handlerton *hton, THD* thd,
+    const char* name, ulong* name_len);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -1042,9 +1163,26 @@ struct handlerton
 
 #define HTON_SUPPORTS_EXTENDED_KEYS  (1 << 10)
 
+/**
+   Set if the storage engine supports 'online' backups. This means that there
+   exists a way to create a consistent copy of its tables without blocking
+   updates to them. If so, statements that update such tables will not be
+   affected by an active LOCK TABLES FOR BACKUP.
+*/
+#define HTON_SUPPORTS_ONLINE_BACKUPS (1 << 11)
+
+/**
+  Engine supports secondary clustered keys.
+*/
+#define HTON_SUPPORTS_CLUSTERED_KEYS (1 << 12)
 // Engine support foreign key constraint.
 
-#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 11)
+#define HTON_SUPPORTS_FOREIGN_KEYS   (1 << 13)
+
+/**
+  Engine supports compressed columns.
+*/
+#define HTON_SUPPORTS_COMPRESSED_COLUMNS (1 << 14)
 
 // Engine supports packed keys.
 #define HTON_SUPPORTS_PACKED_KEYS    (1 << 12)
@@ -1067,6 +1205,21 @@ typedef struct {
   ulong update_time;
   ulonglong check_sum;
 } PARTITION_STATS;
+
+typedef struct st_table_stats {
+  char table[NAME_LEN * 2 + 2];  // [db] + '.' + [table] + '\0'
+  size_t table_len;
+  ulonglong rows_read, rows_changed;
+  ulonglong rows_changed_x_indexes;
+  /* Stores enum db_type, but forward declarations cannot be done */
+  int engine_type;
+} TABLE_STATS;
+
+typedef struct st_index_stats {
+  char index[NAME_LEN * 3 + 3];  // [db] + '.' + [table] + '.' + [index] + '\0'
+  size_t index_len;
+  ulonglong rows_read;
+} INDEX_STATS;
 
 #define UNDEF_NODEGROUP 65535
 class Item;
@@ -1103,6 +1256,8 @@ typedef struct st_ha_create_information
   and ignored by the Server layer. */
 
   LEX_STRING encrypt_type;
+  uint32_t encryption_key_id;
+  bool was_encryption_key_id_set;
 
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -2162,7 +2317,7 @@ public:
 protected:
   TABLE_SHARE *table_share;             /* The table definition */
   TABLE *table;                         /* The current open table */
-  Table_flags cached_table_flags;       /* Set on init() and open() */
+  mutable Table_flags cached_table_flags;  /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
 public:
@@ -2238,6 +2393,9 @@ public:
   Item *pushed_idx_cond;
   uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
 
+  ulonglong rows_read;
+  ulonglong rows_changed;
+  ulonglong index_rows_read[MAX_KEY];
   /**
     next_insert_id is the next value which should be inserted into the
     auto_increment column: in a inserting-multi-row statement (like INSERT
@@ -2366,18 +2524,21 @@ public:
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     implicit_emptied(0),
-    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    pushed_cond(0), pushed_idx_cond(NULL),
+    pushed_idx_cond_keyno(MAX_KEY), rows_read(0), rows_changed(0),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL),
     m_psi_batch_mode(PSI_BATCH_MODE_NONE),
     m_psi_numrows(0),
     m_psi_locker(NULL),
-    m_lock_type(F_UNLCK), ha_share(NULL), m_update_generated_read_fields(false)
+    m_lock_type(F_UNLCK), ha_share(NULL),
+    m_update_generated_read_fields(false), cloned(false)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                   F_UNLCK, F_RDLCK, F_WRLCK));
+      memset(index_rows_read, 0, sizeof(index_rows_read));
     }
   virtual ~handler(void)
   {
@@ -2394,6 +2555,17 @@ public:
   {
     cached_table_flags= table_flags();
   }
+  /**
+    For MyRocks, secondary initialization that happens after frm is parsed into
+    field information from within open_binary_frm. MyRocks uses this secondary
+    init phase to analyze the key and field definitions to determine if
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is available for the table as it only
+    supports that behavior for certain types of key combinations. The
+    HA_PRIMARY_KEY_IN_READ_INDEX flag is enabled by default till this method
+    invocation and can be disabled here in case it isn't supported.
+    Return values: false success, true failure.
+  */
+  virtual bool init_with_fields() { return false; }
   /* ha_ methods: public wrappers for private virtual API */
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
@@ -2425,8 +2597,19 @@ public:
   }
   /**
     The cached_table_flags is set at ha_open and ha_external_lock
+
+    @param recalculate[in]  Force flags recalculation instead of using cached
+    value.
+
+    @retval                 table flags
   */
-  Table_flags ha_table_flags() const { return cached_table_flags; }
+  Table_flags ha_table_flags(bool recalculate = false) const
+  {
+    if (recalculate)
+      cached_table_flags= table_flags();
+    return cached_table_flags;
+  }
+
   /**
     These functions represent the public interface to *users* of the
     handler class, hence they are *not* virtual. For the inheritance
@@ -2497,6 +2680,8 @@ public:
   {
     table= table_arg;
     table_share= share;
+    rows_read= rows_changed= 0;
+    memset(index_rows_read, 0, sizeof(index_rows_read));
   }
   /* Estimates calculation */
 
@@ -2646,7 +2831,7 @@ public:
 
 
   virtual const key_map *keys_to_use_for_scanning() { return &key_map_empty; }
-  bool has_transactions()
+  bool has_transactions() const
   { return (ha_table_flags() & HA_NO_TRANSACTIONS) == 0; }
   virtual uint extra_rec_buf_length() const { return 0; }
 
@@ -2860,6 +3045,64 @@ protected:
     return index_read_last(buf, key, key_len);
   }
 public:
+
+  /**
+    Notify storage engine about imminent index scan where a large number of
+    rows is expected to be returned. Does not replace nor call index_init.
+  */
+  virtual int prepare_index_scan(void) { return 0; }
+
+  /**
+    Notify storage engine about imminent index range scan.
+  */
+  virtual int prepare_range_scan(const key_range *start_key,
+                                 const key_range *end_key)
+  {
+    return 0;
+  }
+
+  /**
+    Notify storage engine about imminent index read with a bitmap of used key
+    parts.
+  */
+  int prepare_index_key_scan_map(const uchar *key, key_part_map keypart_map)
+  {
+    uint key_len= calculate_key_len(table, active_index, keypart_map);
+    return prepare_index_key_scan(key, key_len);
+  }
+
+  /**
+    Query storage engine to see if it supports gap locks on this table.
+  */
+  virtual bool has_gap_locks() const { return false; }
+
+  /**
+    Query storage engine to see if it can support handling specific replication
+    method in its current configuration.
+  */
+  virtual bool rpl_can_handle_stm_event() const
+  {
+    return true;
+  }
+
+protected:
+  static bool is_using_full_key(key_part_map keypart_map, uint actual_key_parts);
+  bool is_using_full_unique_key(uint active_index,
+                                key_part_map keypart_map,
+                                enum ha_rkey_function find_flag) const;
+  bool is_using_prohibited_gap_locks(TABLE* table,
+                                     bool using_full_primary_key) const;
+
+  /**
+    Notify storage engine about imminent index read with key length.
+  */
+  virtual int prepare_index_key_scan(const uchar *key, uint key_len)
+  {
+    return 0;
+  }
+
+public:
+
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2994,7 +3237,16 @@ public:
       insert_id_for_cur_row;
   }
 
+  /*
+     This function allows the storage engine to adust the create_info before
+     the frm is written based on it.
+     This can be used for example to modify the create statement based on a
+     storage engine specific setting.
+   */
+  virtual void adjust_create_info_for_frm(HA_CREATE_INFO *create_info) {}
+
   virtual void update_create_info(HA_CREATE_INFO *create_info) {}
+
   int check_old_types();
   virtual int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
@@ -3130,6 +3382,16 @@ public:
   virtual bool is_crashed() const  { return 0; }
   virtual bool auto_repair() const { return 0; }
 
+  void update_global_table_stats();
+  void update_global_index_stats();
+  void update_index_stats(uint current_index)
+  {
+    rows_read++;
+    if (current_index < MAX_KEY)
+      index_rows_read[current_index]++;
+    else
+      index_rows_read[0]++;
+  }
 
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
@@ -3581,7 +3843,70 @@ protected:
 public:
  /* End of On-line/in-place ALTER TABLE interface. */
 
+  /**
+    @brief Offload an update to the storage engine. See handler::fast_update()
+    for details.
+  */
+  MY_NODISCARD int ha_fast_update(THD *thd,
+                                  List<Item> &update_fields,
+                                  List<Item> &update_values,
+                                  Item *conds);
 
+  /**
+    @brief Offload an upsert to the storage engine. See handler::upsert()
+    for details.
+  */
+  MY_NODISCARD int ha_upsert(THD *thd,
+                             List<Item> &update_fields,
+                             List<Item> &update_values);
+private:
+  /**
+    Offload an update to the storage engine implementation.
+
+    @param    thd              The thread handle.
+    @param    update_fields    The list of fields to update.
+    @param    update_values    The list of new values for the fields
+                               in update_fields.
+    @param    conds            Conditions tree.
+
+    @retval   0                if the storage engine handled the update.
+    @retval   ENOTSUP          if the storage engine can not handle the
+                               update and the slow update code path should
+                               continue executing the update.
+
+    @return an error if the update should be terminated.
+
+    @note HA_READ_BEFORE_WRITE_REMOVAL flag doesn not fit there because
+    handler::ha_update_row(...) does not accept conditions.
+  */
+  MY_NODISCARD virtual int fast_update(THD *thd,
+                                       List<Item> &update_fields,
+                                       List<Item> &update_values,
+                                       Item *conds)
+  { return ENOTSUP; }
+
+  /**
+    Offload an upsert to the storage engine implementation. Expects the row
+    to be stored in record[0].
+
+    @param    thd              The thread handle.
+    @param    update_fields    The list of fields to update.
+    @param    update_values    The list of new values for the fields
+                               in update_fields.
+
+    @retval   0                if the storage engine handled the upsert.
+    @retval   ENOTSUP          if the storage engine can not handle the upsert
+                               and the slow insert code path should continue
+                               executing the insert.
+
+    @return an error if the insert should be terminated.
+  */
+  MY_NODISCARD virtual int upsert(THD *thd,
+                                  List<Item> &update_fields,
+                                  List<Item> &update_values)
+  { return ENOTSUP; }
+
+public:
   /**
     use_hidden_primary_key() is called in case of an update/delete when
     (table_flags() and HA_PRIMARY_KEY_REQUIRED_FOR_DELETE) is defined
@@ -3830,6 +4155,40 @@ public:
     return false;
   }
   int get_lock_type() const { return m_lock_type; }
+  /**
+    This method is supposed to fill field definition objects with
+    compression dictionary info (name and data).
+    If the handler does not support compression dictionaries
+    this method should be left empty (not overloaded).
+
+    @param    thd          Thread handle
+    @param    part_name    Full table name (including partition part).
+                           Optional.
+  */
+  virtual void update_field_defs_with_zip_dict_info(THD* thd,
+                                                    const char* part_name) {}
+
+public:
+  /* Read-free replication interface */
+
+  /**
+     Determine whether the storage engine asks for row-based replication that
+     may skip the lookup of the old row image.
+
+     @return true if old rows should be read (the default)
+             false if old rows should not be read
+   */
+  virtual bool rpl_lookup_rows() { return true; }
+  /*
+     Storage engine hooks to be called before and after row write, delete, and
+     update events
+  */
+  virtual void rpl_before_write_rows() { }
+  virtual void rpl_after_write_rows() { }
+  virtual void rpl_before_delete_rows() { }
+  virtual void rpl_after_delete_rows() { }
+  virtual void rpl_before_update_rows() { }
+  virtual void rpl_after_update_rows() { }
 
   /**
     Callback function that will be called by my_prepare_gcolumn_template
@@ -3880,6 +4239,13 @@ protected:
   void set_ha_share_ptr(Handler_share *arg_ha_share);
   void lock_shared_ha_data();
   void unlock_shared_ha_data();
+
+private:
+  /**
+    If true, the current handler is a clone. In that case certain invariants
+    such as table->in_use == current_thd are relaxed to support cloning a
+    handler belonging to a different thread. */
+  bool cloned;
 };
 
 
@@ -3998,6 +4364,7 @@ extern ulong total_ha, total_ha_2pc;
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
 handlerton *ha_default_temp_handlerton(THD *thd);
+handlerton *ha_enforce_handlerton(THD *thd);
 /**
   Resolve handlerton plugin by name, without checking for "DEFAULT" or
   HTON_NOT_USER_SELECTABLE.
@@ -4063,10 +4430,13 @@ void ha_kill_connection(THD *thd);
 */
 bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush= false);
 void ha_drop_database(char* path);
+
+class Create_field;
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		                bool update_create_info,
+                    const List<Create_field> *create_fields,
+                    bool update_create_info,
                     bool is_temp_table= false);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
@@ -4099,6 +4469,7 @@ int ha_release_temporary_latches(THD *thd);
 
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
+int ha_store_binlog_info(THD *thd);
 int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock= false);
 int ha_commit_attachable(THD *thd);
 int ha_rollback_trans(THD *thd, bool all);
@@ -4132,6 +4503,9 @@ int ha_recover(HASH *commit_list);
 int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
+
+bool ha_flush_changed_page_bitmaps();
+bool ha_purge_changed_page_bitmaps(ulonglong lsn);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);

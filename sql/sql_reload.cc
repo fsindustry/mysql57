@@ -40,7 +40,6 @@
 #include "log.h"         // query_logger
 #include "des_key_file.h"
 
-
 /**
   Reload/resets privileges and the different caches.
 
@@ -201,7 +200,9 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
          thd->handler_tables_hash.records ||
          thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
          thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-         thd->global_read_lock.is_acquired());
+         thd->global_read_lock.is_acquired() ||
+         thd->backup_tables_lock.is_acquired() ||
+         thd->backup_binlog_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
@@ -347,10 +348,94 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
    }
  }
 #endif
- if (options & REFRESH_USER_RESOURCES)
-   reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+  if (options & REFRESH_USER_RESOURCES)
+    reset_mqh((LEX_USER *) NULL, 0);             /* purecov: inspected */
+#ifndef EMBEDDED_LIBRARY
+  if (options & REFRESH_TABLE_STATS)
+  {
+    mysql_mutex_lock(&LOCK_global_table_stats);
+    free_global_table_stats();
+    init_global_table_stats();
+    mysql_mutex_unlock(&LOCK_global_table_stats);
+  }
+  if (options & REFRESH_INDEX_STATS)
+  {
+    mysql_mutex_lock(&LOCK_global_index_stats);
+    free_global_index_stats();
+    init_global_index_stats();
+    mysql_mutex_unlock(&LOCK_global_index_stats);
+  }
+  if (options & (REFRESH_USER_STATS | REFRESH_CLIENT_STATS | REFRESH_THREAD_STATS))
+  {
+    mysql_mutex_lock(&LOCK_global_user_client_stats);
+    if (options & REFRESH_USER_STATS)
+    {
+      free_global_user_stats();
+      init_global_user_stats();
+    }
+    if (options & REFRESH_CLIENT_STATS)
+    {
+      free_global_client_stats();
+      init_global_client_stats();
+    }
+    if (options & REFRESH_THREAD_STATS)
+    {
+      free_global_thread_stats();
+      init_global_thread_stats();
+    }
+    mysql_mutex_unlock(&LOCK_global_user_client_stats);
+  }
+#endif
+  if (options & REFRESH_FLUSH_PAGE_BITMAPS)
+  {
+    result= ha_flush_changed_page_bitmaps();
+    if (result)
+    {
+      my_error(ER_UNKNOWN_ERROR, MYF(0), "FLUSH CHANGED_PAGE_BITMAPS");
+    }
+  }
+  if (options & REFRESH_RESET_PAGE_BITMAPS)
+  {
+    result= ha_purge_changed_page_bitmaps(0);
+    if (result)
+    {
+      my_error(ER_UNKNOWN_ERROR, MYF(0), "RESET CHANGED_PAGE_BITMAPS");
+    }
+  }
  if (*write_to_binlog != -1)
-   *write_to_binlog= tmp_write_to_binlog;
+ {
+   if (thd == NULL || thd->security_context() == NULL)
+   {
+     *write_to_binlog=
+       opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else if (thd->security_context()->check_access(SUPER_ACL))
+   {
+     /*
+       For users with 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'super_read_only' is set to 'ON'.
+     */
+     if (opt_super_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+   else
+   {
+     /*
+       For users without 'SUPER' privilege 'FLUSH XXX' statements must not be
+       binlogged if 'read_only' or 'super_read_only' is set to 'ON'.
+       Checking only 'opt_readonly' here as in 'super_read_only' mode this
+       variable is implicitly set to 'true'.
+     */
+     if (opt_readonly)
+       *write_to_binlog= 0;
+     else
+       *write_to_binlog=
+         opt_binlog_skip_flush_commands ? 0 : tmp_write_to_binlog;
+   }
+ }
  /*
    If the query was killed then this function must fail.
  */

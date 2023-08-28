@@ -465,6 +465,13 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
 {
   THD *thd= current_thd;
 
+#ifndef EMBEDDED_LIBRARY
+  thd->diff_denied_connections++;
+  update_global_user_stats(thd, false, time(NULL), mpvio->auth_info.user_name,
+                           mpvio->auth_info.host_or_ip, 
+                           mpvio->auth_info.host_or_ip);
+#endif /* EMBEDDED_LIBRARY */
+
   if (thd->is_error())
     sql_print_information("%s", thd->get_stmt_da()->message_text());
 
@@ -2180,12 +2187,14 @@ assign_priv_user_host(Security_context *sctx, ACL_USER *user)
   @param command                 the command to be executed, it can be either a
                                  COM_CHANGE_USER or COM_CONNECT (if
                                  it's a new connection)
+  @param extra_port_connection   true if the client is connecting on extra_port
 
   @retval 0  success, thd is updated.
   @retval 1  error
 */
 int
-acl_authenticate(THD *thd, enum_server_command command)
+acl_authenticate(THD *thd, enum_server_command command,
+                 bool extra_port_connection)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
@@ -2405,6 +2414,16 @@ acl_authenticate(THD *thd, enum_server_command command)
         mysql_mutex_unlock(&acl_cache->lock);
         DBUG_RETURN(1);
       }
+
+      if (acl_is_utility_user(acl_proxy_user->user,
+                              acl_proxy_user->host.get_host(), NULL))
+      {
+        if (!thd->is_error())
+          login_failed_error(&mpvio, mpvio.auth_info.password_used);
+        mysql_mutex_unlock(&acl_cache->lock);
+        DBUG_RETURN(1);
+      }
+
       acl_user= acl_proxy_user->copy(thd->mem_root);
       DBUG_PRINT("info", ("User %s is a PROXY and will assume a PROXIED"
                           " identity %s", auth_user, acl_user->user));
@@ -2415,7 +2434,9 @@ acl_authenticate(THD *thd, enum_server_command command)
     sctx->set_master_access(acl_user->access);
     assign_priv_user_host(sctx, const_cast<ACL_USER *>(acl_user));
 
-    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error())
+    if (!(sctx->check_access(SUPER_ACL)) && !thd->is_error()
+        && !acl_is_utility_user(sctx->user().str, sctx->host().str,
+                                sctx->ip().str))
     {
       mysql_mutex_lock(&LOCK_offline_mode);
       bool tmp_offline_mode= MY_TEST(offline_mode);
@@ -2548,9 +2569,11 @@ acl_authenticate(THD *thd, enum_server_command command)
       !(thd->m_main_security_ctx.check_access(SUPER_ACL)))
   {
 #ifndef EMBEDDED_LIBRARY
-    if (!Connection_handler_manager::get_instance()->valid_connection_count())
+    if (!Connection_handler_manager::get_instance()
+        ->valid_connection_count(extra_port_connection))
     {                                         // too many connections
       release_user_connection(thd);
+      sql_print_warning("%s", ER_DEFAULT(ER_CON_COUNT_ERROR));
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
@@ -2937,7 +2960,7 @@ static int sha256_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   char stage2[CRYPT_MAX_PASSWORD_SIZE + 1];
   String scramble_response_packet;
   int cipher_length= 0;
-  unsigned char plain_text[MAX_CIPHER_LENGTH + 1];
+  unsigned char plain_text[MAX_CIPHER_LENGTH + 1]= "";
   RSA *private_key= NULL;
   RSA *public_key= NULL;
 

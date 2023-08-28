@@ -32,6 +32,8 @@
 #include "atomic_class.h"
 #include "rpl_gtid.h"                  // Gtid_set, Sid_map
 #include "rpl_trx_tracking.h"
+#include "rpl_constants.h"
+#include "binlog_crypt_data.h"
 
 
 class Relay_log_info;
@@ -379,6 +381,7 @@ class MYSQL_BIN_LOG: public TC_LOG
 
   my_off_t binlog_end_pos;
   ulonglong bytes_written;
+  ulonglong binlog_space_total;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
   /*
@@ -412,6 +415,9 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint open_count;				// For replication
   int readers_count;
 
+  /* binlog encryption data */
+  Binlog_crypt_data crypto;
+
   /* pointer to the sync period variable, for binlog this will be
      sync_binlog_period, for relay log this will be
      sync_relay_log_period
@@ -443,6 +449,8 @@ class MYSQL_BIN_LOG: public TC_LOG
   {
     return *sync_period_ptr;
   }
+
+  int write_to_file(Log_event* event);
 
   int write_to_file(IO_CACHE *cache);
   /*
@@ -658,6 +666,8 @@ private:
   /* The previous gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
 
+  bool snapshot_lock_acquired;
+
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage,
                     THD* queue, mysql_mutex_t *leave,
@@ -670,7 +680,8 @@ private:
   void process_after_commit_stage_queue(THD *thd, THD *first);
   int process_flush_stage_queue(my_off_t *total_bytes_var, bool *rotate_var,
                                 THD **out_queue_var);
-  int ordered_commit(THD *thd, bool all, bool skip_commit = false);
+  int prepare_ordered_commit(THD *thd, bool all, bool skip_commit= false);
+  int ordered_commit(THD *thd);
   void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
                                          const char *message);
 public:
@@ -687,7 +698,15 @@ public:
   void update_thd_next_event_pos(THD *thd);
   int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
                                        bool is_transactional);
-
+  void xlock(void);
+  void xunlock(void);
+  void slock(void) { mysql_rwlock_rdlock(&LOCK_consistent_snapshot); }
+  void sunlock(void) { mysql_rwlock_unlock(&LOCK_consistent_snapshot); }
+#else
+  void xlock(void) { }
+  void xunlock(void) { }
+  void slock(void) { }
+  void sunlock(void) { }
 #endif /* !defined(MYSQL_CLIENT) */
   void add_bytes_written(ulonglong inc)
   {
@@ -813,7 +832,7 @@ public:
   bool is_query_in_union(THD *thd, query_id_t query_id_param);
 
 #ifdef HAVE_REPLICATION
-  bool append_buffer(const char* buf, uint len, Master_info *mi);
+  bool append_buffer(uchar* buf, size_t len, Master_info *mi);
   bool append_event(Log_event* ev, Master_info *mi);
 private:
   bool after_append_to_relay_log(Master_info *mi);
@@ -844,6 +863,9 @@ public:
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
                  ulonglong *decrease_log_space, bool auto_purge);
+  int count_binlog_space(bool need_lock_index);
+  int purge_logs_by_size(bool need_lock_index);
+  int purge_logs_maximum_number(ulong max_nr_files);
   int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
@@ -969,6 +991,13 @@ public:
     True while rotating binlog, which is caused by logging Incident_log_event.
   */
   bool is_rotating_caused_by_incident;
+
+  Binlog_crypt_data* get_crypto_data()
+  {
+    return &crypto;
+  }
+private:
+  void publish_coordinates_for_global_status(void) const;
 };
 
 typedef struct st_load_file_info
@@ -1046,9 +1075,18 @@ bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int query_error_code(THD *thd, bool not_killed);
 
+bool handle_gtid_consistency_violation(THD *thd, int error_code);
+
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
 extern bool opt_binlog_order_commits;
+
+/*
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows
+  overflow/truncate.
+*/
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
 
 /**
   Turns a relative log binary log path into a full path, based on the

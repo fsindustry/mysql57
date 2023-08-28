@@ -13,6 +13,9 @@ enum enum_mysql_show_type
   SHOW_INT,
   SHOW_LONG,
   SHOW_LONGLONG,
+  SHOW_SIGNED_INT,
+  SHOW_SIGNED_LONG,
+  SHOW_SIGNED_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
 };
@@ -97,6 +100,20 @@ char *thd_security_context(void* thd, char *buffer, size_t length,
 void thd_inc_row_count(void* thd);
 int thd_allow_batch(void* thd);
 void thd_mark_transaction_to_rollback(void* thd, int all);
+enum mysql_trx_stat_type
+{
+  MYSQL_TRX_STAT_IO_READ_BYTES,
+  MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
+  MYSQL_TRX_STAT_LOCK_WAIT_USECS,
+  MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS,
+  MYSQL_TRX_STAT_ACCESS_PAGE_ID
+};
+void thd_report_innodb_stat(void* thd, unsigned long long trx_id,
+                            enum mysql_trx_stat_type type,
+                            uint64_t value);
+unsigned long thd_log_slow_verbosity(const void* thd);
+int thd_opt_slow_log();
+int thd_is_background_thread(const void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 void thd_set_kill_status(const void* thd);
@@ -104,6 +121,7 @@ void thd_binlog_pos(const void* thd,
                     const char **file_var,
                     unsigned long long *pos_var);
 unsigned long thd_get_thread_id(const void* thd);
+int64_t thd_get_query_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
                                    const char *key, unsigned int key_length,
@@ -111,6 +129,10 @@ void mysql_query_cache_invalidate4(void* thd,
 void *thd_get_ha_data(const void* thd, const struct handlerton *hton);
 void thd_set_ha_data(void* thd, const struct handlerton *hton,
                      const void *ha_data);
+int thd_command(const void* thd);
+long long thd_start_time(const void* thd);
+void thd_kill(unsigned long id);
+int thd_get_ft_query_extra_word_chars(void);
 #include "mysql/mysql_lex_string.h"
 struct st_mysql_lex_string
 {
@@ -303,6 +325,16 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_USER,
   SQLCOM_SHUTDOWN,
   SQLCOM_ALTER_INSTANCE,
+  SQLCOM_SHOW_USER_STATS,
+  SQLCOM_SHOW_TABLE_STATS,
+  SQLCOM_SHOW_INDEX_STATS,
+  SQLCOM_SHOW_CLIENT_STATS,
+  SQLCOM_SHOW_THREAD_STATS,
+  SQLCOM_LOCK_TABLES_FOR_BACKUP,
+  SQLCOM_LOCK_BINLOG_FOR_BACKUP,
+  SQLCOM_UNLOCK_BINLOG,
+  SQLCOM_CREATE_COMPRESSION_DICTIONARY,
+  SQLCOM_DROP_COMPRESSION_DICTIONARY,
   SQLCOM_END
 };
 typedef enum

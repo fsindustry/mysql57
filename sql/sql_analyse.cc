@@ -251,7 +251,6 @@ void free_string(void *s_void, TREE_FREE, const void*)
   s->mem_free();
 }
 
-
 void field_str::add()
 {
   char buff[MAX_FIELD_WIDTH], *ptr;

@@ -461,6 +461,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   DBUG_ENTER("Slave_worker::read_info");
 
   ulong temp_group_relay_log_pos= 0;
+  char temp_group_master_log_name[FN_REFLEN];
   ulong temp_group_master_log_pos= 0;
   ulong temp_checkpoint_relay_log_pos= 0;
   ulong temp_checkpoint_master_log_pos= 0;
@@ -478,8 +479,8 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
                      (char *) "") ||
       from->get_info(&temp_group_relay_log_pos,
                      0UL) ||
-      from->get_info(group_master_log_name,
-                     sizeof(group_master_log_name),
+      from->get_info(temp_group_master_log_name,
+                     sizeof(temp_group_master_log_name),
                      (char *) "") ||
       from->get_info(&temp_group_master_log_pos,
                      0UL) ||
@@ -506,7 +507,8 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
 
   internal_id=(uint) temp_internal_id;
   group_relay_log_pos=  temp_group_relay_log_pos;
-  group_master_log_pos= temp_group_master_log_pos;
+  set_group_master_log_name(temp_group_master_log_name);
+  set_group_master_log_pos(temp_group_master_log_pos);
   checkpoint_relay_log_pos=  temp_checkpoint_relay_log_pos;
   checkpoint_master_log_pos= temp_checkpoint_master_log_pos;
   checkpoint_seqno= temp_checkpoint_seqno;
@@ -556,8 +558,8 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
       to->set_info((int) internal_id) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
-      to->set_info(group_master_log_name) ||
-      to->set_info((ulong) group_master_log_pos) ||
+      to->set_info(get_group_master_log_name()) ||
+      to->set_info((ulong) get_group_master_log_pos()) ||
       to->set_info(checkpoint_relay_log_name) ||
       to->set_info((ulong) checkpoint_relay_log_pos) ||
       to->set_info(checkpoint_master_log_name) ||
@@ -581,10 +583,32 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
 */
 bool Slave_worker::reset_recovery_info()
 {
+  bool binlog_prot_acquired= false;
+
   DBUG_ENTER("Slave_worker::reset_recovery_info");
+
+  if (info_thd && !info_thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= info_thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+
+    if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
+                                                        timeout))
+      DBUG_RETURN(true);
+
+    binlog_prot_acquired= true;
+  }
 
   set_group_master_log_name("");
   set_group_master_log_pos(0);
+
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    info_thd->backup_binlog_lock.release_protection(info_thd);
+  }
+
 
   DBUG_RETURN(flush_info(true));
 }
@@ -604,7 +628,21 @@ const char* Slave_worker::get_master_log_name()
 
 bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool force)
 {
+  bool binlog_prot_acquired= false;
   DBUG_ENTER("Slave_worker::checkpoint_positions");
+
+  if (info_thd && !info_thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= info_thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+
+    if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
+                                                        timeout))
+      DBUG_RETURN(true);
+
+    binlog_prot_acquired= true;
+  }
 
   /*
     Initial value of checkpoint_master_log_name is learned from
@@ -616,11 +654,10 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   */
   if (ptr_g->group_master_log_name != NULL)
   {
-    strmake(group_master_log_name, ptr_g->group_master_log_name,
-            sizeof(group_master_log_name) - 1);
+    set_group_master_log_name(ptr_g->group_master_log_name);
     my_free(ptr_g->group_master_log_name);
     ptr_g->group_master_log_name= NULL;
-    strmake(checkpoint_master_log_name, group_master_log_name,
+    strmake(checkpoint_master_log_name, get_group_master_log_name(),
             sizeof(checkpoint_master_log_name) - 1);
   }
   if (ptr_g->checkpoint_log_name != NULL)
@@ -661,25 +698,31 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
   checkpoint_seqno= ptr_g->checkpoint_seqno;
   group_relay_log_pos= ev->future_event_relay_log_pos;
-  group_master_log_pos= ev->common_header->log_pos;
+  set_group_master_log_pos(ev->common_header->log_pos);
 
   /*
     Directly accessing c_rli->get_group_master_log_name() does not
     represent a concurrency issue because the current code places
     a synchronization point when master rotates.
   */
-  strmake(group_master_log_name, c_rli->get_group_master_log_name(),
-          sizeof(group_master_log_name)-1);
+  set_group_master_log_name(c_rli->get_group_master_log_name());
 
   DBUG_PRINT("mts", ("Committing worker-id %lu group master log pos %llu "
              "group master log name %s checkpoint sequence number %lu.",
-             id, group_master_log_pos, group_master_log_name, checkpoint_seqno));
+                     id, get_group_master_log_pos(),
+                     get_group_master_log_name(), checkpoint_seqno));
 
   DBUG_EXECUTE_IF("mts_debug_concurrent_access",
     {
       mts_debug_concurrent_access++;
     };
   );
+
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    info_thd->backup_binlog_lock.release_protection(info_thd);
+  }
 
   DBUG_RETURN(flush_info(force));
 }
@@ -1220,7 +1263,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
       );
     }
 
-    ptr_g->group_master_log_pos= group_master_log_pos;
+    ptr_g->group_master_log_pos= get_group_master_log_pos();
     ptr_g->group_relay_log_pos= group_relay_log_pos;
     my_atomic_store32(&ptr_g->done, 1);
     last_group_done_index= gaq_index;
@@ -1706,6 +1749,20 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
+void* Slave_worker::operator new(size_t request)
+{
+  void* ptr;
+  if (posix_memalign(&ptr, __alignof__(Slave_worker), sizeof(Slave_worker))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Slave_worker::operator delete(void * ptr)
+{
+  free(ptr);
+}
+
 #ifndef NDEBUG
 static bool may_have_timestamp(Log_event *ev)
 {
@@ -1864,6 +1921,15 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   set_master_log_pos(static_cast<ulong>(ev->common_header->log_pos));
   set_gaq_index(ev->mts_group_idx);
   ret= ev->do_apply_event_worker(this);
+
+  DBUG_EXECUTE_IF("after_executed_write_rows_event", {
+    if (ev->get_type_code() == binary_log::WRITE_ROWS_EVENT) {
+      static const char act[]= "now signal executed";
+      assert(opt_debug_sync_timeout > 0);
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    }
+  };);
+
   DBUG_RETURN(ret);
 }
 
@@ -1979,6 +2045,8 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
                               &silent))
       {
         error= ER_LOCK_DEADLOCK;
+        DBUG_EXECUTE_IF("simulate_exhausted_trans_retries",
+                        { trans_retries = slave_trans_retries; };);
       }
     }
 
@@ -1991,10 +2059,12 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     if (trans_retries >= slave_trans_retries)
     {
       thd->is_fatal_error= 1;
-      c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                    "worker thread retried transaction %lu time(s) "
-                    "in vain, giving up. Consider raising the value of "
-                    "the slave_transaction_retries variable.", trans_retries);
+      c_rli->report(
+          ERROR_LEVEL,
+          thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
+          "worker thread retried transaction %lu time(s) "
+          "in vain, giving up. Consider raising the value of "
+          "the slave_transaction_retries variable.", trans_retries);
       DBUG_RETURN(true);
     }
 
@@ -2069,6 +2139,26 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
         sql_print_error("Failed to open relay log %s, error: %s", file_name,
                         errmsg);
         goto end;
+      }
+      // Search for Start_encryption_event. When relay log is encrypted the second
+      // event (after Format_description_event) will be Start_encryption_event.
+      for (uint i= 0; i < 2; i++)
+      {
+        ev= Log_event::read_log_event(&relay_io, NULL,
+                                      rli->get_rli_description_event(),
+                                      opt_slave_sql_verify_checksum);
+
+        if (ev != NULL)
+        {
+          if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT && 
+              !rli->get_rli_description_event()->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+          {
+            delete ev;
+            goto end;
+            error= true;
+          }
+          delete ev;
+        }
       }
       my_b_seek(&relay_io, start_relay_pos);
     }

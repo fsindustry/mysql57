@@ -91,7 +91,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), error_on_rli_init_info(false),
    group_relay_log_pos(0), event_relay_log_number(0),
    event_relay_log_pos(0), event_start_pos(0),
-   group_master_log_pos(0),
+   m_group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    rli_fake(is_rli_fake),
    gtid_retrieved_initialized(false),
@@ -153,7 +153,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 #endif
 
   group_relay_log_name[0]= event_relay_log_name[0]=
-    group_master_log_name[0]= 0;
+    m_group_master_log_name[0]= 0;
   until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(&last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
@@ -405,6 +405,39 @@ err:
   DBUG_RETURN(ret);
 }
 
+bool Relay_log_info::mts_workers_queue_empty() const
+{
+  ulong ret= 0;
+
+  for (Slave_worker * const *it= workers.begin(); ret == 0 && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    ret+= worker->curr_jobs;
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret == 0;
+}
+
+/* Checks if all in-flight stmts/trx can be safely rolled back */
+bool Relay_log_info::cannot_safely_rollback() const
+{
+  if (!is_parallel_exec())
+    return info_thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION);
+
+  bool ret= false;
+
+  for (Slave_worker * const *it= workers.begin(); !ret && it != workers.end(); ++it)
+  {
+    Slave_worker *worker= *it;
+    mysql_mutex_lock(&worker->jobs_lock);
+    const Transaction_ctx *trx= worker->info_thd->get_transaction();
+    ret= trx ? trx->cannot_safely_rollback(Transaction_ctx::SESSION) : false;
+    mysql_mutex_unlock(&worker->jobs_lock);
+  }
+  return ret;
+}
+
 static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
 {
   MY_STAT s;
@@ -617,8 +650,12 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       }
       else if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
       {
+        Format_description_log_event *old= rli_description_event;
         DBUG_PRINT("info",("found Format_description_log_event"));
-        set_rli_description_event((Format_description_log_event *)ev);
+        Format_description_log_event *new_fdev=
+          static_cast<Format_description_log_event*>(ev);
+        new_fdev->copy_crypto_data(*old);
+        set_rli_description_event(new_fdev);
         /*
           As ev was returned by read_log_event, it has passed is_valid(), so
           my_malloc() in ctor worked, no need to check again.
@@ -641,6 +678,16 @@ int Relay_log_info::init_relay_log_pos(const char* log,
           position (argument 'pos') or until you find an event other than
           Previous-GTIDs, Rotate or Format_desc.
         */
+      }
+      else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+      {
+        if (rli_description_event->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+        {
+          *errmsg= "Unable to set up decryption of binlog.";
+          delete ev;
+          goto err;
+        }
+        delete ev;
       }
       else
       {
@@ -812,6 +859,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   {
     bool pos_reached;
     int cmp_result= 0;
+    const char * const group_master_log_name= get_group_master_log_name();
+    const ulonglong group_master_log_pos= get_group_master_log_pos();
 
     DBUG_PRINT("info",
                ("init_abort_pos_wait: %ld  abort_pos_wait: %ld",
@@ -837,8 +886,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     */
     if (*group_master_log_name && !is_group_master_log_pos_invalid)
     {
-      char *basename= (group_master_log_name +
-                       dirname_length(group_master_log_name));
+      const char * const basename= (group_master_log_name +
+                                    dirname_length(group_master_log_name));
       /*
         First compare the parts before the extension.
         Find the dot in the master's log basename,
@@ -1100,9 +1149,27 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
   DBUG_ENTER("Relay_log_info::inc_group_relay_log_pos");
 
   if (need_data_lock)
+  {
+    const ulong timeout= info_thd->variables.lock_wait_timeout;
+
+    /*
+      Acquire protection against global BINLOG lock before rli->data_lock is
+      locked (otherwise we would also block SHOW SLAVE STATUS).
+    */
+    assert(!info_thd->backup_binlog_lock.is_acquired());
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&data_lock);
+    if (info_thd->backup_binlog_lock.acquire_protection(info_thd, MDL_EXPLICIT,
+                                                        timeout))
+      DBUG_RETURN(1);
+
     mysql_mutex_lock(&data_lock);
+  }
   else
+  {
     mysql_mutex_assert_owner(&data_lock);
+    assert(info_thd->backup_binlog_lock.is_protection_acquired());
+  }
 
   inc_event_relay_log_pos();
   group_relay_log_pos= event_relay_log_pos;
@@ -1132,10 +1199,10 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     With the end_log_pos solution, we avoid computations involving lengthes.
   */
   DBUG_PRINT("info", ("log_pos: %lu  group_master_log_pos: %lu",
-                      (long) log_pos, (long) group_master_log_pos));
+                      (long) log_pos, (long) get_group_master_log_pos()));
 
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
-    group_master_log_pos= log_pos;
+    set_group_master_log_pos(log_pos);
   /*
     If the master log position was invalidiated by say, "CHANGE MASTER TO
     RELAY_LOG_POS=N", it is now valid,
@@ -1166,7 +1233,13 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   mysql_cond_broadcast(&data_cond);
   if (need_data_lock)
+  {
     mysql_mutex_unlock(&data_lock);
+
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    info_thd->backup_binlog_lock.release_protection(info_thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1231,6 +1304,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
   mysql_mutex_t *log_lock= relay_log.get_log_lock();
 
   DBUG_ENTER("Relay_log_info::purge_relay_logs");
+  bool binlog_prot_acquired= false;
 
   /*
     Even if inited==0, we still try to empty master_log_* variables. Indeed,
@@ -1248,8 +1322,22 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
     SLAVE, he will see old, confusing master_log_*. In other words, we reinit
     master_log_* for SHOW SLAVE STATUS to display fine in any case.
   */
-  group_master_log_name[0]= 0;
-  group_master_log_pos= 0;
+
+  if (!thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&data_lock);
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                   timeout))
+      DBUG_RETURN(1);
+
+    binlog_prot_acquired= true;
+  }
+
+  set_group_master_log_name("");
+  set_group_master_log_pos(0);
 
   /*
     Following the the relay log purge, the master_log_pos will be in sync
@@ -1293,6 +1381,11 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       {
         sql_print_error("Unable to purge relay log files. Failed to open relay "
                         "log index file:%s.", relay_log.get_index_fname());
+        if (binlog_prot_acquired)
+        {
+          DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+          thd->backup_binlog_lock.release_protection(thd);
+        }
         DBUG_RETURN(1);
       }
       mysql_mutex_lock(&mi->data_lock);
@@ -1308,13 +1401,25 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
         mysql_mutex_unlock(&mi->data_lock);
         sql_print_error("Unable to purge relay log files. Failed to open relay "
                         "log file:%s.", relay_log.get_log_fname());
+        if (binlog_prot_acquired)
+        {
+          DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+          thd->backup_binlog_lock.release_protection(thd);
+        }
         DBUG_RETURN(1);
       }
       mysql_mutex_unlock(log_lock);
       mysql_mutex_unlock(&mi->data_lock);
     }
     else
+    {
+      if (binlog_prot_acquired)
+      {
+        DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+        thd->backup_binlog_lock.release_protection(thd);
+      }
       DBUG_RETURN(0);
+    }
   }
   else
   {
@@ -1380,6 +1485,13 @@ err:
 #endif
   DBUG_PRINT("info",("log_space_total: %s",llstr(log_space_total,buf)));
   mysql_mutex_unlock(&data_lock);
+
+  if (binlog_prot_acquired)
+  {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1492,9 +1604,9 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       */
       if (ev && ev->server_id == 0)
         DBUG_RETURN(false);
-      log_name= group_master_log_name;
+      log_name= get_group_master_log_name();
       if (!ev || is_in_group() || !ev->common_header->log_pos)
-        log_pos= group_master_log_pos;
+        log_pos= get_group_master_log_pos();
       else
         log_pos= ev->common_header->log_pos - ev->common_header->data_written;
     }
@@ -1508,7 +1620,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     {
       char buf[32];
       DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
-                          group_master_log_name, llstr(group_master_log_pos, buf)));
+                          get_group_master_log_name(),
+                          llstr(get_group_master_log_pos(), buf)));
       DBUG_PRINT("info", ("group_relay_log_name='%s', group_relay_log_pos=%s",
                           group_relay_log_name, llstr(group_relay_log_pos, buf)));
       DBUG_PRINT("info", ("(%s) log_name='%s', log_pos=%s",
@@ -2339,8 +2452,8 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       error= 1;
       goto err;
     }
-    group_master_log_name[0]= 0;
-    group_master_log_pos= 0;
+    set_group_master_log_name("");
+    set_group_master_log_pos(0);
   }
   else
   {
@@ -2564,6 +2677,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   int lines= 0;
   char *first_non_digit= NULL;
   ulong temp_group_relay_log_pos= 0;
+  char temp_group_master_log_name[FN_REFLEN];
   ulong temp_group_master_log_pos= 0;
   int temp_sql_delay= 0;
   int temp_internal_id= internal_id;
@@ -2628,8 +2742,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
 
   if (from->get_info(&temp_group_relay_log_pos,
                      (ulong) BIN_LOG_HEADER_SIZE) ||
-      from->get_info(group_master_log_name,
-                     sizeof(group_relay_log_name),
+      from->get_info(temp_group_master_log_name,
+                     sizeof(temp_group_master_log_name),
                      (char *) "") ||
       from->get_info(&temp_group_master_log_pos,
                      0UL))
@@ -2661,7 +2775,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   }
 
   group_relay_log_pos=  temp_group_relay_log_pos;
-  group_master_log_pos= temp_group_master_log_pos;
+  set_group_master_log_name(temp_group_master_log_name);
+  set_group_master_log_pos(temp_group_master_log_pos);
   sql_delay= (int32) temp_sql_delay;
   internal_id= (uint) temp_internal_id;
 
@@ -2695,8 +2810,8 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
       to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_ID) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
-      to->set_info(group_master_log_name) ||
-      to->set_info((ulong) group_master_log_pos) ||
+      to->set_info(get_group_master_log_name()) ||
+      to->set_info((ulong) get_group_master_log_pos()) ||
       to->set_info((int) sql_delay) ||
       to->set_info(recovery_parallel_workers) ||
       to->set_info((int) internal_id) ||
@@ -3061,4 +3176,17 @@ void Relay_log_info::reattach_engine_ha_data(THD *thd)
     in favor of dynamically created.
   */
   plugin_foreach(thd, reattach_native_trx, MYSQL_STORAGE_ENGINE_PLUGIN, NULL);
+}
+
+void* Relay_log_info::operator new(size_t request)
+{
+  void* ptr;
+  if (posix_memalign(&ptr, __alignof__(Relay_log_info), sizeof(Relay_log_info))) {
+    throw std::bad_alloc();
+  }
+  return ptr;
+}
+
+void Relay_log_info::operator delete(void * ptr) {
+  free(ptr);
 }

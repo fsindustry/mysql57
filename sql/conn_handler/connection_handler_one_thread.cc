@@ -41,7 +41,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager::dec_connection_count(false);
     return true;
   }
 
@@ -50,7 +50,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   {
     connection_errors_internal++;
     channel_info->send_error_and_close_channel(ER_OUT_OF_RESOURCES, 0, false);
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager::dec_connection_count(false);
     return true;
   }
 
@@ -72,7 +72,7 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     close_connection(thd, ER_OUT_OF_RESOURCES);
     thd->release_resources();
     delete thd;
-    Connection_handler_manager::dec_connection_count();
+    Connection_handler_manager::dec_connection_count(false);
     return true;
   }
 
@@ -84,8 +84,12 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
   thd_manager->add_thd(thd);
 
   bool error= false;
-  if (thd_prepare_connection(thd))
+  bool create_user= true;
+  if (thd_prepare_connection(thd, false))
+  {
     error= true; // Returning true causes inc_aborted_connects() to be called.
+    create_user= false;
+  }
   else
   {
     delete channel_info;
@@ -97,9 +101,16 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
     end_connection(thd);
   }
   close_connection(thd, 0, false, false);
+
+  if (unlikely(opt_userstat))
+  {
+    thd->update_stats(false);
+    update_global_user_stats(thd, create_user, time(NULL));
+  }
+
   thd->release_resources();
   thd_manager->remove_thd(thd);
-  Connection_handler_manager::dec_connection_count();
+  Connection_handler_manager::dec_connection_count(false);
   delete thd;
   return error;
 }

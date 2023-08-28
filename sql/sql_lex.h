@@ -137,12 +137,13 @@ enum enum_yes_no_unknown
 };
 
 enum keytype {
-  KEYTYPE_PRIMARY,
-  KEYTYPE_UNIQUE,
-  KEYTYPE_MULTIPLE,
-  KEYTYPE_FULLTEXT,
-  KEYTYPE_SPATIAL,
-  KEYTYPE_FOREIGN
+  KEYTYPE_PRIMARY= 0,
+  KEYTYPE_UNIQUE= 1,
+  KEYTYPE_MULTIPLE= 2,
+  KEYTYPE_FULLTEXT= 4,
+  KEYTYPE_SPATIAL= 8,
+  KEYTYPE_FOREIGN= 16,
+  KEYTYPE_CLUSTERING= 32,
 };
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -1603,6 +1604,7 @@ union YYSTYPE {
   ulonglong ulonglong_number;
   longlong longlong_number;
   LEX_STRING lex_str;
+  LEX_CSTRING lex_cstr;
   LEX_STRING *lex_str_ptr;
   LEX_SYMBOL symbol;
   Table_ident *table;
@@ -1800,6 +1802,8 @@ struct st_sp_chistics
 
 extern const LEX_STRING null_lex_str;
 extern const LEX_STRING empty_lex_str;
+extern const LEX_CSTRING null_lex_cstr;
+extern const LEX_CSTRING empty_lex_cstr;
 
 struct st_trg_chistics
 {
@@ -2130,6 +2134,17 @@ public:
     Maps elements of enum_binlog_stmt_unsafe to error codes.
   */
   static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
+
+  /**
+    Determine if this statement is marked as unsafe with
+    specific type
+
+    @retval false if the statement is not marked as unsafe.
+    @retval true if it is.
+  */
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) const {
+    return ((binlog_stmt_flags & (1U << unsafe_type)) != 0);
+  }
 
   /**
     Determine if this statement is marked as unsafe.
@@ -3159,7 +3174,8 @@ public:
     required a local context, the parser pops the top-most context.
   */
   List<Name_resolution_context> context_stack;
-
+  /* true if SET STATEMENT ... FOR ... statement is use, false otherwise */
+  bool set_statement;
   /**
     Argument values for PROCEDURE ANALYSE(); is NULL for other queries
   */
@@ -3277,6 +3293,17 @@ public:
   bool is_set_password_sql;
   bool contains_plaintext_password;
   enum_keep_diagnostics keep_diagnostics;
+
+  /*
+    Compression dictionary name (in column definition)
+    CREATE TABLE t1(
+      ...
+      <column_name> BLOB COLUMN_FORMAT COMPRESSED
+        WITH COMPRESSION_DICTIONARY <dict>
+      ...
+    );
+  */
+  LEX_CSTRING zip_dict_name;
 
 private:
   bool m_broken; ///< see mark_broken()
@@ -3533,6 +3560,7 @@ public:
 
   bool accept(Select_lex_visitor *visitor);
 
+  Item* donor_transaction_id;
 };
 
 

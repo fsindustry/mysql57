@@ -98,7 +98,8 @@ enum enum_log_table_type
 class File_query_log
 {
   File_query_log(enum_log_table_type log_type)
-  : m_log_type(log_type), name(NULL), write_error(false), log_open(false)
+    : cur_log_ext(0), last_removed_ext(0), m_log_type(log_type), name(NULL),
+      write_error(false), log_open(false)
   {
     memset(&log_file, 0, sizeof(log_file));
     mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
@@ -113,6 +114,11 @@ class File_query_log
   ~File_query_log()
   {
     assert(!is_open());
+    if (name != NULL)
+    {
+      my_free(name);
+      name= NULL;
+    }
     mysql_mutex_destroy(&LOCK_log);
   }
 
@@ -135,6 +141,11 @@ class File_query_log
      The internal structures are not freed until the destructor is called.
   */
   void close();
+
+  /**
+   Change what file we log to
+  */
+  bool set_file(const char *new_name);
 
   /**
      Check if we have already printed ER_ERROR_ON_WRITE and if not,
@@ -188,6 +199,14 @@ class File_query_log
                   const char *sql_text, size_t sql_text_len);
 
 private:
+  /** slow log rotation and purging functions */
+  bool set_rotated_name(bool need_lock);
+  bool rotate(ulong max_size);
+  bool purge_logs();
+
+  ulong cur_log_ext;
+  ulong last_removed_ext;
+
   /** Type of log file. */
   const enum_log_table_type m_log_type;
 
@@ -538,6 +557,17 @@ public:
      @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
   bool reopen_log_file(enum_log_table_type log_type);
+
+  /**
+     Read log file name from global variable opt_*_logname.
+     If called from a sys_var update function, the caller
+     must hold a lock protecting the sys_var
+     (LOCK_global_system_variables, a polylock for the
+     variable, etc.).
+
+     @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
+  */
+  bool set_log_file(enum_log_table_type log_type);
 
   /**
      Check if given TABLE_LIST has a query log table name and

@@ -457,16 +457,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %}
 
-%yacc
-
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
-  Currently there are 159 shift/reduce conflicts.
+  Currently there are 158 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 155
+%expect 158
 
 /*
    Comments for TOKENS.
@@ -543,6 +541,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  CHAIN_SYM                     /* SQL-2003-N */
 %token  CHANGE
 %token  CHANGED
+%token  CHANGED_PAGE_BITMAPS_SYM      /* MYSQL      */
 %token  CHANNEL_SYM
 %token  CHARSET
 %token  CHAR_SYM                      /* SQL-2003-R */
@@ -551,7 +550,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  CIPHER_SYM
 %token  CLASS_ORIGIN_SYM              /* SQL-2003-N */
 %token  CLIENT_SYM
+%token  CLIENT_STATS_SYM
 %token  CLOSE_SYM                     /* SQL-2003-R */
+%token  CLUSTERING_SYM
 %token  COALESCE                      /* SQL-2003-N */
 %token  CODE_SYM
 %token  COLLATE_SYM                   /* SQL-2003-R */
@@ -566,8 +567,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPACT_SYM
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
+%token  COMPRESSION_DICTIONARY_SYM
 %token  COMPRESSION_SYM
 %token  ENCRYPTION_SYM
+%token  ENCRYPTION_KEY_ID_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -719,6 +722,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  IMPORT
 %token  INDEXES
 %token  INDEX_SYM
+%token  INDEX_STATS_SYM
 %token  INFILE
 %token  INITIAL_SIZE_SYM
 %token  INNER_SYM                     /* SQL-2003-R */
@@ -1024,6 +1028,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATEMENT_SYM
 %token  STATS_AUTO_RECALC_SYM
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
@@ -1051,6 +1056,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TABLESPACE_SYM
 %token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
+%token  TABLE_STATS_SYM
 %token  TABLE_CHECKSUM_SYM
 %token  TABLE_NAME_SYM                /* SQL-2003-N */
 %token  TEMPORARY                     /* SQL-2003-N */
@@ -1060,6 +1066,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TEXT_SYM
 %token  THAN_SYM
 %token  THEN_SYM                      /* SQL-2003-R */
+%token  THREAD_STATS_SYM
 %token  TIMESTAMP                     /* SQL-2003-R */
 %token  TIMESTAMP_ADD
 %token  TIMESTAMP_DIFF
@@ -1068,6 +1075,14 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  TINYINT
 %token  TINYTEXT
 %token  TO_SYM                        /* SQL-2003-R */
+%token  TOKU_UNCOMPRESSED_SYM
+%token  TOKU_ZLIB_SYM
+%token  TOKU_SNAPPY_SYM
+%token  TOKU_QUICKLZ_SYM
+%token  TOKU_LZMA_SYM
+%token  TOKU_FAST_SYM
+%token  TOKU_SMALL_SYM
+%token  TOKU_DEFAULT_SYM
 %token  TRAILING                      /* SQL-2003-R */
 %token  TRANSACTION_SYM
 %token  TRIGGERS_SYM
@@ -1097,6 +1112,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  UPGRADE_SYM
 %token  USAGE                         /* SQL-2003-N */
 %token  USER                          /* SQL-2003-R */
+%token  USER_STATS_SYM
 %token  USE_FRM
 %token  USE_SYM
 %token  USING                         /* SQL-2003-R */
@@ -1178,6 +1194,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_constraint constraint opt_ident TEXT_STRING_sys_nonewline
         filter_wild_db_table_string
 
+%type <lex_cstr>
+        opt_with_compression_dictionary
+
 %type <lex_str_ptr>
         opt_table_alias
 
@@ -1251,6 +1270,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         signal_allowed_expr
         simple_target_specification
         condition_number
+        create_compression_dictionary_allowed_expr
         filter_db_ident
         filter_table_ident
         filter_string
@@ -1275,7 +1295,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-        normal_key_type opt_unique constraint_key_type fulltext spatial
+        normal_key_type opt_unique_combo_clustering constraint_key_type 
+        fulltext spatial unique_opt_clustering unique_combo_clustering unique clustering
 
 %type <key_alg>
         btree_or_rtree
@@ -1501,6 +1522,7 @@ END_OF_INPUT
 %type <option_value_no_option_type> option_value_no_option_type
 
 %type <option_value_list> option_value_list option_value_list_continued
+        set_stmt_option_value_list set_stmt_option_value_list_continued
 
 %type <start_option_value_list> start_option_value_list
 
@@ -2311,7 +2333,7 @@ create:
             }
             create_table_set_open_action_and_adjust_tables(lex);
           }
-        | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
+        | CREATE opt_unique_combo_clustering INDEX_SYM ident key_alg ON table_ident
           {
             if (add_create_index_prepare(Lex, $7))
               MYSQL_YYABORT;
@@ -2394,6 +2416,40 @@ create:
             Lex->server_options.set_scheme($7);
             Lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_create_server(&Lex->server_options);
+          }
+        | CREATE COMPRESSION_DICTIONARY_SYM opt_if_not_exists ident
+          '(' create_compression_dictionary_allowed_expr ')'
+          {
+            Lex->sql_command= SQLCOM_CREATE_COMPRESSION_DICTIONARY;
+            Lex->create_info.options= $3;
+            Lex->ident= $4;
+            Lex->default_value= $6;
+          }
+        ;
+/*
+  Only a limited subset of <expr> are allowed in
+  CREATE COMPRESSION_DICTIONARY.
+*/
+create_compression_dictionary_allowed_expr:
+          text_literal
+          { ITEMIZE($1, &$$); }
+        | variable
+          {
+            ITEMIZE($1, &$1);
+            if ($1->type() == Item::FUNC_ITEM)
+            {
+              Item_func *item= (Item_func*) $1;
+              if (item->functype() == Item_func::SUSERVAR_FUNC)
+              {
+                /*
+                  Don't allow the following syntax:
+                    CREATE COMPRESSION_DICTIONARY <dict>(@foo := expr)
+                */
+                my_syntax_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+              }
+            }
+            $$= $1;
           }
         ;
 
@@ -4817,6 +4873,7 @@ tablespace_option:
         | ts_wait
         | opt_ts_comment
         | opt_ts_file_block_size
+        | opt_ts_encryption
         ;
 
 alter_tablespace_option_list:
@@ -5042,6 +5099,14 @@ opt_ts_file_block_size:
               MYSQL_YYABORT;
             }
             lex->alter_tablespace_info->file_block_size= $3;
+          }
+        ;
+
+opt_ts_encryption:
+          ENCRYPTION_SYM opt_equal TEXT_STRING_sys
+          {
+            Lex->alter_tablespace_info->encrypt= true;
+            Lex->alter_tablespace_info->encrypt_type= $3;
           }
         ;
 
@@ -5997,6 +6062,12 @@ create_table_option:
             Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPT;
             Lex->create_info.encrypt_type= $3;
 	  }
+        | ENCRYPTION_KEY_ID_SYM opt_equal real_ulong_num
+          {
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPTION_KEY_ID;
+            Lex->create_info.was_encryption_key_id_set= true;
+            Lex->create_info.encryption_key_id= $3;
+          }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -6258,6 +6329,14 @@ row_types:
         | COMPRESSED_SYM { $$= ROW_TYPE_COMPRESSED; }
         | REDUNDANT_SYM  { $$= ROW_TYPE_REDUNDANT; }
         | COMPACT_SYM    { $$= ROW_TYPE_COMPACT; }
+        | TOKU_UNCOMPRESSED_SYM { $$= ROW_TYPE_TOKU_UNCOMPRESSED; }
+        | TOKU_ZLIB_SYM         { $$= ROW_TYPE_TOKU_ZLIB; }
+        | TOKU_SNAPPY_SYM       { $$= ROW_TYPE_TOKU_SNAPPY; }
+        | TOKU_QUICKLZ_SYM      { $$= ROW_TYPE_TOKU_QUICKLZ; }
+        | TOKU_LZMA_SYM         { $$= ROW_TYPE_TOKU_LZMA; }
+        | TOKU_FAST_SYM         { $$= ROW_TYPE_TOKU_FAST; }
+        | TOKU_SMALL_SYM        { $$= ROW_TYPE_TOKU_SMALL; }
+        | TOKU_DEFAULT_SYM      { $$= ROW_TYPE_TOKU_DEFAULT; }
         ;
 
 merge_insert_types:
@@ -6320,6 +6399,13 @@ key_def:
         | opt_constraint constraint_key_type opt_ident key_alg
           '(' key_list ')' normal_key_options
           {
+            if (($1.length != 0)
+                 && ($2 == (KEYTYPE_CLUSTERING | KEYTYPE_MULTIPLE)))
+            {
+              /* Forbid "CONSTRAINT c CLUSTERING" */
+              my_syntax_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
             if (add_create_index (Lex, $2, $3.str ? $3 : $1))
               MYSQL_YYABORT;
           }
@@ -6379,6 +6465,7 @@ field_spec:
             lex->default_value= lex->on_update_value= 0;
             lex->comment=null_lex_str;
             lex->charset=NULL;
+            lex->zip_dict_name=null_lex_cstr;
             lex->gcol_info= 0;
           }
           field_def
@@ -6390,6 +6477,7 @@ field_spec:
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
                                   lex->uint_geom_type,
+                                  &lex->zip_dict_name,
                                   lex->gcol_info))
               MYSQL_YYABORT;
           }
@@ -6456,6 +6544,19 @@ gcol_attribute:
             LEX *lex=Lex;
             lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+          }
+        | COLUMN_FORMAT_SYM DEFAULT
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
+          }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_COMPRESSED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->zip_dict_name= $3;
           }
         ;
 
@@ -6955,17 +7056,23 @@ attribute:
             lex->type|= PRI_KEY_FLAG | NOT_NULL_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
-        | UNIQUE_SYM
+        | unique_combo_clustering
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_FLAG;
+            if ($1 & KEYTYPE_UNIQUE)
+              lex->type|= UNIQUE_FLAG; 
+            if ($1 & KEYTYPE_CLUSTERING)
+              lex->type|= CLUSTERING_FLAG;
             lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
-        | UNIQUE_SYM KEY_SYM
+        | unique_combo_clustering KEY_SYM
           {
             LEX *lex=Lex;
-            lex->type|= UNIQUE_KEY_FLAG;
-            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
+            if ($1 & KEYTYPE_UNIQUE)
+              lex->type|= UNIQUE_KEY_FLAG; 
+            if ($1 & KEYTYPE_CLUSTERING)
+              lex->type|= CLUSTERING_FLAG;
+            lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX; 
           }
         | COMMENT_SYM TEXT_STRING_sys { Lex->comment= $2; }
         | COLLATE_SYM collation_name
@@ -6999,6 +7106,13 @@ attribute:
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
           }
+        | COLUMN_FORMAT_SYM COMPRESSED_SYM opt_with_compression_dictionary
+          {
+            Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+            Lex->type|=
+              (COLUMN_FORMAT_TYPE_COMPRESSED << FIELD_FLAGS_COLUMN_FORMAT);
+            Lex->zip_dict_name= $3;
+          }
         | STORAGE_SYM DEFAULT
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
@@ -7016,6 +7130,18 @@ attribute:
           }
         ;
 
+opt_with_compression_dictionary:
+          /* empty */ { $$= null_lex_cstr; }
+        | WITH COMPRESSION_DICTIONARY_SYM ident
+          {
+            /*
+              no single assignment because of
+              LEX_STRING -> LEX_CSTRING conversion
+            */
+            $$.str= $3.str;
+            $$.length= $3.length;
+          }
+        ;
 
 type_with_opt_collate:
         type opt_collate
@@ -7369,7 +7495,8 @@ normal_key_type:
 
 constraint_key_type:
           PRIMARY_SYM KEY_SYM { $$= KEYTYPE_PRIMARY; }
-        | UNIQUE_SYM opt_key_or_index { $$= KEYTYPE_UNIQUE; }
+        | unique_combo_clustering opt_key_or_index { $$= $1; }
+
         ;
 
 key_or_index:
@@ -7388,9 +7515,43 @@ keys_or_index:
         | INDEXES {}
         ;
 
-opt_unique:
-          /* empty */  { $$= KEYTYPE_MULTIPLE; }
-        | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
+opt_unique_combo_clustering:
+          /* empty */          { $$= KEYTYPE_MULTIPLE; }
+        | unique_combo_clustering
+        ;
+
+unique_combo_clustering:
+          clustering
+          {
+            $$= (enum keytype)($1 | KEYTYPE_MULTIPLE);
+          }
+        | unique_opt_clustering
+          {
+            $$= $1;
+          }
+        ;
+
+unique_opt_clustering:
+          unique 
+          { 
+            $$= $1; 
+          }
+        | unique clustering
+          {
+            $$= (enum keytype)($1 | $2);
+          }
+        | clustering unique
+          {
+            $$= (enum keytype)($1 | $2);
+          }
+        ;        
+
+unique: 
+          UNIQUE_SYM     { $$= KEYTYPE_UNIQUE; }
+        ;
+
+clustering:
+          CLUSTERING_SYM { $$= KEYTYPE_CLUSTERING; }
         ;
 
 fulltext:
@@ -8234,6 +8395,7 @@ alter_list_item:
             lex->comment=null_lex_str;
             lex->charset= NULL;
             lex->alter_info.flags|= Alter_info::ALTER_CHANGE_COLUMN;
+            lex->zip_dict_name= null_lex_cstr;
             lex->gcol_info= 0;
           }
           field_def
@@ -8245,7 +8407,7 @@ alter_list_item:
                                   lex->default_value, lex->on_update_value,
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
-                                  lex->uint_geom_type,
+                                  lex->uint_geom_type, &lex->zip_dict_name,
                                   lex->gcol_info))
               MYSQL_YYABORT;
           }
@@ -8589,6 +8751,13 @@ start_transaction_option:
           WITH CONSISTENT_SYM SNAPSHOT_SYM
           {
             $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+          }
+        | WITH CONSISTENT_SYM SNAPSHOT_SYM FROM SESSION_SYM expr
+          {
+            ITEMIZE($6, &$6);
+
+            $$= MYSQL_START_TRANS_OPT_WITH_CONS_SNAPSHOT;
+            Lex->donor_transaction_id= $6;
           }
         | READ_SYM ONLY_SYM
           {
@@ -11339,6 +11508,12 @@ drop:
             Lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_drop_server($4, $3);
           }
+        | DROP COMPRESSION_DICTIONARY_SYM if_exists ident
+          {
+            Lex->sql_command= SQLCOM_DROP_COMPRESSION_DICTIONARY;
+            Lex->drop_if_exists= $3;
+            Lex->ident= $4;
+          }
         ;
 
 table_list:
@@ -12173,6 +12348,41 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
+        | CLIENT_STATS_SYM opt_wild_or_where
+          {
+           LEX *lex= Lex;
+           Lex->sql_command= SQLCOM_SHOW_CLIENT_STATS;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_CLIENT_STATS))
+             MYSQL_YYABORT;
+          }
+        | USER_STATS_SYM opt_wild_or_where
+          {
+           LEX *lex= Lex;
+           lex->sql_command= SQLCOM_SHOW_USER_STATS;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_USER_STATS))
+             MYSQL_YYABORT;
+          }
+        | THREAD_STATS_SYM opt_wild_or_where
+          {
+           LEX *lex= Lex;
+           Lex->sql_command= SQLCOM_SHOW_THREAD_STATS;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_THREAD_STATS))
+             MYSQL_YYABORT;
+          }
+        | TABLE_STATS_SYM opt_wild_or_where
+          {
+           LEX *lex= Lex;
+           lex->sql_command= SQLCOM_SHOW_TABLE_STATS;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_TABLE_STATS))
+             MYSQL_YYABORT;
+          }
+        | INDEX_STATS_SYM opt_wild_or_where
+          {
+           LEX *lex= Lex;
+           lex->sql_command= SQLCOM_SHOW_INDEX_STATS;
+           if (prepare_schema_table(YYTHD, lex, 0, SCH_INDEX_STATS))
+             MYSQL_YYABORT;
+          }
         | CREATE PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
@@ -12524,12 +12734,24 @@ flush_option:
           { Lex->type|= REFRESH_LOG; }
         | STATUS_SYM
           { Lex->type|= REFRESH_STATUS; }
+        | CLIENT_STATS_SYM
+          { Lex->type|= REFRESH_CLIENT_STATS; }
+        | USER_STATS_SYM
+          { Lex->type|= REFRESH_USER_STATS; }
+        | THREAD_STATS_SYM
+          { Lex->type|= REFRESH_THREAD_STATS; }
+        | TABLE_STATS_SYM
+          { Lex->type|= REFRESH_TABLE_STATS; }
+        | INDEX_STATS_SYM
+          { Lex->type|= REFRESH_INDEX_STATS; }
         | DES_KEY_FILE
           { Lex->type|= REFRESH_DES_KEY_FILE; }
         | RESOURCES
           { Lex->type|= REFRESH_USER_RESOURCES; }
         | OPTIMIZER_COSTS_SYM
           { Lex->type|= REFRESH_OPTIMIZER_COSTS; }
+        | CHANGED_PAGE_BITMAPS_SYM
+          { Lex->type|= REFRESH_FLUSH_PAGE_BITMAPS; }
         ;
 
 opt_table_list:
@@ -12561,6 +12783,8 @@ reset_option:
             push_deprecated_warn_no_replacement(YYTHD, "RESET QUERY CACHE");
             Lex->type|= REFRESH_QUERY_CACHE;
           }
+        | CHANGED_PAGE_BITMAPS_SYM
+          { Lex->type |= REFRESH_RESET_PAGE_BITMAPS; }
         ;
 
 slave_reset_options:
@@ -12581,6 +12805,13 @@ purge:
 
 purge_options:
           master_or_binary LOGS_SYM purge_option
+        | CHANGED_PAGE_BITMAPS_SYM BEFORE_SYM real_ulonglong_num
+          {
+            LEX *lex= Lex;
+            lex->purge_value_list.empty();
+            lex->purge_value_list.push_front(new Item_uint($3));
+            lex->type= PURGE_BITMAPS_TO_LSN;
+          }
         ;
 
 purge_option:
@@ -13468,8 +13699,10 @@ keyword_sp:
         | CATALOG_NAME_SYM         {}
         | CHAIN_SYM                {}
         | CHANGED                  {}
+        | CHANGED_PAGE_BITMAPS_SYM {}
         | CHANNEL_SYM              {}
         | CIPHER_SYM               {}
+        | CLIENT_STATS_SYM         {}
         | CLIENT_SYM               {}
         | CLASS_ORIGIN_SYM         {}
         | COALESCE                 {}
@@ -13482,8 +13715,10 @@ keyword_sp:
         | COMPACT_SYM              {}
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
+        | COMPRESSION_DICTIONARY_SYM {}
         | COMPRESSION_SYM          {}
         | ENCRYPTION_SYM           {}
+        | ENCRYPTION_KEY_ID_SYM    {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}
@@ -13552,6 +13787,7 @@ keyword_sp:
         | HOSTS_SYM                {}
         | HOUR_SYM                 {}
         | IDENTIFIED_SYM           {}
+        | INDEX_STATS_SYM          {}
         | IGNORE_SERVER_IDS_SYM    {}
         | INVOKER_SYM              {}
         | IMPORT                   {}
@@ -13717,6 +13953,7 @@ keyword_sp:
         | STATS_AUTO_RECALC_SYM    {}
         | STATS_PERSISTENT_SYM     {}
         | STATS_SAMPLE_PAGES_SYM   {}
+        | STATEMENT_SYM            {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
@@ -13729,6 +13966,7 @@ keyword_sp:
         | SUSPEND_SYM              {}
         | SWAPS_SYM                {}
         | SWITCHES_SYM             {}
+        | TABLE_STATS_SYM          {}
         | TABLE_NAME_SYM           {}
         | TABLES                   {}
         | TABLE_CHECKSUM_SYM       {}
@@ -13737,12 +13975,21 @@ keyword_sp:
         | TEMPTABLE_SYM            {}
         | TEXT_SYM                 {}
         | THAN_SYM                 {}
+        | THREAD_STATS_SYM         {} 
         | TRANSACTION_SYM          {}
         | TRIGGERS_SYM             {}
         | TIMESTAMP                {}
         | TIMESTAMP_ADD            {}
         | TIMESTAMP_DIFF           {}
         | TIME_SYM                 {}
+        | TOKU_UNCOMPRESSED_SYM    {}
+        | TOKU_ZLIB_SYM            {}
+        | TOKU_SNAPPY_SYM          {}
+        | TOKU_QUICKLZ_SYM         {}
+        | TOKU_LZMA_SYM            {}
+        | TOKU_SMALL_SYM           {}
+        | TOKU_FAST_SYM            {}
+        | TOKU_DEFAULT_SYM         {}
         | TYPES_SYM                {}
         | TYPE_SYM                 {}
         | UDF_RETURNS_SYM          {}
@@ -13754,6 +14001,7 @@ keyword_sp:
         | UNKNOWN_SYM              {}
         | UNTIL_SYM                {}
         | USER                     {}
+        | USER_STATS_SYM           {}
         | USE_FRM                  {}
         | VALIDATION_SYM           {}
         | VARIABLES                {}
@@ -13781,10 +14029,19 @@ keyword_sp:
 set:
           SET start_option_value_list
           {
-            $$= NEW_PTN PT_set(@1, $2);
+            $$= NEW_PTN PT_set(@1, @1, $2, false);
+          }
+        | SET STATEMENT_SYM option_value_following_option_type
+          set_stmt_option_value_list_continued
+          FOR_SYM statement 
+          {
+            $$= NEW_PTN PT_set(@1, @2,
+              NEW_PTN PT_start_option_value_list_type(OPT_SESSION,
+                NEW_PTN PT_start_option_value_list_following_option_type_eq($3,
+                                                                            @3,
+                                                                            $4)), true);
           }
         ;
-
 
 // Start of option value list
 start_option_value_list:
@@ -13840,6 +14097,21 @@ start_option_value_list_following_option_type:
             $$= NEW_PTN
               PT_start_option_value_list_following_option_type_transaction($2,
                                                                            @2);
+          }
+        ;
+
+set_stmt_option_value_list_continued:
+          /* empty */                    { $$= NULL; }
+        | ',' set_stmt_option_value_list { $$= $2;   }
+
+set_stmt_option_value_list:
+          option_value_no_option_type
+          {
+            $$= NEW_PTN PT_option_value_list_head(@0, $1, @1);
+          }
+        | option_value_list ',' option_value_no_option_type
+          {
+            $$= NEW_PTN PT_option_value_list($1, @2, $3, @3);
           }
         ;
 
@@ -14017,21 +14289,37 @@ set_expr_or_default:
           {
             $$= NEW_PTN Item_string(@$, "binary", 6, system_charset_info);
           }
+        | FORCE_SYM
+          {
+            $$= NEW_PTN Item_string(@$, "FORCE", 5, system_charset_info);
+          }
         ;
 
 /* Lock function */
 
 lock:
-          LOCK_SYM table_or_tables
+          LOCK_SYM lock_variant
           {
-            LEX *lex= Lex;
-
-            if (lex->sphead)
+            if (Lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "LOCK");
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_LOCK_TABLES;
+          }
+        ;
+
+lock_variant:
+          BINLOG_SYM FOR_SYM BACKUP_SYM
+          {
+            Lex->sql_command= SQLCOM_LOCK_BINLOG_FOR_BACKUP;
+          }
+        | TABLES FOR_SYM BACKUP_SYM
+          {
+            Lex->sql_command= SQLCOM_LOCK_TABLES_FOR_BACKUP;
+          }
+        | table_or_tables
+          {
+            Lex->sql_command= SQLCOM_LOCK_TABLES;
           }
           table_lock_list
           {}
@@ -14087,19 +14375,25 @@ lock_option:
         ;
 
 unlock:
-          UNLOCK_SYM
+          UNLOCK_SYM unlock_variant
           {
-            LEX *lex= Lex;
-
-            if (lex->sphead)
+            if (Lex->sphead)
             {
               my_error(ER_SP_BADSTATEMENT, MYF(0), "UNLOCK");
               MYSQL_YYABORT;
             }
-            lex->sql_command= SQLCOM_UNLOCK_TABLES;
           }
-          table_or_tables
-          {}
+	;
+
+unlock_variant:
+          BINLOG_SYM
+          {
+            Lex->sql_command= SQLCOM_UNLOCK_BINLOG;
+          }
+        | table_or_tables
+          {
+            Lex->sql_command= SQLCOM_UNLOCK_TABLES;
+          }
         ;
 
 

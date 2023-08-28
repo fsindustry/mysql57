@@ -42,12 +42,6 @@ static char*	mecab_rc_file;
 static const char*	mecab_min_supported_version = "0.993";
 static const char*	mecab_max_supported_version = "0.996";
 
-#if defined(BUNDLE_MECAB)
-static const bool bundle_mecab= true;
-#else
-static const bool bundle_mecab= false;
-#endif
-
 /** Set MeCab parser charset.
 @param[in]	charset charset string
 @retval	true	on success
@@ -196,6 +190,8 @@ mecab_parse(
 	int	token_num = 0;
 	int	ret = 0;
 	bool	term_converted = false;
+	const CHARSET_INFO*	cs = param->cs;
+	char*	end = const_cast<char*>(doc) + len;
 
 	try {
 		mecab_lattice->set_sentence(doc, len);
@@ -233,12 +229,19 @@ mecab_parse(
 
 	for (const MeCab::Node* node = mecab_lattice->bos_node();
 	     node != NULL; node = node->next) {
-		bool_info->position = position;
-		position += node->rlength;
+		int ctype = 0;
+		cs->cset->ctype(cs, &ctype, reinterpret_cast<const uchar *>(node->surface),
+		                reinterpret_cast<const uchar *>(end));
 
-		param->mysql_add_word(param, const_cast<char*>(node->surface),
-				      node->length,
-				      term_converted ? &token_info : bool_info);
+		/* Skip control characters */
+		if (!(ctype & _MY_CTR)) {
+			bool_info->position = position;
+			position += node->rlength;
+
+			param->mysql_add_word(param, const_cast<char *>(node->surface),
+														node->length,
+														term_converted ? &token_info : bool_info);
+		}
 	}
 
 	if (term_converted) {
@@ -326,8 +329,11 @@ mecab_parser_parse(
 		uchar*		start = reinterpret_cast<uchar*>(doc);
 		uchar*		end = start + doc_length;
 		FT_WORD		word = {NULL, 0, 0};
+		const bool	extra_word_chars =
+			thd_get_ft_query_extra_word_chars();
 
-		while (fts_get_word(param->cs, &start, end, &word, &bool_info)) {
+		while (fts_get_word(param->cs, extra_word_chars, &start, end,
+				    &word, &bool_info)) {
 			/* Don't convert term with wildcard. */
 			if (bool_info.type == FT_TOKEN_WORD
 			    && !bool_info.trunc) {

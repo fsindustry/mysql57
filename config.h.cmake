@@ -141,6 +141,7 @@
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
+#cmakedefine HAVE_MEMSET_S 1
 #cmakedefine DNS_USE_CPU_CLOCK_FOR_ID 1
 #cmakedefine HAVE_EPOLL 1
 /* #cmakedefine HAVE_EVENT_PORTS 1 */
@@ -165,6 +166,7 @@
 #cmakedefine HAVE_SIGEV_THREAD_ID 1
 #cmakedefine HAVE_SIGEV_PORT 1
 #cmakedefine HAVE_LOG2 1
+#cmakedefine HAVE_MADV_DONTDUMP 1
 
 #cmakedefine HAVE_ISINF 1
 
@@ -222,6 +224,7 @@
  * Platform specific CMake files
  */
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
+#cmakedefine TARGET_OS_LINUX 1
 #cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_LARGE_PAGES 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
@@ -284,9 +287,10 @@
 #cmakedefine HAVE_NCURSES_H 1
 #cmakedefine USE_LIBEDIT_INTERFACE 1
 #cmakedefine HAVE_HIST_ENTRY 1
-#cmakedefine USE_NEW_EDITLINE_INTERFACE 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_CHAR 1
-#cmakedefine EDITLINE_HAVE_COMPLETION_INT 1
+#cmakedefine USE_NEW_XLINE_INTERFACE 1
+#cmakedefine XLINE_HAVE_COMPLETION_CHAR 1
+#cmakedefine XLINE_HAVE_COMPLETION_INT 1
+#cmakedefine HAVE_READLINE_HISTORY_H 1
 
 /*
  * Libedit
@@ -350,6 +354,8 @@
 #cmakedefine HAVE_CHARSET_utf16 1
 #cmakedefine HAVE_CHARSET_utf32 1
 #cmakedefine HAVE_UCA_COLLATIONS 1
+#cmakedefine HAVE_X509_CHECK_HOST 1
+#cmakedefine HAVE_X509_CHECK_IP 1
 
 /*
  * Feature set
@@ -467,4 +473,6 @@
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
+/* coredumper library */
+#cmakedefine01 HAVE_LIBCOREDUMPER
 #endif

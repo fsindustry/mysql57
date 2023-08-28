@@ -68,7 +68,7 @@
 
 
 /* Copy the first part of user declarations.  */
-#line 28 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:339  */
+#line 28 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:339  */
 
 #include "sql_class.h"
 #include "parse_tree_hints.h"
@@ -77,7 +77,7 @@
 
 #define NEW_PTN new (thd->mem_root)
 
-#line 81 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:339  */
+#line 81 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:339  */
 
 # ifndef YY_NULLPTR
 #  if defined __cplusplus && 201103L <= __cplusplus
@@ -97,8 +97,8 @@
 
 /* In a future release of Bison, this section will be replaced
    by #include "sql_hints.yy.h".  */
-#ifndef YY_HINT_PARSER_VAR_LIB_PB2_SB_1_11862810_1687352684_19_DIST_GPL_SQL_SQL_HINTS_YY_H_INCLUDED
-# define YY_HINT_PARSER_VAR_LIB_PB2_SB_1_11862810_1687352684_19_DIST_GPL_SQL_SQL_HINTS_YY_H_INCLUDED
+#ifndef YY_HINT_PARSER_MNT_JENKINS_WORKSPACE_PS5_7_AUTOBUILD_RELEASE_TEST_PERCONA_SERVER_SQL_SQL_HINTS_YY_H_INCLUDED
+# define YY_HINT_PARSER_MNT_JENKINS_WORKSPACE_PS5_7_AUTOBUILD_RELEASE_TEST_PERCONA_SERVER_SQL_SQL_HINTS_YY_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -168,11 +168,11 @@ extern int HINT_PARSER_debug;
 
 int HINT_PARSER_parse (class THD *thd, class Hint_scanner *scanner, class PT_hint_list **ret);
 
-#endif /* !YY_HINT_PARSER_VAR_LIB_PB2_SB_1_11862810_1687352684_19_DIST_GPL_SQL_SQL_HINTS_YY_H_INCLUDED  */
+#endif /* !YY_HINT_PARSER_MNT_JENKINS_WORKSPACE_PS5_7_AUTOBUILD_RELEASE_TEST_PERCONA_SERVER_SQL_SQL_HINTS_YY_H_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
 
-#line 176 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:358  */
+#line 176 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -472,12 +472,12 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   125,   125,   127,   129,   134,   140,   148,   149,   150,
-     151,   152,   157,   179,   180,   184,   190,   199,   200,   204,
-     210,   219,   220,   224,   230,   239,   243,   251,   259,   260,
-     268,   269,   273,   280,   287,   296,   297,   301,   308,   309,
-     310,   311,   315,   317,   322,   328,   335,   341,   351,   358,
-     368,   372,   379,   383,   390,   394,   401,   405,   412
+       0,   124,   124,   126,   128,   133,   139,   147,   148,   149,
+     150,   151,   156,   178,   179,   183,   189,   198,   199,   203,
+     209,   218,   219,   223,   229,   238,   242,   250,   258,   259,
+     267,   268,   272,   279,   286,   295,   296,   300,   307,   308,
+     309,   310,   314,   316,   321,   327,   334,   340,   350,   357,
+     367,   371,   378,   382,   389,   393,   400,   404,   411
 };
 #endif
 
@@ -1331,44 +1331,44 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 126 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 125 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { *ret= (yyvsp[-1].hint_list); }
-#line 1337 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1337 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 128 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 127 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { *ret= (yyvsp[-2].hint_list); }
-#line 1343 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1343 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 130 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 129 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { *ret= NULL; }
-#line 1349 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1349 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 135 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 134 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_list)= NEW_PTN PT_hint_list(thd->mem_root);
             if ((yyval.hint_list) == NULL || (yyval.hint_list)->push_back((yyvsp[0].hint)))
               YYABORT; // OOM
           }
-#line 1359 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1359 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 141 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 140 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyvsp[-1].hint_list)->push_back((yyvsp[0].hint));
             (yyval.hint_list)= (yyvsp[-1].hint_list);
           }
-#line 1368 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1368 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 158 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 157 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             int error;
             char *end= const_cast<char *>((yyvsp[-1].hint_string).str + (yyvsp[-1].hint_string).length);
@@ -1386,345 +1386,345 @@ yyreduce:
                 YYABORT; // OOM
             }
           }
-#line 1390 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1390 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 179 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 178 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.hint_param_table_list).init(thd->mem_root); }
-#line 1396 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1396 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 15:
-#line 185 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 184 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_table_list).init(thd->mem_root);
             if ((yyval.hint_param_table_list).push_back((yyvsp[0].hint_param_table)))
               YYABORT; // OOM
           }
-#line 1406 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1406 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 191 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 190 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             if ((yyvsp[-2].hint_param_table_list).push_back((yyvsp[0].hint_param_table)))
               YYABORT; // OOM
             (yyval.hint_param_table_list)= (yyvsp[-2].hint_param_table_list);
           }
-#line 1416 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1416 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 199 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 198 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.hint_param_table_list).init(thd->mem_root); }
-#line 1422 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1422 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 19:
-#line 205 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 204 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_table_list).init(thd->mem_root);
             if ((yyval.hint_param_table_list).push_back((yyvsp[0].hint_param_table)))
               YYABORT; // OOM
           }
-#line 1432 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1432 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 211 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 210 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             if ((yyvsp[-2].hint_param_table_list).push_back((yyvsp[0].hint_param_table)))
               YYABORT; // OOM
             (yyval.hint_param_table_list)= (yyvsp[-2].hint_param_table_list);
           }
-#line 1442 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1442 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 219 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 218 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.hint_param_index_list).init(thd->mem_root); }
-#line 1448 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1448 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 225 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 224 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_index_list).init(thd->mem_root);
             if ((yyval.hint_param_index_list).push_back((yyvsp[0].hint_string)))
               YYABORT; // OOM
           }
-#line 1458 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1458 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 231 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 230 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             if ((yyvsp[-2].hint_param_index_list).push_back((yyvsp[0].hint_string)))
               YYABORT; // OOM
             (yyval.hint_param_index_list)= (yyvsp[-2].hint_param_index_list);
           }
-#line 1468 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1468 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 26:
-#line 244 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 243 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_table).table= (yyvsp[0].hint_string);
             (yyval.hint_param_table).opt_query_block= NULL_CSTR;
           }
-#line 1477 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1477 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 27:
-#line 252 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 251 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_table).table= (yyvsp[-1].hint_string);
             (yyval.hint_param_table).opt_query_block= (yyvsp[0].hint_string);
           }
-#line 1486 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1486 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 261 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 260 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_param_table).table= (yyvsp[0].hint_string);
             (yyval.hint_param_table).opt_query_block= (yyvsp[-1].hint_string);
           }
-#line 1495 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1495 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 268 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 267 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.hint_string)= NULL_CSTR; }
-#line 1501 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1501 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 32:
-#line 274 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 273 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_qb_level_hint((yyvsp[-2].hint_string), TRUE, SEMIJOIN_HINT_ENUM, (yyvsp[-1].ulong_num));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1511 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1511 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 281 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 280 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_qb_level_hint((yyvsp[-2].hint_string), FALSE, SEMIJOIN_HINT_ENUM, (yyvsp[-1].ulong_num));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1521 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1521 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 288 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 287 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_qb_level_hint((yyvsp[-2].hint_string), TRUE, SUBQUERY_HINT_ENUM, (yyvsp[-1].ulong_num));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1531 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1531 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 296 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 295 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= 0; }
-#line 1537 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1537 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 298 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 297 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.ulong_num)= (yyvsp[0].ulong_num);
           }
-#line 1545 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1545 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 37:
-#line 302 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 301 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.ulong_num)= (yyvsp[-2].ulong_num) | (yyvsp[0].ulong_num);
           }
-#line 1553 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1553 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 38:
-#line 308 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 307 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= OPTIMIZER_SWITCH_FIRSTMATCH; }
-#line 1559 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1559 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 309 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 308 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= OPTIMIZER_SWITCH_LOOSE_SCAN; }
-#line 1565 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1565 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 310 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 309 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= OPTIMIZER_SWITCH_MATERIALIZATION; }
-#line 1571 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1571 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 311 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 310 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= OPTIMIZER_SWITCH_DUPSWEEDOUT; }
-#line 1577 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1577 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 315 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 314 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)=
                                    Item_exists_subselect::EXEC_MATERIALIZATION; }
-#line 1584 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1584 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 317 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 316 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     { (yyval.ulong_num)= Item_exists_subselect::EXEC_EXISTS; }
-#line 1590 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1590 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 323 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 322 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_table_level_hint(NULL_CSTR, (yyvsp[-1].hint_param_table_list), TRUE, (yyvsp[-3].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1600 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1600 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 330 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 329 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_table_level_hint((yyvsp[-2].hint_string), (yyvsp[-1].hint_param_table_list), TRUE, (yyvsp[-4].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1610 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1610 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 336 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 335 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_table_level_hint(NULL_CSTR, (yyvsp[-1].hint_param_table_list), FALSE, (yyvsp[-3].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1620 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1620 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 343 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 342 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_table_level_hint((yyvsp[-2].hint_string), (yyvsp[-1].hint_param_table_list), FALSE, (yyvsp[-4].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1630 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1630 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 353 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 352 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_key_level_hint((yyvsp[-2].hint_param_table), (yyvsp[-1].hint_param_index_list), TRUE, (yyvsp[-4].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1640 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1640 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 360 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 359 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_key_level_hint((yyvsp[-2].hint_param_table), (yyvsp[-1].hint_param_index_list), FALSE, (yyvsp[-4].hint_type));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1650 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1650 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 369 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 368 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= BKA_HINT_ENUM;
           }
-#line 1658 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1658 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 51:
-#line 373 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 372 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= BNL_HINT_ENUM;
           }
-#line 1666 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1666 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 380 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 379 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= BKA_HINT_ENUM;
           }
-#line 1674 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1674 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 384 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 383 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= BNL_HINT_ENUM;
           }
-#line 1682 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1682 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 391 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 390 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= MRR_HINT_ENUM;
           }
-#line 1690 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1690 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 395 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 394 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= NO_RANGE_HINT_ENUM;
           }
-#line 1698 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1698 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 402 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 401 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= ICP_HINT_ENUM;
           }
-#line 1706 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1706 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 406 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 405 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint_type)= MRR_HINT_ENUM;
           }
-#line 1714 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1714 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 413 "/var/lib/pb2/sb_1-11862810-1687352684.19/mysql-5.7.43-release-export-3209944_gpl/sql/sql_hints.yy" /* yacc.c:1646  */
+#line 412 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy" /* yacc.c:1646  */
     {
             (yyval.hint)= NEW_PTN PT_hint_qb_name((yyvsp[-1].hint_string));
             if ((yyval.hint) == NULL)
               YYABORT; // OOM
           }
-#line 1724 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1724 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
     break;
 
 
-#line 1728 "/var/lib/pb2/sb_1-11862810-1687352684.19/dist_GPL/sql/sql_hints.yy.cc" /* yacc.c:1646  */
+#line 1728 "/mnt/jenkins/workspace/ps5.7-autobuild-RELEASE/test/percona-server/sql/sql_hints.yy.cc" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires

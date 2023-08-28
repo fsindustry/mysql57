@@ -31,6 +31,10 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
 )
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+)
 
 SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
@@ -62,7 +66,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS gen_lex_token
 )
 
-ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION)
+ADD_DEFINITIONS(-DMYSQL_SERVER -DHAVE_REPLICATION -DHAVE_POOL_OF_THREADS)
 IF(SSL_DEFINES)
  ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
@@ -108,6 +112,7 @@ SET(SQL_SHARED_SOURCES
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_json_func.cc
+  item_keyring_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -124,6 +129,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   locks/shared_spin_lock.cc
   log.cc
+  event_crypt.cc
   mdl.cc
   migrate_keyring.cc
   my_decimal.cc
@@ -238,6 +244,7 @@ SET(SQL_SHARED_SOURCES
   sql_union.cc
   sql_update.cc
   sql_view.cc
+  sql_zip_dict.cc
   strfunc.cc
   sys_vars.cc
   sys_vars_resource_mgr.cc
@@ -246,6 +253,7 @@ SET(SQL_SHARED_SOURCES
   table_trigger_dispatcher.cc
   tc_log.cc
   thr_malloc.cc 
+  threadpool_common.cc
   transaction.cc
   transaction_info.cc
   trigger.cc
@@ -256,7 +264,15 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   unireg.cc
   xa.cc
+  binlog_crypt_data.cc
+  userstat.cc
 )
+
+IF(WIN32)
+  SET(SQL_SHARED_SOURCES ${SQL_SHARED_SOURCES} threadpool_win.cc)
+ELSE()
+ SET(SQL_SHARED_SOURCES ${SQL_SHARED_SOURCES} threadpool_unix.cc)
+ENDIF()
 
 SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
@@ -290,6 +306,7 @@ SET(SQL_SOURCE
   event_scheduler.cc
   events.cc
   mf_iocache.cc
+  mf_iocache_encr.cc
   mysqld.cc
   mysqld_thd_manager.cc
   protocol_callback.cc
@@ -323,10 +340,6 @@ IF(WIN32)
 ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-INCLUDE_DIRECTORIES(SYSTEM
-  ${BOOST_PATCHES_DIR}
-  ${BOOST_INCLUDE_DIR}
-  )
 
 ADD_COMPILE_FLAGS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
@@ -362,6 +375,11 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Suppress warnings for gcc-12 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-maybe-uninitialized FILES item_geofunc_buffer.cc)
+ENDIF()
+
 # Segfault in boost::geometry code at high optimization levels
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
@@ -393,22 +411,20 @@ IF(HAVE_MISLEADING_INDENTATION)
     COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
-# gcc 7.2.0 complains:
-# boost/geometry/algorithms/detail/expand/indexed.hpp:81
-# *((void*)& box +24) may be used uninitialized
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  ADD_COMPILE_FLAGS(
-    geometry_rtree.cc
-    COMPILE_FLAGS "-Wno-maybe-uninitialized")
-ENDIF()
-
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
 IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
     COMPILE_FLAGS "-Wno-free-nonheap-object -Wno-unused-label")
+ENDIF()
+
+IF(MY_COMPILER_IS_GNU OR
+   MY_COMPILER_IS_CLANG AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-unused-label")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
@@ -425,6 +441,14 @@ IF (WIN32 AND OPENSSL_APPLINK_C)
     ../sql-common/client_authentication.cc
     COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
   )
+ENDIF()
+
+# Suppress warnings for gcc-11 or newer
+IF(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-array-bounds FILES spatial.cc)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-stringop-overflow FILES spatial.cc)
+  # a false positive with a bison-generated file (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753)
+  ADD_CXX_COMPILE_FLAGS_TO_FILES(-Wno-free-nonheap-object FILES ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(sql ${SQL_SOURCE})
@@ -453,7 +477,8 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
                    rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_trx_tracking.cc
-                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
+                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc event_crypt.cc
+                   binlog_crypt_data.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
@@ -496,6 +521,17 @@ IF(WIN32)
 ELSE()
   SET(MYSQLD_SOURCE main.cc ${DTRACE_PROBES_ALL})
 ENDIF()
+
+# partition_base.cc contains c++11 code, which can be compiled on all
+# platforms supported for TokuDB and MyRocks
+IF (HAVE_STDCXX11)
+  LIST(APPEND MYSQLD_SOURCE partitioning/partition_base.cc)
+  ADD_COMPILE_FLAGS(partitioning/partition_base.cc
+    COMPILE_FLAGS -std=gnu++11 -Wno-deprecated-declarations)
+ELSE ()
+  MESSAGE(WARNING
+    "-std=gnu++11 support is required to build TokuDB/RocksDB native partitioning")
+ENDIF ()
 
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server)

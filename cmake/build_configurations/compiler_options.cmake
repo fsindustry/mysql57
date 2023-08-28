@@ -31,9 +31,20 @@ ENDIF()
 IF(SIZEOF_VOIDP EQUAL 8)
   SET(64BIT 1)
 ENDIF()
+
+SET(CMAKE_CXX_STANDARD 98)
  
 # Compiler options
 IF(UNIX)  
+  MY_CHECK_CXX_COMPILER_FLAG("-std=gnu++03" GNU03_SUPPORTED)
+
+  IF(GNU03_SUPPORTED)
+    IF(CMAKE_VERSION VERSION_LESS 3.1.0)
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++03")
+    ELSE()
+      SET(CMAKE_CXX98_EXTENSION_COMPILE_OPTION -std=gnu++03)
+    ENDIF()
+  ENDIF()
 
   IF(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
     SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
@@ -43,7 +54,10 @@ IF(UNIX)
 
   # Default GCC flags
   IF(CMAKE_COMPILER_IS_GNUCC)
-    SET(COMMON_C_FLAGS "-fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_C_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_C_FLAGS "-fabi-version=2 ${COMMON_C_FLAGS}")
+    ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_C_FLAGS "-fno-inline ")
@@ -66,15 +80,16 @@ IF(UNIX)
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_COMPILER_IS_GNUCXX)
-    SET(COMMON_CXX_FLAGS               "-fabi-version=2 -fno-omit-frame-pointer -fno-strict-aliasing")
+    SET(COMMON_CXX_FLAGS               "-fno-omit-frame-pointer -fno-strict-aliasing")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)  # gcc-9 or older
+      SET(COMMON_CXX_FLAGS             "-fabi-version=2 ${COMMON_CXX_FLAGS}")
+    ENDIF()
     # GCC 6 has C++14 as default, set it explicitly to the old default.
     EXECUTE_PROCESS(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GXX_VERSION)
-    IF(GXX_VERSION VERSION_EQUAL 6.0 OR GXX_VERSION VERSION_GREATER 6.0)
-      STRING_PREPEND(COMMON_CXX_FLAGS "-std=gnu++03 ")
-    ENDIF()
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS "-fno-inline ")
@@ -97,7 +112,7 @@ IF(UNIX)
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_CXX_FLAGS "-fPIC ")
     ENDIF()
-
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Default Clang flags
@@ -106,18 +121,14 @@ IF(UNIX)
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_C_FLAGS  "-fPIC ")
     ENDIF()
+    STRING_PREPEND(CMAKE_C_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
   IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     SET(COMMON_CXX_FLAGS "-fno-omit-frame-pointer -fno-strict-aliasing")
-    IF(CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL 6.0 OR
-        CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 6.0)
-      IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-        STRING_PREPEND(COMMON_CXX_FLAGS "-std=gnu++03 ")
-      ENDIF()
-    ENDIF()
     IF(NOT DISABLE_SHARED)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fPIC ")
     ENDIF()
+    STRING_PREPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-D_FORTIFY_SOURCE=2 ")
   ENDIF()
 
   # Solaris flags

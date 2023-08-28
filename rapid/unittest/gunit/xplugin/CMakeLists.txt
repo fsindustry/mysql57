@@ -169,7 +169,7 @@ TARGET_LINK_LIBRARIES(
   gmock
   mysqlservices
   ${FORCE_SSL_SOLARIS}
-  mysqlclient
+  perconaserverclient
   ${LIBEVENT_LIBRARIES}
   ${CMAKE_THREAD_LIBS_INIT}
   ${PROTOBUF_LIBRARY}

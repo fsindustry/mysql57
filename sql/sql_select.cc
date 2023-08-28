@@ -129,6 +129,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   if (single_query)
   {
+    assert(unit->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
     unit->set_limit(unit->global_parameters());
 
     select->context.resolve_in_select_list= true;
@@ -1006,6 +1007,7 @@ bool SELECT_LEX::optimize(THD *thd)
 {
   DBUG_ENTER("SELECT_LEX::optimize");
 
+  assert(master_unit()->cleaned == SELECT_LEX_UNIT::UC_DIRTY);
   assert(join == NULL);
   JOIN *const join_local= new JOIN(thd, this);
   if (!join_local)
@@ -2390,7 +2392,7 @@ void JOIN_TAB::cleanup()
   else
     qs_cleanup();
 
-  TRASH(this, sizeof(*this));
+  TRASH(static_cast<void*>(this), sizeof(*this));
 }
 
 
@@ -2424,7 +2426,7 @@ void QEP_TAB::cleanup()
     op->mem_free();
   }
 
-  TRASH(this, sizeof(*this));
+  TRASH(static_cast<void*>(this), sizeof(*this));
 }
 
 
@@ -4141,7 +4143,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
 
       bool is_covering= table->covering_keys.is_set(nr) ||
                         (nr == table->s->primary_key &&
-                        table->file->primary_key_is_clustered());
+                        table->file->primary_key_is_clustered()) ||
+                        (table->file->index_flags(nr, 0, 0)
+                         & HA_CLUSTERED_INDEX);
       
       /* 
         Don't use an index scan with ORDER BY without limit.
@@ -4254,7 +4258,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           if (best_key < 0 ||
               (select_limit <= min(quick_records,best_records) ?
                keyinfo->user_defined_key_parts < best_key_parts :
-               quick_records < best_records))
+               quick_records < best_records) ||
+               ((quick_records == best_records) &&
+                !is_best_covering && is_covering))
           {
             best_key= nr;
             best_key_parts= keyinfo->user_defined_key_parts;

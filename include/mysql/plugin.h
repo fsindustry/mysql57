@@ -64,7 +64,13 @@ typedef void * MYSQL_PLUGIN;
 
 #ifndef MYSQL_ABI_CHECK
 #include <mysql/services.h>
-#endif
+#ifndef __WIN__
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS    /* Enable C99 printf format macros */
+#endif /* !__STDC_FORMAT_MACROS */
+#include <inttypes.h>
+#endif /* !__WIN__ */
+#endif /* !MYSQL_ABI_CHECK */
 
 #define MYSQL_XIDDATASIZE 128
 /**
@@ -150,6 +156,9 @@ enum enum_mysql_show_type
   SHOW_INT,        ///< shown as _unsigned_ int
   SHOW_LONG,       ///< shown as _unsigned_ long
   SHOW_LONGLONG,   ///< shown as _unsigned_ longlong
+  SHOW_SIGNED_INT,
+  SHOW_SIGNED_LONG,
+  SHOW_SIGNED_LONGLONG,
   SHOW_CHAR, SHOW_CHAR_PTR,
   SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
 #ifdef MYSQL_SERVER
@@ -468,6 +477,10 @@ DECLARE_MYSQL_THDVAR_SIMPLE(name, double) = { \
 #define THDVAR(thd, name) \
   (*(MYSQL_SYSVAR_NAME(name).resolve(thd, MYSQL_SYSVAR_NAME(name).offset)))
 
+#define THDVAR_SET(thd, name, value) \
+  plugin_thdvar_safe_update(thd, MYSQL_SYSVAR(name), \
+                            (char **) &THDVAR(thd, name), \
+                            (const char *) value);
 
 /*
   Plugin description structure.
@@ -635,6 +648,46 @@ int thd_allow_batch(MYSQL_THD thd);
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 
+/** Types of statistics that can be passed to thd_report_innodb_stat */
+enum mysql_trx_stat_type
+{
+  /** Volume of I/O read requests in bytes */
+  MYSQL_TRX_STAT_IO_READ_BYTES,
+  /** Time in microseconds spent waiting for I/O reads to complete */
+  MYSQL_TRX_STAT_IO_READ_WAIT_USECS,
+  /** Time in microseconds spent waiting for row locks */
+  MYSQL_TRX_STAT_LOCK_WAIT_USECS,
+  /** Time in microseconds spent waiting to enter InnoDB */
+  MYSQL_TRX_STAT_INNODB_QUEUE_WAIT_USECS,
+  /** A logical data page accessed */
+  MYSQL_TRX_STAT_ACCESS_PAGE_ID
+};
+
+/**
+  Report various InnoDB statistics for the slow query log extensions
+
+  @param[in]    thd     user thread connection handle
+  @param[in]    trx_id  InnoDB tranaction ID
+  @param[in]    type    type of statistics being reported
+  @param[in]    value   the value of statistics
+*/
+void thd_report_innodb_stat(MYSQL_THD thd, unsigned long long trx_id,
+                            enum mysql_trx_stat_type type,
+                            uint64_t value);
+
+unsigned long thd_log_slow_verbosity(const MYSQL_THD thd);
+
+int thd_opt_slow_log();
+
+/**
+  Check whether given connection handle is associated with a background thread.
+
+  @param thd  connection handle
+  @retval non-zero  the connection handle belongs to a background thread
+  @retval 0   the connection handle belongs to a different thread type
+*/
+int thd_is_background_thread(const MYSQL_THD thd);
+
 /**
   Create a temporary file.
 
@@ -696,6 +749,13 @@ void thd_binlog_pos(const MYSQL_THD thd,
 unsigned long thd_get_thread_id(const MYSQL_THD thd);
 
 /**
+  Return the query id of a thread
+  @param thd user thread
+  @return query id
+*/
+int64_t thd_get_query_id(const MYSQL_THD thd);
+
+/**
   Get the XID for this connection's transaction
 
   @param thd  user thread connection handle
@@ -745,6 +805,19 @@ void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
 */
 void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data);
+
+int thd_command(const MYSQL_THD thd);
+long long thd_start_time(const MYSQL_THD thd);
+void thd_kill(unsigned long id);
+
+/**
+  Check whether ft_query_extra_word_chars server variable is enabled for the
+  current session
+
+  @return ft_query_extra_word_chars value
+*/
+int thd_get_ft_query_extra_word_chars(void);
+
 #ifdef __cplusplus
 }
 #endif

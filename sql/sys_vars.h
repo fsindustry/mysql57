@@ -32,6 +32,7 @@
 
 #include "my_global.h"
 #include "keycaches.h"            // dflt_key_cache
+#include "debug_sync.h"           // DEBUG_SYNC
 #include "my_bit.h"               // my_count_bits
 #include "my_getopt.h"            // get_opt_arg_type
 #include "mysql/plugin.h"         // enum_mysql_show_type
@@ -167,6 +168,7 @@ public:
     my_bool fixed= FALSE;
     longlong v;
     ulonglong uv;
+    const T *vmin, *vmax;
 
     v= var->value->val_int();
     if (SIGNED) /* target variable has signed type */
@@ -234,6 +236,32 @@ public:
         if (var->save_result.ulonglong_value > max_val)
           var->save_result.ulonglong_value= max_val;
       }
+    }
+
+    vmin= static_cast<const T *>
+      (getopt_constraint_get_min_value(option.name, 0, FALSE));
+    vmax= static_cast<const T *>
+      (getopt_constraint_get_max_value(option.name, 0, FALSE));
+
+    if (SIGNED)
+    {
+      if (vmin && (longlong)var->save_result.ulonglong_value < (longlong)*vmin)
+        var->save_result.ulonglong_value= *vmin;
+      if (vmax && (longlong)var->save_result.ulonglong_value > (longlong)*vmax)
+        var->save_result.ulonglong_value= *vmax;
+      if (vmin && (longlong)var->save_result.ulonglong_value
+          > (longlong)-*vmin)
+        var->save_result.ulonglong_value= -*vmin;
+      if (vmax && (longlong)var->save_result.ulonglong_value
+          < (longlong)-*vmax)
+        var->save_result.ulonglong_value= -*vmax;
+    }
+    else
+    {
+      if (vmin && var->save_result.ulonglong_value < (ulonglong)*vmin)
+        var->save_result.ulonglong_value= *vmin;
+      if (vmax && var->save_result.ulonglong_value > (ulonglong)*vmax)
+        var->save_result.ulonglong_value= *vmax;
     }
 
     return throw_bounds_warning(thd, name.str,
@@ -820,13 +848,18 @@ public:
 
 class Sys_var_version : public Sys_var_charptr
 {
+private:
+  char withsuffix[SERVER_VERSION_LENGTH];
+  char *withsuffix_ptr;
 public:
   Sys_var_version(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
           enum charset_enum is_os_charset_arg,
           const char *def_val)
-    : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt, is_os_charset_arg, def_val)
+    : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
+          is_os_charset_arg, def_val),
+      withsuffix_ptr(withsuffix)
   {}
 
   ~Sys_var_version()
@@ -834,16 +867,32 @@ public:
 
   virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    uchar *value= Sys_var_charptr::global_value_ptr(thd, base);
+    char **version_ptr= reinterpret_cast<char**> (
+                               Sys_var_charptr::global_value_ptr(thd, base));
+    if (version_ptr == NULL || *version_ptr == NULL)
+      return NULL;
 
-    DBUG_EXECUTE_IF("alter_server_version_str",
-                    {
-                      static const char *altered_value= "some-other-version";
-                      uchar *altered_value_ptr= reinterpret_cast<uchar*> (& altered_value);
-                      value= altered_value_ptr;
-                    });
+    sys_var *suffix_var= find_sys_var(thd, STRING_WITH_LEN("version_suffix"));
+    if (suffix_var == NULL)
+      return reinterpret_cast<uchar*> (version_ptr);
 
-    return value;
+    char** suffix_ptr= reinterpret_cast<char**> (suffix_var->value_ptr(thd,
+                                                          OPT_GLOBAL, NULL));
+    if (suffix_ptr == NULL || *suffix_ptr == NULL)
+      return reinterpret_cast<uchar*> (version_ptr);
+
+    size_t suffix_ptr_len= strlen(*suffix_ptr);
+    size_t version_ptr_len= strlen(*version_ptr);
+
+    /* prepare concatenated @@version variable */
+    if (suffix_ptr_len + version_ptr_len + 1 > SERVER_VERSION_LENGTH)
+      suffix_ptr_len = SERVER_VERSION_LENGTH - version_ptr_len - 1;
+
+    memcpy(withsuffix, *version_ptr, version_ptr_len);
+    memcpy(withsuffix + version_ptr_len, *suffix_ptr, suffix_ptr_len);
+    withsuffix[suffix_ptr_len + version_ptr_len] = 0;
+
+    return reinterpret_cast<uchar*> (&withsuffix_ptr);
   }
 };
 
@@ -948,6 +997,46 @@ public:
 };
 
 #ifndef NDEBUG
+
+static inline void trigger_buffer_overrun()
+{
+  int *mem = static_cast<int *>(my_malloc(127, 0, MYF(0)));
+  // Allocations are usually aligned, so even if 127 bytes were requested,
+  // it's mostly safe to assume there are 128 bytes. Writing into the last
+  // byte is safe for the rest of the code, but still enough to trigger
+  // AddressSanitizer (ASAN) or Valgrind.
+  my_atomic_store32(mem + (128 / sizeof(*mem)) - 1, 1);
+  free(mem);
+}
+
+class Debug_shutdown_actions
+{
+public:
+  static Debug_shutdown_actions instance;
+
+  bool crash;
+  bool hang;
+  bool buffer_overrun;
+
+public:
+  Debug_shutdown_actions()
+    : crash(false), hang(false), buffer_overrun(false)
+  {}
+
+  ~Debug_shutdown_actions()
+  {
+    if (crash)
+      DBUG_SUICIDE();
+
+    if (hang)
+      while (1)
+        my_sleep(1000000);
+
+    if (buffer_overrun)
+      trigger_buffer_overrun();
+  }
+};
+
 /**
   @@session.dbug and @@global.dbug variables.
 
@@ -994,6 +1083,26 @@ public:
       DBUG_POP();
     else
       DBUG_SET(val);
+
+    DBUG_EXECUTE_IF("shutdown_crash", {
+      Debug_shutdown_actions::instance.crash = true;
+    });
+    DBUG_EXECUTE_IF("shutdown_hang", {
+      Debug_shutdown_actions::instance.hang = true;
+    });
+    DBUG_EXECUTE_IF("shutdown_buffer_overrun", {
+      Debug_shutdown_actions::instance.buffer_overrun = true;
+    });
+    DBUG_EXECUTE_IF("leak_memory", {
+      my_malloc(127, 0, MYF(0)); // Intentional memory leak.
+    });
+    DBUG_EXECUTE_IF("wait_forever", {
+      while (1)
+        my_sleep(1000000);
+    });
+    DBUG_EXECUTE_IF("buffer_overrun", {
+      trigger_buffer_overrun();
+    });
     return false;
   }
   bool global_update(THD *thd, set_var *var)
@@ -1145,10 +1254,20 @@ public:
   bool do_check(THD *thd, set_var *var)
   {
     my_bool fixed;
+    double *vmin, *vmax;
     double v= var->value->val_real();
-    var->save_result.double_value= getopt_double_limit_value(v, &option, &fixed);
+    var->save_result.double_value= getopt_double_limit_value(v, &option,
+                                                             &fixed);
 
-    return throw_bounds_warning(thd, name.str, fixed, v);
+    vmin= (double *) getopt_constraint_get_min_value(option.name, 0, FALSE);
+    vmax= (double *) getopt_constraint_get_max_value(option.name, 0, FALSE);
+    if (vmin && var->save_result.double_value < *vmin)
+      var->save_result.double_value= *vmin;
+    if (vmax && var->save_result.double_value > *vmax)
+      var->save_result.double_value= *vmax;
+
+    return throw_bounds_warning(thd, name.str,
+                                var->save_result.double_value != v, v);
   }
   bool session_update(THD *thd, set_var *var)
   {
@@ -2742,6 +2861,7 @@ public:
       to take the other locks.
     */
     gtid_mode_lock->wrlock();
+    DEBUG_SYNC(thd, "gtid_mode_update_gtid_mode_lock_wrlock_taken_will_take_global_sid_lock");
     channel_map.wrlock();
     mysql_mutex_lock(mysql_bin_log.get_log_lock());
     global_sid_lock->wrlock();

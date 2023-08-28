@@ -600,6 +600,13 @@ bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
     {
       sys_var *sysvar= (sys_var*) my_hash_element(&system_variable_hash, i);
 
+      const my_bool *hidden=
+        getopt_constraint_get_hidden_value(sysvar->name.str,
+                                           sysvar->name.length, FALSE);
+
+      if (hidden && *hidden)
+        continue;
+
       if (strict)
       {
         /*
@@ -687,6 +694,9 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
 
   @param THD            Thread id
   @param var_list       List of variables to update
+  @param free_joins     Whether to free subselect joins if any. They are
+                        freed by default, except for SET STATEMENT ... FOR ...
+                        processing
 
   @retval
     0   ok
@@ -696,7 +706,7 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
     -1  ERROR, message not sent
 */
 
-int sql_set_variables(THD *thd, List<set_var_base> *var_list)
+int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool free_joins)
 {
   int error;
   List_iterator_fast<set_var_base> it(*var_list);
@@ -721,7 +731,8 @@ err:
   {
     var->cleanup();
   }
-  free_underlaid_joins(thd, thd->lex->select_lex);
+  if (free_joins)
+    free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
 
@@ -813,7 +824,10 @@ int set_var::check(THD *thd)
     my_error(err, MYF(0), var->name.str);
     DBUG_RETURN(-1);
   }
-  if ((type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
+  if (!acl_is_utility_user(thd->security_context()->priv_user().str,
+                           thd->security_context()->host().str,
+                           thd->security_context()->ip().str)
+      && (type == OPT_GLOBAL && check_global_access(thd, SUPER_ACL)))
     DBUG_RETURN(1);
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value)
@@ -844,6 +858,27 @@ int set_var::check(THD *thd)
 
 
 /**
+  Set member variable `var` (used by PS).
+
+  @param thd            thread handler
+
+  @retval
+    0   ok
+  @retval
+    1   ERROR
+*/
+int set_var::populate_sys_var(THD *thd)
+{
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    return 1;
+  }
+
+  return 0;
+}
+
+/**
   Check variable, but without assigning value (used by PS).
 
   @param thd            thread handler
@@ -857,8 +892,7 @@ int set_var::check(THD *thd)
 */
 int set_var::light_check(THD *thd)
 {
-  var= var_tracker.bind_system_variable(thd);
-  if (var == NULL)
+  if (populate_sys_var(thd))
   {
     return 1;
   }

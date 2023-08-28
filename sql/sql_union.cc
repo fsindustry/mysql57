@@ -702,6 +702,7 @@ bool st_select_lex_unit::optimize(THD *thd)
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
+    assert(cleaned == UC_DIRTY);
     thd->lex->set_current_select(sl);
 
     // LIMIT is required for optimization
@@ -921,7 +922,14 @@ bool st_select_lex_unit::cleanup(bool full)
   assert(thd == current_thd);
 
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN))
+  {
+#ifndef NDEBUG
+    if (cleaned == UC_CLEAN)
+      for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
+        assert(!sl->join);
+#endif
     DBUG_RETURN(false);
+  }
 
   cleaned= (full ? UC_CLEAN : UC_PART_CLEAN);
 

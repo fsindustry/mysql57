@@ -255,11 +255,13 @@ enum ha_base_keytype {
 #define HA_SPATIAL		1024    /* For spatial search */
 #define HA_NULL_ARE_EQUAL	2048	/* NULL in key are cmp as equal */
 #define HA_GENERATED_KEY	8192	/* Automaticly generated key */
+#define HA_CLUSTERING           (1<<31) /* TokuDB CLUSTERING key */
 
         /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | \
                          HA_BINARY_PACK_KEY | HA_FULLTEXT | HA_UNIQUE_CHECK | \
-                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
+                         HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY | \
+                         HA_CLUSTERING)
 
 /*
   Key contains partial segments.
@@ -505,11 +507,16 @@ is the global server default. */
 #define HA_ERR_WRONG_FILE_NAME         199  /* Invalid Filename */
 #define HA_ERR_NOT_ALLOWED_COMMAND     200  /* Operation is not allowed */
 #define HA_ERR_COMPUTE_FAILED          201  /* Compute generated column value failed */
-#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 202  /* Too many sub-expression in search string */
-#define HA_ERR_LAST                    202  /* Copy of last error nr */
+#define HA_ERR_DEST_SCHEMA_NOT_EXIST   202  /* Destination schema does not exist */
+#define HA_ERR_CANNOT_INITIALIZE_PARTITIONING 203 /* Partitioning can't be initialized */
+#define HA_ERR_FTS_TOO_MANY_NESTED_EXP 204  /* Too many sub-expression in search string */
+#define HA_ERR_LAST                    204  /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
+
+#define HA_ERR_DECRYPTION_FAILED 500 /* Table encrypted but decypt failed */
+
 
 	/* Other constants */
 

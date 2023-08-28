@@ -40,4 +40,3 @@ perl mysql-test-run.pl --timer --force  --parallel=auto --comment=eits-tests-inn
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached --skip-test-list=collections/disabled-daily.list
 # test x plugin
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental

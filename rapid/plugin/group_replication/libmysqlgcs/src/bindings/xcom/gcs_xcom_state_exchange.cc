@@ -307,9 +307,11 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
+#ifndef NDEBUG
   Gcs_xcom_communication_interface *binding_broadcaster MY_ATTRIBUTE((unused)) =
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
   assert(binding_broadcaster->number_buffered_messages() == 0);
+#endif
 
   m_configuration_id= null_synode;
 
@@ -519,7 +521,9 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   */
   if (exchangeable_data_len > 0)
   {
+#ifndef NDEBUG
     uint64_t slider_total_len= 0;
+#endif
     uint64_t slider_len= 0;
     for (it=exchangeable_data.begin(); it != it_ends; ++it)
     {
@@ -534,7 +538,9 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
         );
         msg_data->encode(slider, &slider_len);
         slider += slider_len;
+#ifndef NDEBUG
         slider_total_len += slider_len;
+#endif
         delete msg_data;
       }
     }

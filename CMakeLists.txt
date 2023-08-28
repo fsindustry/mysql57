@@ -94,6 +94,8 @@ IF(NOT DEFINED MANUFACTURER)
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
 
+#Caching for BUILD TESTING
+SET(BUILD_TESTING OFF CACHE BOOL "")
 
 # MAX_INDEXES - Set the maximum number of indexes per table, default 64U
 IF (NOT MAX_INDEXES)
@@ -104,6 +106,9 @@ IF (${MAX_INDEXES} GREATER 255)
   MESSAGE(FATAL_ERROR "MAX_INDEXES values greater than 255 is not supported!")
 ENDIF()
 MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
+
+# PAM build Handling
+OPTION(WITH_PAM "Build with Percona PAM plugin" OFF)
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 
@@ -143,7 +148,16 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 
-PROJECT(${MYSQL_PROJECT_NAME})
+# CMake version 3.22.1 and above
+# Policy CMP0048 is not set: project() command manages VERSION variables.
+INCLUDE(mysql_version)
+IF(POLICY CMP0048)
+  CMAKE_POLICY(SET CMP0048 NEW)
+  PROJECT(${MYSQL_PROJECT_NAME}
+    VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
+ELSE()
+  PROJECT(${MYSQL_PROJECT_NAME})
+ENDIF()
 
 MACRO(REPORT_CXX_FLAGS)
   MESSAGE(STATUS "CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
@@ -167,6 +181,13 @@ MESSAGE(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
   SET(BUILD_IS_SINGLE_CONFIG FALSE)
 ENDIF()
+
+SET(BUILD_TESTING ON)
+INCLUDE(CTest)
+# Explicitly disabling BUILD_TESTING since other code is not ready to handle
+# BUILD_TESTING set. If you try to remove the directive and CMake configuration
+# and reconfiguration finishes successfully, remove the hack.
+SET(BUILD_TESTING OFF)
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   SET(MY_COMPILER_IS_CLANG 1)
@@ -201,108 +222,6 @@ ENDIF()
 
 #cmake on 64bit windows/mac/solaris doesn't set CMAKE_SYSTEM_PROCESSOR correctly
 SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
-
-
-# Include the platform-specific file. To allow exceptions, this code
-# looks for files in order of how specific they are. If there is, for
-# example, a generic Linux.cmake and a version-specific
-# Linux-2.6.28-11-generic, it will pick Linux-2.6.28-11-generic and
-# include it. It is then up to the file writer to include the generic
-# version if necessary.
-FOREACH(_base
-    ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}-${CMAKE_SYSTEM_PROCESSOR}
-    ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}
-    ${CMAKE_SYSTEM_NAME})
-  SET(_file ${CMAKE_SOURCE_DIR}/cmake/os/${_base}.cmake)
-  IF(EXISTS ${_file})
-    INCLUDE(${_file})
-    BREAK()
-  ENDIF()
-ENDFOREACH()
-
-
-IF(UNIX)
-  OPTION(WITH_INNODB_MEMCACHED "" OFF)
-  OPTION(ENABLE_MEMCACHED_SASL "Enable SASL on InnoDB Memcached" OFF)
-  OPTION(ENABLE_MEMCACHED_SASL_PWDB "Enable SASL on InnoDB Memcached" OFF)
-ELSE()
-  OPTION(WITH_INNODB_MEMCACHED "" OFF)
-ENDIF()
- 
-# Following autotools tradition, add preprocessor definitions
-# specified in environment variable CPPFLAGS
-IF(DEFINED ENV{CPPFLAGS})
-  ADD_DEFINITIONS($ENV{CPPFLAGS})
-ENDIF()
-
-INCLUDE(CheckTypeSize)
-CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
-MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
-# On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
-# even if we have configured for 64bit build....
-SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
-
-IF(WITH_DEFAULT_COMPILER_OPTIONS)
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
-ENDIF()
-IF(WITH_DEFAULT_FEATURE_SET)
-  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
-ENDIF()
-
-INCLUDE(CMakePushCheckState)
-
-# Add macros
-INCLUDE(character_sets)
-INCLUDE(compile_flags)
-INCLUDE(cpu_info)
-INCLUDE(zlib)
-INCLUDE(lz4)
-INCLUDE(libevent)
-INCLUDE(ssl)
-INCLUDE(sasl)
-INCLUDE(ldap)
-INCLUDE(rpc)
-INCLUDE(readline)
-INCLUDE(protobuf)
-INCLUDE(mysql_version)
-INCLUDE(libutils)
-INCLUDE(dtrace)
-INCLUDE(plugin)
-INCLUDE(install_macros)
-INCLUDE(install_layout)
-INCLUDE(mysql_add_executable)
-INCLUDE(curl)
-
-# Handle options
-IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" ON)
-ELSE()
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" OFF)
-ENDIF()
-OPTION(DISABLE_SHARED 
- "Don't build shared libraries, compile code as position-dependent" OFF)
-IF(DISABLE_SHARED)
-  SET(WITHOUT_DYNAMIC_PLUGINS 1)
-ENDIF()
-OPTION(ENABLED_PROFILING "Enable profiling" ON)
-OPTION(WITHOUT_SERVER OFF)
-IF(UNIX)
-  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
-ENDIF()
-IF(WIN32)
-  OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
-ENDIF()
-IF(NOT WITHOUT_SERVER)
-  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
-ENDIF()
-OPTION(WITH_AUTHENTICATION_LDAP
-  "Report error if the LDAP authentication plugin cannot be built." OFF)
-
-OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
-MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
-
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
@@ -339,6 +258,144 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
     )
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
+
+# Include the platform-specific file. To allow exceptions, this code
+# looks for files in order of how specific they are. If there is, for
+# example, a generic Linux.cmake and a version-specific
+# Linux-2.6.28-11-generic, it will pick Linux-2.6.28-11-generic and
+# include it. It is then up to the file writer to include the generic
+# version if necessary.
+FOREACH(_base
+    ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}-${CMAKE_SYSTEM_PROCESSOR}
+    ${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}
+    ${CMAKE_SYSTEM_NAME})
+  SET(_file ${CMAKE_SOURCE_DIR}/cmake/os/${_base}.cmake)
+  IF(EXISTS ${_file})
+    INCLUDE(${_file})
+    BREAK()
+  ENDIF()
+ENDFOREACH()
+
+
+IF(UNIX)
+  OPTION(WITH_INNODB_MEMCACHED "" OFF)
+  OPTION(ENABLE_MEMCACHED_SASL "Enable SASL on InnoDB Memcached" OFF)
+  OPTION(ENABLE_MEMCACHED_SASL_PWDB "Enable SASL on InnoDB Memcached" OFF)
+  FIND_PROGRAM(MY_DPKG_BUILDFLAGS dpkg-buildflags /bin /usr/bin)
+  FIND_PROGRAM(MY_RPM rpm /bin /usr/bin)
+ELSE()
+  OPTION(WITH_INNODB_MEMCACHED "" OFF)
+ENDIF()
+ 
+# Following autotools tradition, add preprocessor definitions
+# specified in environment variable CPPFLAGS
+IF(DEFINED ENV{CPPFLAGS})
+  ADD_DEFINITIONS($ENV{CPPFLAGS})
+ENDIF()
+
+INCLUDE(CheckTypeSize)
+CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
+MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
+# On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
+# even if we have configured for 64bit build....
+SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
+
+INCLUDE(compile_flags)
+INCLUDE(install_layout)
+
+# Add RPM or DEB platform flags for STANDALONE build.
+# Not for DEBUG builds, since both platforms use -O2 and _FORTIFY_SOURCE.
+IF(LINUX AND INSTALL_LAYOUT MATCHES "STANDALONE" AND (LINUX_DEB_PLATFORM OR LINUX_RPM_PLATFORM))
+  IF(CMAKE_BUILD_TYPE STREQUAL "Debug" OR WITH_DEBUG)
+    SET(WITH_PACKAGE_FLAGS_DEFAULT OFF)
+  ELSE()
+    SET(WITH_PACKAGE_FLAGS_DEFAULT ON)
+  ENDIF()
+  OPTION(WITH_PACKAGE_FLAGS "Use DEB/RPM compiler flags" ${WITH_PACKAGE_FLAGS_DEFAULT})
+ENDIF()
+
+# Do not set package specific flags if language flags already provided
+# in environment or on command line.
+IF(WITH_PACKAGE_FLAGS AND NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+  IF(LINUX_RPM_PLATFORM)
+    IF(MY_RPM)
+      ADD_LINUX_RPM_FLAGS()
+    ELSE()
+      MESSAGE(WARNING "rpm executable not found")
+    ENDIF()
+  ELSEIF(LINUX_DEB_PLATFORM)
+    IF(MY_DPKG_BUILDFLAGS)
+      ADD_LINUX_DEB_FLAGS()
+    ELSE()
+      MESSAGE(WARNING "dpkg-buildflags executable not found")
+      MESSAGE(WARNING "Please do 'apt install dpkg-dev'")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+IF(WITH_DEFAULT_COMPILER_OPTIONS)
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
+ENDIF()
+IF(WITH_DEFAULT_FEATURE_SET)
+  INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
+ENDIF()
+
+INCLUDE(CMakePushCheckState)
+
+# Add macros
+INCLUDE(character_sets)
+INCLUDE(cpu_info)
+INCLUDE(zlib)
+INCLUDE(lz4)
+INCLUDE(libevent)
+INCLUDE(ssl)
+INCLUDE(sasl)
+INCLUDE(ldap)
+INCLUDE(rpc)
+INCLUDE(readline)
+INCLUDE(protobuf)
+INCLUDE(libutils)
+INCLUDE(dtrace)
+INCLUDE(plugin)
+INCLUDE(install_macros)
+INCLUDE(mysql_add_executable)
+INCLUDE(curl)
+INCLUDE(coredumper)
+INCLUDE(prepend_append_cflags_if_supported)
+
+# Handle options
+IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" ON)
+ELSE()
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" OFF)
+ENDIF()
+OPTION(DISABLE_SHARED 
+ "Don't build shared libraries, compile code as position-dependent" OFF)
+IF(DISABLE_SHARED)
+  SET(WITHOUT_DYNAMIC_PLUGINS 1)
+ENDIF()
+OPTION(ENABLED_PROFILING "Enable profiling" ON)
+OPTION(ENABLE_DTRACE "Include support for DTrace probes" OFF)
+OPTION(WITHOUT_SERVER OFF)
+IF(UNIX)
+  OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
+  IF (WITH_VALGRIND)
+    ADD_DEFINITIONS(-DUSE_VALGRIND)
+  ENDIF()
+ENDIF()
+IF(WIN32)
+  OPTION(WITH_MSCRT_DEBUG "MS Visual Studio Debug CRT instrumentation" OFF)
+ENDIF()
+IF(NOT WITHOUT_SERVER)
+  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+ENDIF()
+OPTION(WITH_AUTHENTICATION_LDAP
+  "Report error if the LDAP authentication plugin cannot be built." OFF)
+
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
 # Check whether a specific warning option is supported.
 # Intended use is primarily to silence warnings from third-party code.
@@ -414,7 +471,7 @@ ENDIF()
 
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
-  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
+  MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins -fsanitize-blacklist=${CMAKE_CURRENT_SOURCE_DIR}/cmake/msan-blacklist.txt"
                      WITH_MSAN_OK)
   IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
@@ -455,6 +512,15 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
+# Linker/binutils bug in Fedora 28, Ubuntu 16.04, Debian 8 and Debian 9,
+# undefined reference to symbol '__bss_start'
+IF(LINUX_FEDORA_28 OR LINUX_UBUNTU_16_04 OR LINUX_DEBIAN_8 OR LINUX_DEBIAN_9)
+  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
+     NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
 ENDIF()
@@ -487,6 +553,8 @@ MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
+OPTION (WITH_COREDUMPER "Enable support for coredumper library" ON)
+
 #
 # Options related to client-side protocol tracing
 #
@@ -509,12 +577,18 @@ IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
           Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
 ENDIF()
 
-# Add safemutex for debug configurations
-IF(NOT WITH_INNODB_MEMCACHED)
+# Set NDEBUG for non-debug project types
+FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
-    STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
+    # Prepend so options can be overwritten
+    STRING_PREPEND(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} "-DNDEBUG ")
   ENDFOREACH()
-ENDIF()
+ENDFOREACH()
+
+# Add safemutex for debug configurations
+FOREACH(LANG C CXX)
+  STRING_PREPEND(CMAKE_${LANG}_FLAGS_DEBUG "-DSAFE_MUTEX ")
+ENDFOREACH()
 
 # Enable debug sync for debug builds.
 FOREACH(LANG C CXX)
@@ -578,6 +652,9 @@ ELSE()
   ENDIF()
 ENDIF()
 
+# Portably get access to memset_s
+ADD_DEFINITIONS(-D__STDC_WANT_LIB_EXT1__=1)
+
 # Run platform tests
 INCLUDE(configure.cmake)
 
@@ -592,6 +669,7 @@ ENDIF()
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
+ADD_DEFINITIONS(-DLZ4_DISABLE_DEPRECATE_WARNINGS) # C++14 deprecation warnings in LZ4.
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
@@ -617,6 +695,8 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
+# Add coredumper
+MYSQL_CHECK_COREDUMPER()
 
 # Check for SYS_thread_selfid system call
 CHECK_C_SOURCE_COMPILES("

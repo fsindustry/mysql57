@@ -574,13 +574,15 @@ exit:
 
   @param old_data  The old record in MySQL Row Format.
   @param new_data  The new record in MySQL Row Format.
+  @param lookup_rows Indicator for TokuDB read free replication.
 
   @return Operation status.
     @retval    0 Success
     @retval != 0 Error code
 */
 
-int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data)
+int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data,
+                                    bool lookup_rows)
 {
   uint32 new_part_id, old_part_id;
   int error= 0;
@@ -617,10 +619,14 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data)
     error instead of correcting m_last_part, to make the user aware of the
     problem!
 
+    For TokuDB Read-Free-Replication optimization, there is no need to do
+    a read before update(row lookup is omitted), so m_last_part is not
+    necessarily same with old_part_id.
+
     Notice that HA_READ_BEFORE_WRITE_REMOVAL does not require this protocol,
     so this is not supported for this engine.
   */
-  if (old_part_id != m_last_part)
+  if (old_part_id != m_last_part && lookup_rows)
   {
     m_err_rec= old_data;
     DBUG_RETURN(HA_ERR_ROW_IN_WRONG_PARTITION);
@@ -671,7 +677,9 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data)
       bitmap_is_set(m_table->write_set,
                     m_table->found_next_number_field->field_index))
   {
+    my_bitmap_map *old_map = dbug_tmp_use_all_columns(m_table, m_table->read_set);
     set_auto_increment_if_higher();
+    dbug_tmp_restore_column_map(m_table->read_set, old_map);
   }
   DBUG_RETURN(error);
 }
@@ -691,13 +699,14 @@ int Partition_helper::ph_update_row(const uchar *old_data, uchar *new_data)
   buf is either record[0] or record[1]
 
   @param buf  The record in MySQL Row Format.
+  @param lookup_rows Indicator for TokuDB read free replication.
 
   @return Operation status.
     @retval    0 Success
     @retval != 0 Error code
 */
 
-int Partition_helper::ph_delete_row(const uchar *buf)
+int Partition_helper::ph_delete_row(const uchar *buf, bool lookup_rows)
 {
   int error;
   uint part_id;
@@ -732,13 +741,17 @@ int Partition_helper::ph_delete_row(const uchar *buf)
     error instead of forwarding the delete to the correct (m_last_part)
     partition!
 
+    For TokuDB Read-Free-Replication optimization, there is no need to do
+    a read before delete(row lookup is omitted), so m_last_part is not
+    necessarily same with part_id.
+
     Notice that HA_READ_BEFORE_WRITE_REMOVAL does not require this protocol,
     so this is not supported for this engine.
 
     TODO: change the assert in InnoDB into an error instead and make this one
     an assert instead and remove the get_part_for_delete()!
   */
-  if (part_id != m_last_part)
+  if (part_id != m_last_part && lookup_rows)
   {
     m_err_rec= buf;
     DBUG_RETURN(HA_ERR_ROW_IN_WRONG_PARTITION);
@@ -839,7 +852,7 @@ void Partition_helper
 }
 
 
-inline void Partition_helper::set_auto_increment_if_higher()
+void Partition_helper::set_auto_increment_if_higher()
 {
   Field_num *field= static_cast<Field_num*>(m_table->found_next_number_field);
   ulonglong nr= (field->unsigned_flag || field->val_int() > 0)
@@ -1806,7 +1819,6 @@ err:
   @param[in]	rnd_init	True if called from rnd_init (else index_init).
 */
 
-inline
 void Partition_helper::set_partition_read_set()
 {
   /*
@@ -2963,12 +2975,20 @@ int Partition_helper::partition_scan_set_up(uchar * buf, bool idx_read_flag)
                       &m_part_spec);
   else
   {
-    // TODO: set to get_first_used_part() instead!
-    m_part_spec.start_part= 0;
-    // TODO: Implement bitmap_get_last_set() and use that here!
-    m_part_spec.end_part= m_tot_parts - 1;
+    m_part_spec.start_part= m_part_info->get_first_used_partition();
+    m_part_spec.end_part= m_part_spec.start_part;
+
+    uint i= m_part_spec.end_part;
+    while (i != MY_BIT_NONE)
+    {
+      i= m_part_info->get_next_used_partition(i);
+      if (i != MY_BIT_NONE)
+        m_part_spec.end_part= i;
+    }
   }
-  if (m_part_spec.start_part > m_part_spec.end_part)
+  if (m_part_spec.start_part == MY_BIT_NONE ||
+      m_part_spec.end_part == MY_BIT_NONE ||
+      m_part_spec.start_part > m_part_spec.end_part)
   {
     /*
       We discovered a partition set but the set was empty so we report

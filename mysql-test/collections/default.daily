@@ -58,5 +58,3 @@ perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --
 
 # Run all tests under the suite interactive_utilities
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=var-interactive  --vardir=interactive-tests  --suite=interactive_utilities
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --big-test --testcase-timeout=60 --suite-timeout=360
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x --experimental=collections/default.experimental

@@ -60,6 +60,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 */
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
+const LEX_CSTRING null_lex_cstr= {NULL, 0};
+const LEX_CSTRING empty_lex_cstr= {"", 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -484,10 +486,15 @@ void LEX::reset()
   exchange= NULL;
   is_set_password_sql= false;
   mark_broken(false);
+  set_statement= false;
+  zip_dict_name.str = 0;
+  zip_dict_name.length = 0;
   max_execution_time= 0;
   parse_gcol_expr= false;
   opt_hints_global= NULL;
   binlog_need_explicit_defaults_ts= false;
+
+  donor_transaction_id= NULL;
 }
 
 
@@ -1865,6 +1872,7 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
 	state= MY_LEX_USER_VARIABLE_DELIMITER;
 	break;
       }
+      // fallthrough
       /* " used for strings */
       // Fall through.
     case MY_LEX_STRING:			// Incomplete text string
@@ -4933,4 +4941,8 @@ void binlog_unsafe_map_init()
   UNSAFE(LEX::STMT_WRITES_TEMP_NON_TRANS_TABLE, LEX::STMT_READS_NON_TRANS_TABLE,
      BINLOG_DIRECT_OFF & TRX_CACHE_NOT_EMPTY);
 }
+#endif
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+template class Mem_root_array<ORDER*, true>;
 #endif

@@ -272,6 +272,25 @@ JOIN::optimize()
     }
   }
 
+  if (thd->lex->sql_command == SQLCOM_INSERT_SELECT ||
+      thd->lex->sql_command == SQLCOM_REPLACE_SELECT)
+  {
+    /*
+      Statement-based replication of INSERT ... SELECT ... LIMIT and
+      REPLACE ... SELECT is safe as order of row is defined with either
+      ORDER BY or other condition. However it is too late for it have
+      an impact to our decision to switch to row- based. We can only
+      suppress warning here.
+    */
+    if (select_lex->select_limit &&
+        select_lex->select_limit->fixed &&
+        select_lex->select_limit->val_int() &&
+        !is_order_deterministic(&select_lex->top_join_list, where_cond, order))
+    {
+      thd->order_deterministic= false;
+    }
+  }
+
   if (select_lex->partitioned_table_count && prune_table_partitions())
   {
     error= 1;
@@ -1637,13 +1656,14 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
   {
     /*
      If the primary key is clustered and found shorter key covers all table
-     fields then primary key scan normally would be faster because amount of
-     data to scan is the same but PK is clustered.
+     fields and is not clustering then primary key scan normally would be
+     faster because amount of data to scan is the same but PK is clustered.
      It's safe to compare key parts with table fields since duplicate key
      parts aren't allowed.
      */
     if (best == MAX_KEY ||
-        table->key_info[best].user_defined_key_parts >= table->s->fields)
+        ((table->key_info[best].user_defined_key_parts >= table->s->fields)
+         && !(table->file->index_flags(best, 0, 0) & HA_CLUSTERED_INDEX)))
       best= usable_clustered_pk;
   }
   return best;
@@ -2202,6 +2222,8 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
       */
       assert(tab->quick() == save_quick || tab->quick() == NULL);
       tab->set_quick(qck);
+      if (qck && !no_changes)
+        tab->set_type(calc_join_type(qck->get_type()));
     }
     order_direction= best_key_direction;
     /*
@@ -2659,6 +2681,27 @@ void JOIN::adjust_access_methods()
         tab->set_type(JT_INDEX_SCAN);      // Read with index_first / index_next
         // From table scan to index scan, thus filter effect needs no recalc.
       }
+      else if (!tab->table()->no_keyread && !tl->uses_materialization())
+      {
+        assert(tab->table()->covering_keys.is_clear_all());
+        if (tab->position()->sj_strategy != SJ_OPT_LOOSE_SCAN)
+        {
+          key_map clustering_keys;
+          for (uint i= 0; i < tab->table()->s->keys; i++)
+          {
+            if (tab->keys().is_set(i)
+                && tab->table()->file->index_flags(i, 0, 0)
+                & HA_CLUSTERED_INDEX)
+              clustering_keys.set_bit(i);
+          }
+          uint index= find_shortest_key(tab->table(), &clustering_keys);
+          if (index != MAX_KEY)
+          {
+            tab->set_type(JT_INDEX_SCAN);
+            tab->set_index(index);
+          }
+        }
+      }
     }
     else if (tab->type() == JT_REF)
     {
@@ -2972,7 +3015,8 @@ bool JOIN::get_best_combination()
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
   while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
+    TRASH(static_cast<void*>(&sj_nest->nested_join->sjm),
+          sizeof(sj_nest->nested_join->sjm));
 
   DBUG_RETURN(false);
 }
@@ -5566,6 +5610,7 @@ bool JOIN::extract_func_dependent_tables()
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
             table->set_null_row();
+            table->const_table= true;
             found_const_table_map|= tl->map();
             mark_const_table(tab, keyuse);
             goto more_const_tables_found;
@@ -6413,7 +6458,7 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
       if (!(sj_nest->nested_join->sjm.positions=
             (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
         DBUG_RETURN(true);
-      memcpy(sj_nest->nested_join->sjm.positions,
+      memcpy(static_cast<void*>(sj_nest->nested_join->sjm.positions),
              join->best_positions + join->const_tables,
              sizeof(st_position) * n_tables);
     }

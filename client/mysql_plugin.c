@@ -332,9 +332,11 @@ static char *add_quotes(const char *path)
 
 static int get_default_values()
 {
+  static const char format_cmd[]= "%s mysqld > %s";
   char tool_path[FN_REFLEN];
-  char defaults_cmd[FN_REFLEN];
   char defaults_file[FN_REFLEN];
+  char defaults_cmd[sizeof(defaults_file) + sizeof(tool_path) +
+                    sizeof(format_cmd)];
   char line[FN_REFLEN];
   int error= 0;
   int ret= 0;
@@ -366,7 +368,7 @@ static int get_default_values()
     }
 #else
     my_snprintf(defaults_cmd, sizeof(defaults_cmd),
-                "%s mysqld > %s", tool_path, defaults_file);
+                format_cmd, tool_path, defaults_file);
 #endif
 
     /* Execute the command */
@@ -1241,7 +1243,9 @@ exit:
 
 static int bootstrap_server(char *server_path, char *bootstrap_file)
 {
-  char bootstrap_cmd[FN_REFLEN];
+  static const char format_cmd[]= "%s --no-defaults --bootstrap --datadir=%s "
+                           "--basedir=%s < %s";
+  char bootstrap_cmd[FN_REFLEN * 2 + sizeof(format_cmd)];
   int error= 0;
 
 #ifdef _WIN32
@@ -1264,9 +1268,8 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
               add_quotes(opt_datadir), add_quotes(opt_basedir),
               add_quotes(bootstrap_file));
 #else
-  my_snprintf(bootstrap_cmd, sizeof(bootstrap_cmd),
-              "%s --no-defaults --bootstrap --datadir=%s --basedir=%s"
-              " < %s", server_path, opt_datadir, opt_basedir, bootstrap_file);
+  my_snprintf(bootstrap_cmd, sizeof(bootstrap_cmd), format_cmd,
+              server_path, opt_datadir, opt_basedir, bootstrap_file);
 #endif
 
   /* Execute the command */

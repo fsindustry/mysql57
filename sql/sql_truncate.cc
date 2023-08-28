@@ -305,7 +305,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     on table and schema names.
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
-                  share->table_name.str, &create_info, true, true);
+                  share->table_name.str, &create_info, 0, true, true);
 
   if (open_table_uncached(thd, share->path.str, share->db.str,
                           share->table_name.str, true, true))
@@ -440,6 +440,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   if (is_temporary_table(table_ref))
   {
     TABLE *tmp_table= table_ref->table;
+    /*
+      bug 72475 : THD::decide_logging_format has not yet been called and may
+      not be called at all depending on the engine, so call it here.
+    */
+    if (thd->decide_logging_format(table_ref) != 0)
+      DBUG_RETURN(TRUE);
 
     /* In RBR, the statement is not binlogged if the table is temporary. */
     binlog_stmt= !thd->is_current_stmt_binlog_format_row();

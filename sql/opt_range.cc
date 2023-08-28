@@ -753,7 +753,7 @@ public:
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
 #ifndef NDEBUG
-  friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
+  friend int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent);
 #endif
   bool test_use_count(SEL_ARG *root);
   SEL_ARG *first();
@@ -792,6 +792,8 @@ public:
     {
       if (cur_selarg->next_key_part)
       {
+        assert(count >= 0
+                    || (long)cur_selarg->next_key_part->use_count >= count);
         cur_selarg->next_key_part->use_count+= count;
         cur_selarg->next_key_part->increment_use_count(count);
       }
@@ -5880,8 +5882,14 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
           add("index_only", read_index_only).
           add("rows", found_records).
           add("cost", cost);
+        if (param->thd->optimizer_switch_flag(
+                OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+          trace_idx.add("revised_cost", cost.total_cost() * 0.1);
       }
 #endif
+      if (param->thd->optimizer_switch_flag(
+              OPTIMIZER_SWITCH_FAVOR_RANGE_SCAN))
+        cost.multiply(0.1);
 
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
@@ -8071,9 +8079,12 @@ static SEL_ARG *
 and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, 
              uint clone_flag)
 {
+  assert(key1->part < key2->part);
+
   SEL_ARG *next;
   ulong use_count=key1->use_count;
 
+  assert(key1->elements > 0);
   if (key1->elements != 1)
   {
     key2->use_count+=key1->elements-1; //psergey: why we don't count that key1 has n-k-p?
@@ -9320,8 +9331,8 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 
 #ifndef NDEBUG
 	/* Test that the properties for a red-black tree hold */
-
-int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
+static
+int test_rb_subtree(const SEL_ARG *element, const SEL_ARG *parent)
 {
   int count_l,count_r;
 
@@ -9344,8 +9355,8 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
     sql_print_error("Wrong tree: Found right == left");
     return -1;
   }
-  count_l=test_rb_tree(element->left,element);
-  count_r=test_rb_tree(element->right,element);
+  count_l=test_rb_subtree(element->left,element);
+  count_r=test_rb_subtree(element->right,element);
   if (count_l >= 0 && count_r >= 0)
   {
     if (count_l == count_r)
@@ -9354,6 +9365,16 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 	    count_l,count_r);
   }
   return -1;					// Error, no more warnings
+}
+
+int test_rb_tree(const SEL_ARG *element, const SEL_ARG *parent)
+{
+  if (element->color == SEL_ARG::RED)
+  {
+    sql_print_error("Wrong tree: root node is red");
+    return -1;
+  }
+  return test_rb_subtree(element, parent);
 }
 #endif
 
@@ -11511,8 +11532,14 @@ int QUICK_SELECT_DESC::get_next()
       will use ha_index_prev() to read data, we need to let the
       handler know where to end the scan in order to avoid that the
       ICP implemention continues to read past the range boundary.
+
+      An addition for MyRocks:
+      MyRocks needs to know both start of the range and end of the range
+      in order to use its bloom filters. This is useful regardless of whether
+      ICP is usable (e.g. it is used for index-only scans which do not use
+      ICP). Because of that, we remove the following:
+      //  //  if (file->pushed_idx_cond)
     */
-    if (file->pushed_idx_cond)
     {
       if (!eqrange_all_keyparts)
       {
@@ -11532,6 +11559,18 @@ int QUICK_SELECT_DESC::get_next()
         file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
       }
     }
+
+    key_range prepare_range_start;
+    key_range prepare_range_end;
+
+    last_range->make_min_endpoint(&prepare_range_start);
+    last_range->make_max_endpoint(&prepare_range_end);
+    result = file->prepare_range_scan((last_range->flag & NO_MIN_RANGE)
+                                       ? NULL : &prepare_range_start,
+                                      (last_range->flag & NO_MAX_RANGE)
+                                       ? NULL : &prepare_range_end);
+    if (result)
+      DBUG_RETURN(result);
 
     if (last_range->flag & NO_MAX_RANGE)        // Read last record
     {

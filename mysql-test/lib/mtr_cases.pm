@@ -33,6 +33,7 @@ our @EXPORT= qw(collect_option collect_test_cases);
 
 use mtr_report;
 use mtr_match;
+use My::Constants;
 
 # Options used for the collect phase
 our $start_from;
@@ -563,7 +564,17 @@ sub collect_one_suite($)
 	my $comb= {};
 	$comb->{name}= $group->name();
         foreach my $option ( $group->options() ) {
-	  push(@{$comb->{comb_opt}}, $option->option());
+        my $option_string = $option->option();
+        if ($option_string =~ m/--mtr[-_]result[-_]dir\s*=\s*(.+)/) {
+          mtr_verbose("The result dir was changed to $1");
+          $comb->{result_dir} = $1;
+        } elsif ($option_string =~ m/--mtr[-_]tests[-_]list\s*=\s*(.+)/) {
+          my @comb_tests_array = split (/,/, $1);
+          my %comb_tests_set = map { $_ => 1 } @comb_tests_array;
+          $comb->{tests_set} = \%comb_tests_set;
+        } else {
+          push(@{$comb->{comb_opt}}, $option->option());
+        }
 	}
 	push(@combinations, $comb);
       }
@@ -582,6 +593,8 @@ sub collect_one_suite($)
 
 	  next if ( $test->{'skip'} );
 
+    next if ($comb->{tests_set} and not
+             $comb->{tests_set}->{$test->{shortname}});
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
 	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
@@ -602,6 +615,16 @@ sub collect_one_suite($)
 	  # Append the combination options to master_opt and slave_opt
 	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
 	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
+
+    if ($comb->{result_dir}) {
+      my $result_file = "$suitedir/$comb->{result_dir}/".
+                        "$new_test->{shortname}.result";
+      if (-f $result_file) {
+        $new_test->{result_file} = $result_file;
+      } else {
+        $new_test->{record_file} =  $result_file;
+      }
+    }
 
 	  # Add combination name short name
 	  $new_test->{combination}= $comb->{name};
@@ -671,6 +694,7 @@ sub optimize_cases {
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$binlog_format'";
 	}
@@ -699,6 +723,7 @@ sub optimize_cases {
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "Doesn't support --binlog-format='$test_binlog_format'";
 	  next;
@@ -735,6 +760,7 @@ sub optimize_cases {
 	     ! exists $builtin_engines{$default_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "'$default_engine' not supported";
 	}
@@ -756,6 +782,7 @@ sub optimize_cases {
 	     ! exists $builtin_engines{$default_tmp_engine} )
 	{
 	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
 	  $tinfo->{'comment'}=
 	    "'$default_tmp_engine' not supported";
 	}
@@ -1000,6 +1027,7 @@ sub collect_one_test_case {
     if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
       return $tinfo;
     }
@@ -1018,6 +1046,7 @@ sub collect_one_test_case {
     if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
       return $tinfo;
     }
@@ -1051,6 +1080,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test needs 'big-test' option";
     return $tinfo
   }
@@ -1058,6 +1088,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test needs debug binaries";
     return $tinfo
   }
@@ -1069,6 +1100,7 @@ sub collect_one_test_case {
     {
       # ndbcluster is disabled
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "ndbcluster disabled";
       return $tinfo;
     }
@@ -1080,6 +1112,7 @@ sub collect_one_test_case {
     {
       # Only the ndb test should be run, all other should be skipped
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Only ndbcluster tests";
       return $tinfo;
     }
@@ -1105,6 +1138,7 @@ sub collect_one_test_case {
     if (grep(/^--skip[-_]log[-_]bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Test needs binlog";
       return $tinfo;
     }
@@ -1122,6 +1156,7 @@ sub collect_one_test_case {
     if ( $skip_rpl )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No replication tests(--skip-rpl)";
       return $tinfo;
     }
@@ -1132,6 +1167,7 @@ sub collect_one_test_case {
     if ( $tinfo->{'not_embedded'} )
     {
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "Not run for embedded server";
       return $tinfo;
     }
@@ -1151,6 +1187,7 @@ sub collect_one_test_case {
     if ( ! $::opt_ssl_supported ) {
       # SSL is not supported, skip it
       $tinfo->{'skip'}= 1;
+      $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
       $tinfo->{'comment'}= "No SSL support";
       return $tinfo;
     }
@@ -1171,6 +1208,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'not_windows'} && IS_WINDOWS )
   {
     $tinfo->{'skip'}= 1;
+    $tinfo->{'skip_reason'}= MTR_SKIP_BY_FRAMEWORK;
     $tinfo->{'comment'}= "Test not supported on Windows";
     return $tinfo;
   }

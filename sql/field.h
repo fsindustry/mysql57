@@ -37,6 +37,8 @@
 #include "table.h"                              // TABLE
 #include "mysql_version.h"                      // FRM_VER
 
+#include <algorithm>
+
 class Create_field;
 class Json_dom;
 class Json_wrapper;
@@ -460,21 +462,17 @@ void copy_integer(uchar *to, size_t to_length,
 {
   if (Is_big_endian)
   {
-    if (is_unsigned)
-      to[0]= from[0];
-    else
-      to[0]= (char)(from[0] ^ 128); // Reverse the sign bit.
-    memcpy(to + 1, from + 1, to_length - 1);
+    std::copy(from, from + std::min(to_length, from_length), to);
+    if (!is_unsigned)
+      to[0] = static_cast<char>(to[0] ^ 128);  // Reverse the sign bit.
   }
   else
   {
-    const int sign_byte= from[from_length - 1];
-    if (is_unsigned)
-      to[0]= sign_byte;
-    else
-      to[0]= static_cast<char>(sign_byte ^ 128); // Reverse the sign bit.
-    for (size_t i= 1, j= from_length - 2; i < to_length; ++i, --j)
-      to[i]= from[j];
+    const uchar *from_end = from + from_length;
+    const uchar *from_start = from_end - std::min(from_length, to_length);
+    std::reverse_copy(from_start, from_end, to);
+    if (!is_unsigned)
+      to[0] = static_cast<char>(to[0] ^ 128);  // Reverse the sign bit.
   }
 }
 
@@ -573,10 +571,25 @@ public:
   virtual bool send_text(Protocol *protocol)= 0;
 };
 
-class Field: public Proto_field
+/*
+  An auxiliary class to solve the issue with gcc-9 '-Wdeprecated-copy'
+  warning.
+  Similarly to 'boost::noncopyable' this class has its assignment operator
+  private and undefined. However, in contrast, it has public well-defined
+  empty copy constructor.
+*/
+class nonassignable
 {
-  Field(const Item &);				/* Prevent use of these */
-  void operator=(Field &);
+protected:
+  nonassignable() {}
+  ~nonassignable() {}
+  nonassignable(const nonassignable&) {}
+private:  /* emphasize the following member is private */
+  nonassignable& operator=(const nonassignable&);
+};
+
+class Field: private nonassignable, public Proto_field
+{
 public:
 
   bool has_insert_default_function() const
@@ -696,6 +709,8 @@ public:
 
    */
   bool is_created_from_null_item;
+  LEX_CSTRING zip_dict_name; // associated compression dictionary name
+  LEX_CSTRING zip_dict_data; // associated compression dictionary data
   /**
      True if this field belongs to some index (unlike part_of_key, the index
      might have only a prefix).
@@ -1158,6 +1173,19 @@ public:
   }
 
   /**
+    Checks if the field has COLUMN_FORMAT_TYPE_COMPRESSED flag and non-empty
+    associated compression dictionary.
+  */
+  bool has_associated_compression_dictionary() const
+  {
+    assert(zip_dict_name.str == 0 ||
+      column_format() == COLUMN_FORMAT_TYPE_COMPRESSED);
+    return column_format() == COLUMN_FORMAT_TYPE_COMPRESSED &&
+           zip_dict_name.str != 0;
+  }
+
+
+  /**
     Check if the Field has value NULL or the record specified by argument
     has value NULL for this Field.
 
@@ -1500,7 +1528,7 @@ public:
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     bool *has_overflow);
   /* The max. number of characters */
-  virtual uint32 char_length()
+  virtual uint32 char_length() const
   {
     return field_length / charset()->mbmaxlen;
   }
@@ -1541,15 +1569,34 @@ public:
     flags |= (storage_type_arg << FIELD_FLAGS_STORAGE_MEDIA);
   }
 
+  /**
+    Returns column format type.
+
+    @return COLUMN_FORMAT_TYPE_DEFAULT,
+            COLUMN_FORMAT_TYPE_FIXED,
+            COLUMN_FORMAT_TYPE_DYNAMIC,
+            or
+            COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   column_format_type column_format() const
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
   }
 
+  /**
+    Sets column format type to a new value.
+
+    @param   column_format_arg   COLUMN_FORMAT_TYPE_DEFAULT,
+                                 COLUMN_FORMAT_TYPE_FIXED,
+                                 COLUMN_FORMAT_TYPE_DYNAMIC,
+                                 or
+                                 COLUMN_FORMAT_TYPE_COMPRESSED
+  */
   void set_column_format(column_format_type column_format_arg)
   {
     assert(column_format() == COLUMN_FORMAT_TYPE_DEFAULT);
+    flags &= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
     flags |= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 
@@ -1780,6 +1827,18 @@ protected:
     return from + sizeof(int64);
   }
 
+  /**
+    Checks if the current field definition and provided create field
+    definition have different compression attributes.
+
+    @param   new_field   create field definition to compare with
+
+    @return
+      true  - if compression attributes are different
+      false - if compression attributes are identical.
+  */
+  bool has_different_compression_attributes_with(
+    const Create_field& new_field) const;
 };
 
 
@@ -3690,7 +3749,8 @@ protected:
 
 private:
   /**
-    In order to support update of virtual generated columns of blob type,
+    In order to support update of virtual generated columns and columns in
+    a Blackhole table of BLOB type,
     we need to allocate the space blob needs on server for old_row and
     new_row respectively. This variable is used to record the
     allocated blob space for old_row.
@@ -3823,7 +3883,8 @@ public:
   uint32 data_length(uint row_offset= 0) { return get_length(row_offset); }
   inline uint32 get_length(uint row_offset= 0)
   { return get_length(ptr+row_offset, this->packlength, table->s->db_low_byte_first); }
-  uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
+  static uint32 get_length(const uchar *ptr, uint packlength,
+                           bool low_byte_first);
   uint32 get_length(const uchar *ptr_arg)
   { return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first); }
   void put_length(uchar *pos, uint32 length);
@@ -3840,7 +3901,7 @@ public:
       memcpy(ptr,length,packlength);
       memcpy(ptr+packlength, &data,sizeof(char*));
     }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data)
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, const uchar *data)
     {
       uchar *ptr_ofs= ADD_TO_PTR(ptr,ptr_diff,uchar*);
       store_length(ptr_ofs, packlength, length);
@@ -3892,7 +3953,7 @@ public:
   bool has_charset(void) const
   { return charset() == &my_charset_bin ? FALSE : TRUE; }
   uint32 max_display_length();
-  uint32 char_length();
+  uint32 char_length() const;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
@@ -3902,9 +3963,10 @@ public:
   /**
     Mark that the BLOB stored in value should be copied before updating it.
 
-    When updating virtual generated columns we need to keep the old
-    'value' for BLOBs since this can be needed when the storage engine
-    does the update. During read of the record the old 'value' for the
+    When updating virtual generated columns or columns in a Blackhole table
+    we need to keep the old 'value' for BLOBs since this can be needed when
+    the storage engine does the update.
+    During read of the record the old 'value' for the
     BLOB is evaluated and stored in 'value'. This function is to be used
     to specify that we need to copy this BLOB 'value' into 'old_value'
     before we compute the new BLOB 'value'. For more information @see
@@ -3912,12 +3974,6 @@ public:
   */
   void set_keep_old_value(bool old_value_flag)
   {
-    /*
-      We should only need to keep a copy of the blob 'value' in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
     /*
       If set to true, ensure that 'value' is copied to 'old_value' when
       keep_old_value() is called.
@@ -3928,8 +3984,9 @@ public:
   /**
     Save the current BLOB value to avoid that it gets overwritten.
 
-    This is used when updating virtual generated columns that are
-    BLOBs. Some storage engines require that we have both the old and
+    This is used when updating virtual generated columns or columns in a
+    Blackhole table that are BLOBs.
+    Some storage engines require that we have both the old and
     new BLOB value for virtual generated columns that are indexed in
     order for the storage engine to be able to maintain the index. This
     function will transfer the buffer storing the current BLOB value
@@ -3954,17 +4011,16 @@ public:
     old value for the BLOB and use table->record[0] to read the new
     value.
 
+    Similarly, in case of Blackhole "old" BLOB values are not read by
+    the storage engine and therefore 'Field_blob' is not made to point to the
+    engine's internal buffer. Therefore, in order to avoid "old" BLOB data
+    corruption, it also needs to be saved in 'old_value'.
+
     This function must be called before we store the new BLOB value in
     this field object.
   */
   void keep_old_value()
   {
-    /*
-      We should only need to keep a copy of the blob value in the case
-      where this is a virtual genarated column (that is indexed).
-    */
-    assert(is_virtual_gcol());
-
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value)
     {
@@ -4139,6 +4195,7 @@ public:
   Field_json *clone() const;
   uint is_equal(Create_field *new_field);
   Item_result cast_to_int_type () const { return INT_RESULT; }
+  int  cmp_binary(const uchar *a, const uchar *b, uint32 max_length= ~0L);
   void make_sort_key(uchar *to, size_t length);
 
   /**
@@ -4450,6 +4507,8 @@ public:
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
+  LEX_CSTRING zip_dict_name;		// Compression dictionary name
+
 
   /* Generated column expression information */
   Generated_column *gcol_info;
@@ -4481,6 +4540,7 @@ public:
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, uint uint_geom_type,
+            const LEX_CSTRING *zip_dict_name,
             Generated_column *gcol_info= NULL);
 
   ha_storage_media field_storage_type() const
@@ -4493,6 +4553,12 @@ public:
   {
     return (column_format_type)
       ((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
+  }
+
+  void set_column_format(column_format_type column_format_arg)
+  {
+    flags&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
+    flags|= (column_format_arg << FIELD_FLAGS_COLUMN_FORMAT);
   }
 };
 

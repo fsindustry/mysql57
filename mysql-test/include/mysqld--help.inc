@@ -19,7 +19,7 @@ perl;
   @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
                pid-file slow-query-log-file
                datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache
-               tls-version secure-file-priv/;
+               tls-version secure-file-priv version-suffix/;
                
   # Variables which we don't want to display in result file since
   # they depend on type of build
@@ -29,7 +29,7 @@ perl;
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
-              sha256-password-auto-generate-rsa-keys/;
+              sha256-password-auto-generate-rsa-keys thread-pool/;
 
   # And substitute the content some environment variables with their
   # names:

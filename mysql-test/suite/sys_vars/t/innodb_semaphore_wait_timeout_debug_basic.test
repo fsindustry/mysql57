@@ -2,6 +2,7 @@
 --echo # Basic test for innodb_semaphore_wait_timeout_debug
 --echo #
 
+--source include/have_innodb.inc
 # The config variable is a debug variable
 --source include/have_debug.inc
 

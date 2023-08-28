@@ -38,6 +38,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 
 use mtr_match;
 use File::Spec;
+use My::Constants;
 use My::Platform;
 use POSIX qw(_exit floor);
 use IO::Handle qw[ flush ];
@@ -197,6 +198,7 @@ sub mtr_report_test ($) {
       mtr_report("[ $retry$fail ]  Found warnings/errors in server log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
+      mtr_report("\n$tinfo->{'comment'}");
       return;
     }
     my $timeout= $tinfo->{'timeout'};
@@ -550,7 +552,9 @@ sub mtr_report_stats ($$;$) {
     {
       # Test was skipped (disabled not counted)
       $tot_skipped++ unless $tinfo->{'disable'};
-      $tot_skipdetect++ if $tinfo->{'skip_detected_by_test'};
+      $tot_skipdetect++
+        if (defined $tinfo->{'skip_reason'}
+            and $tinfo->{skip_reason} eq MTR_SKIP_BY_TEST);
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {

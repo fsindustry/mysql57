@@ -25,6 +25,7 @@
 #include "debug_sync.h"
 #include "prealloced_array.h"
 #include <lf.h>
+#include "mysqld.h"
 #include <mysqld_error.h>
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
@@ -109,7 +110,9 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END]=
   {0, "Waiting for event metadata lock", 0},
   {0, "Waiting for commit lock", 0},
   {0, "User lock", 0}, /* Be compatible with old status. */
-  {0, "Waiting for locking service lock", 0}
+  {0, "Waiting for locking service lock", 0},
+  {0, "Waiting for backup lock", 0},
+  {0, "Waiting for binlog lock", 0}
 };
 
 #ifdef HAVE_PSI_INTERFACE
@@ -226,7 +229,9 @@ public:
   bool is_lock_object_singleton(const MDL_key *mdl_key) const
   {
     return (mdl_key->mdl_namespace() == MDL_key::GLOBAL ||
-            mdl_key->mdl_namespace() == MDL_key::COMMIT);
+            mdl_key->mdl_namespace() == MDL_key::COMMIT ||
+            mdl_key->mdl_namespace() == MDL_key::BACKUP ||
+            mdl_key->mdl_namespace() == MDL_key::BINLOG);
   }
 
 private:
@@ -253,6 +258,10 @@ private:
     this into account.
   */
   volatile int32 m_unused_lock_objects;
+  /** Pre-allocated MDL_lock object for BACKUP namespace. */
+  MDL_lock *m_backup_lock;
+  /** Pre-allocated MDL_lock object for BINLOG namespace */
+  MDL_lock *m_binlog_lock;
 };
 
 
@@ -1159,9 +1168,13 @@ void MDL_map::init()
 {
   MDL_key global_lock_key(MDL_key::GLOBAL, "", "");
   MDL_key commit_lock_key(MDL_key::COMMIT, "", "");
+  MDL_key backup_lock_key(MDL_key::BACKUP, "", "");
+  MDL_key binlog_lock_key(MDL_key::BINLOG, "", "");
 
   m_global_lock= MDL_lock::create(&global_lock_key);
   m_commit_lock= MDL_lock::create(&commit_lock_key);
+  m_backup_lock= MDL_lock::create(&backup_lock_key);
+  m_binlog_lock= MDL_lock::create(&binlog_lock_key);
 
   m_unused_lock_objects= 0;
 
@@ -1178,6 +1191,8 @@ void MDL_map::init()
 
 void MDL_map::destroy()
 {
+  MDL_lock::destroy(m_backup_lock);
+  MDL_lock::destroy(m_binlog_lock);
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
 
@@ -1218,8 +1233,23 @@ MDL_lock* MDL_map::find(LF_PINS *pins, const MDL_key *mdl_key, bool *pinned)
     */
     assert(mdl_key->length() == 3);
 
-    lock= (mdl_key->mdl_namespace() == MDL_key::GLOBAL) ? m_global_lock :
-                                                          m_commit_lock;
+    switch (mdl_key->mdl_namespace())
+    {
+    case MDL_key::GLOBAL:
+      lock= m_global_lock;
+      break;
+    case MDL_key::COMMIT:
+      lock= m_commit_lock;
+      break;
+    case MDL_key::BACKUP:
+      lock= m_backup_lock;
+      break;
+    case MDL_key::BINLOG:
+      lock= m_binlog_lock;
+      break;
+    default:
+      MY_ASSERT_UNREACHABLE();
+    }
 
     *pinned= false;
 
@@ -1615,6 +1645,8 @@ inline void MDL_lock::reinit(const MDL_key *mdl_key)
     case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
+    case MDL_key::BACKUP:
+    case MDL_key::BINLOG:
       m_strategy= &m_scoped_lock_strategy;
       break;
     default:
@@ -1652,6 +1684,8 @@ MDL_lock::get_unobtrusive_lock_increment(const MDL_request *request)
     case MDL_key::TABLESPACE:
     case MDL_key::SCHEMA:
     case MDL_key::COMMIT:
+    case MDL_key::BACKUP:
+    case MDL_key::BINLOG:
       return m_scoped_lock_strategy.m_unobtrusive_lock_increment[request->type];
     default:
       return m_object_lock_strategy.m_unobtrusive_lock_increment[request->type];
@@ -2604,6 +2638,9 @@ void MDL_lock::remove_ticket(MDL_context *ctx, LF_PINS *pins,
   bool is_singleton= mdl_locks.is_lock_object_singleton(&key);
 
   mysql_prlock_wrlock(&m_rwlock);
+
+  DEBUG_SYNC(current_thd, "mdl_lock_remove_ticket_m_rwlock_locked");
+
   (this->*list).remove_ticket(ticket);
 
   /*

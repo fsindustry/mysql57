@@ -1796,7 +1796,8 @@ longlong Item_func_plus::int_op()
 {
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
-  longlong res= val0 + val1;
+  longlong res = static_cast<unsigned long long>(val0) +
+                 static_cast<unsigned long long>(val1);
   bool     res_unsigned= FALSE;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
@@ -1928,7 +1929,8 @@ longlong Item_func_minus::int_op()
 {
   longlong val0= args[0]->val_int();
   longlong val1= args[1]->val_int();
-  longlong res= val0 - val1;
+  longlong res = static_cast<unsigned long long>(val0) -
+                 static_cast<unsigned long long>(val1);
   bool     res_unsigned= FALSE;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
@@ -2294,8 +2296,8 @@ longlong Item_func_int_div::val_int()
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
   res_negative= val0_negative != val1_negative;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0 = (ulonglong)(val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1 = (ulonglong)(val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 / uval1;
   if (res_negative)
   {
@@ -2346,8 +2348,8 @@ longlong Item_func_mod::int_op()
   */
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 % uval1;
   return check_integer_overflow(val0_negative ? -(longlong) res : res,
                                 !val0_negative);
@@ -2439,6 +2441,11 @@ longlong Item_func_neg::int_op()
       !args[0]->unsigned_flag &&
       !unsigned_flag)
     return raise_integer_overflow();
+  // Avoid doing '-value' below, it is undefined.
+  if (value == LLONG_MIN &&
+      args[0]->unsigned_flag &&
+      !unsigned_flag)
+    return LLONG_MIN;
   return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
 
@@ -6063,6 +6070,8 @@ longlong Item_func_sleep::val_int()
 
   thd->ENTER_COND(&cond, &LOCK_item_func_sleep, &stage_user_sleep, NULL);
 
+  DEBUG_SYNC(current_thd, "func_sleep_before_sleep");
+
   error= 0;
   thd_wait_begin(thd, THD_WAIT_SLEEP);
   while (!thd->killed)
@@ -7310,7 +7319,9 @@ void Item_func_get_system_var::fix_length_and_dec()
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
       decimals=0;
       break;
+    case SHOW_SIGNED_INT:
     case SHOW_SIGNED_LONG:
+    case SHOW_SIGNED_LONGLONG:
       unsigned_flag= FALSE;
       collation.set_numeric();
       fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
@@ -7377,9 +7388,11 @@ enum Item_result Item_func_get_system_var::result_type() const
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
       return INT_RESULT;
     case SHOW_CHAR: 
@@ -7402,9 +7415,11 @@ enum_field_types Item_func_get_system_var::field_type() const
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
       return MYSQL_TYPE_LONGLONG;
     case SHOW_CHAR: 
@@ -7476,9 +7491,11 @@ longlong Item_func_get_system_var::val_int()
   switch (var->show_type())
   {
     case SHOW_INT:      get_sys_var_safe (uint);
+    case SHOW_SIGNED_INT: get_sys_var_safe (int);
     case SHOW_LONG:     get_sys_var_safe (ulong);
     case SHOW_SIGNED_LONG: get_sys_var_safe (long);
     case SHOW_LONGLONG: get_sys_var_safe (ulonglong);
+    case SHOW_SIGNED_LONGLONG: get_sys_var_safe (longlong);
     case SHOW_HA_ROWS:  get_sys_var_safe (ha_rows);
     case SHOW_BOOL:     get_sys_var_safe (bool);
     case SHOW_MY_BOOL:  get_sys_var_safe (my_bool);
@@ -7583,9 +7600,11 @@ String* Item_func_get_system_var::val_str(String* str)
     }
 
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:
@@ -7679,9 +7698,11 @@ double Item_func_get_system_var::val_real()
         return cached_dval;
       }
     case SHOW_INT:
+    case SHOW_SIGNED_INT:
     case SHOW_LONG:
     case SHOW_SIGNED_LONG:
     case SHOW_LONGLONG:
+    case SHOW_SIGNED_LONGLONG:
     case SHOW_HA_ROWS:
     case SHOW_BOOL:
     case SHOW_MY_BOOL:

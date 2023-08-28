@@ -41,7 +41,7 @@ ENDIF()
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
 IF(WIN32)
   # All clients will need auth_win_client
-  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static perconaserverclient)
 ELSE()
   # Linking with mysqlclient may fail on macOS, so link individual libs instead.
   TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static

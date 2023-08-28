@@ -22,6 +22,7 @@
 
 #include <my_global.h>
 #include "keys_container.h"
+#include "system_keys_container.h"
 
 namespace keyring {
 
@@ -48,6 +49,7 @@ Keys_container::Keys_container(ILogger *logger)
  , keyring_io(NULL)
 {
   my_hash_clear(keys_hash);
+  system_keys_container.reset(new System_keys_container(logger));
 }
 
 Keys_container::~Keys_container()
@@ -96,21 +98,27 @@ my_bool Keys_container::store_key_in_hash(IKey *key)
 
 my_bool Keys_container::store_key(IKey* key)
 {
-  if (flush_to_backup() || store_key_in_hash(key))
+  if (system_keys_container->rotate_key_id_if_system_key_without_version(key) ||
+      flush_to_backup() ||
+      store_key_in_hash(key))
     return TRUE;
   if (flush_to_storage(key, STORE_KEY))
   {
     remove_key_from_hash(key);
     return TRUE;
   }
+  system_keys_container->store_or_update_if_system_key_with_version(key);
   return FALSE;
 }
 
 IKey* Keys_container::get_key_from_hash(IKey *key)
 {
-  return reinterpret_cast<IKey*>(my_hash_search(keys_hash,
-    reinterpret_cast<const uchar*>(key->get_key_signature()->c_str()),
-    key->get_key_signature()->length()));
+  IKey* system_key = system_keys_container->get_latest_key_if_system_key_without_version(key);
+
+  return system_key ? system_key
+    : reinterpret_cast<IKey*>(my_hash_search(keys_hash,
+        reinterpret_cast<const uchar*>(key->get_key_signature()->c_str()),
+                                       key->get_key_signature()->length()));
 }
 
 void Keys_container::allocate_and_set_data_for_key(IKey *key,
@@ -172,7 +180,10 @@ my_bool Keys_container::remove_key_from_hash(IKey *key)
 my_bool Keys_container::remove_key(IKey *key)
 {
   IKey* fetched_key_to_delete= get_key_from_hash(key);
-  if (fetched_key_to_delete == NULL || flush_to_backup() ||
+  // removing system keys is forbidden
+  if (fetched_key_to_delete == NULL ||
+      system_keys_container->is_system_key(fetched_key_to_delete) ||
+      flush_to_backup() ||
       remove_key_from_hash(fetched_key_to_delete))
     return TRUE;
   if (flush_to_storage(fetched_key_to_delete, REMOVE_KEY))
@@ -211,6 +222,7 @@ my_bool Keys_container::load_keys_from_keyring_storage()
         delete key_loaded;
         break;
       }
+      system_keys_container->store_or_update_if_system_key_with_version(key_loaded);
       key_loaded=NULL;
     }
     delete serialized_keys;

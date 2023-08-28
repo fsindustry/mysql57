@@ -1,5 +1,7 @@
 /*
    Copyright (c) 2000, 2023, Oracle and/or its affiliates.
+   Copyright (c) 2018, Percona and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -323,6 +325,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   else
     thd->inc_status_sort_scan();
 
+  thd->query_plan_flags|= QPLAN_FILESORT;
+
   // If number of rows is not known, use as much of sort buffer as possible. 
   num_rows= table->file->estimate_rows_upper_bound();
 
@@ -431,6 +435,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     if (num_rows == HA_POS_ERROR)
       goto err;
   }
+  DEBUG_SYNC(thd, "after_find_all_keys");
 
   num_chunks= static_cast<size_t>(my_b_tell(&chunk_file)) /
     sizeof(Merge_chunk);
@@ -453,6 +458,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   }
   else
   {
+    thd->query_plan_flags|= QPLAN_FILESORT_DISK;
+
     // We will need an extra buffer in rr_unpack_from_tempfile()
     if (table_sort.using_addon_fields() &&
         !(table_sort.addon_fields->allocate_addon_buf(param.addon_length)))
@@ -1163,7 +1170,8 @@ write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
       DBUG_RETURN(1);                           /* purecov: inspected */
   }
 
-  if (my_b_write(chunk_file, &merge_chunk, sizeof(merge_chunk)))
+  if (my_b_write(chunk_file, reinterpret_cast<uchar*>(&merge_chunk),
+                 sizeof(merge_chunk)))
     DBUG_RETURN(1);                             /* purecov: inspected */
 
   DBUG_RETURN(0);
@@ -1944,10 +1952,8 @@ uint read_to_buffer(IO_CACHE *fromfile,
                         merge_chunk,
                         static_cast<ulonglong>(merge_chunk->file_position()),
                         static_cast<ulonglong>(bytes_to_read)));
-    if (mysql_file_pread(fromfile->file,
-                         merge_chunk->buffer_start(),
-                         bytes_to_read,
-                         merge_chunk->file_position(), MYF_RW))
+    if (my_b_pread(fromfile, merge_chunk->buffer_start(), bytes_to_read,
+                   merge_chunk->file_position()))
       DBUG_RETURN((uint) -1);			/* purecov: inspected */
 
     size_t num_bytes_read;
@@ -2069,11 +2075,13 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   Sort_param::chunk_compare_fun cmp;
   Merge_chunk_compare_context *first_cmp_arg;
-  volatile THD::killed_state *killed= &current_thd->killed;
+  THD * const thd = current_thd;
+  volatile THD::killed_state *killed= &thd->killed;
   THD::killed_state not_killable;
   DBUG_ENTER("merge_buffers");
 
-  current_thd->inc_status_sort_merge_passes();
+  thd->inc_status_sort_merge_passes();
+  thd->query_plan_fsort_passes++;
   if (param->not_killable)
   {
     killed= &not_killable;

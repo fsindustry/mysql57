@@ -161,11 +161,22 @@ public:
   */
   bool set_default(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
+  void stmt_update(THD *thd) {
+    on_update && on_update(this, thd, OPT_SESSION);
+  }
 
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
-  bool is_readonly() const { return flags & READONLY; }
+  bool is_readonly() const 
+  {
+    const my_bool *readonly= getopt_constraint_get_readonly_value(option.name,
+                                                                  0, FALSE);
+    if (readonly && *readonly)
+      return TRUE;  
+    
+    return flags & READONLY;
+  }
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
   /**
@@ -324,6 +335,7 @@ public:
   }
 #endif
   virtual void cleanup() { var= NULL; }
+  int populate_sys_var(THD *thd);
 };
 
 
@@ -392,6 +404,9 @@ extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
 extern SHOW_COMP_OPTION have_crypt;
 extern SHOW_COMP_OPTION have_compress;
 extern SHOW_COMP_OPTION have_statement_timeout;
+extern SHOW_COMP_OPTION have_backup_locks;
+extern SHOW_COMP_OPTION have_backup_safe_binlog_info;
+extern SHOW_COMP_OPTION have_snapshot_cloning;
 
 /*
   Helper functions
@@ -406,7 +421,10 @@ void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
-int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+
+MY_ATTRIBUTE((warn_unused_result))
+int sql_set_variables(THD *thd, List<set_var_base> *var_list,
+                      bool free_joins = true);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 bool keyring_access_test();
@@ -424,6 +442,10 @@ const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 int sys_var_init();
 int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
+
+extern void init_log_slow_verbosity();
+extern void init_slow_query_log_use_global_control();
+extern void init_log_slow_sp_statements();
 
 #endif
 

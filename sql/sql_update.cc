@@ -814,6 +814,15 @@ bool mysql_update(THD *thd,
         check_constant_expressions(values))
       read_removal= table->check_read_removal(qep_tab.quick()->index);
 
+    error= table->file->ha_fast_update(thd, fields, values, conds);
+    if (error == 0)
+      error= -1; // error < 0 means really no error at all (see below)
+    else if (error != ENOTSUP)
+    {
+      table->file->print_error(error, MYF(0));
+      error= 1;
+    }
+    else
     while (true)
     {
       error= info.read_record(&info);
@@ -1107,8 +1116,11 @@ bool mysql_update(THD *thd,
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (long) found,
                 (long) updated,
                 (long) thd->get_stmt_da()->current_statement_cond_count());
-    my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
-          found : updated, id, buff);
+    ha_rows row_count=
+      thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+      ? found : updated;
+    my_ok(thd, row_count, id, buff);
+    thd->updated_row_count += row_count;
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -2859,8 +2871,11 @@ bool Query_result_update::send_eof()
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
               (long) found, (long) updated,
               (long) thd->get_stmt_da()->current_statement_cond_count());
-  ::my_ok(thd, thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS) ?
-          found : updated, id, buff);
+  ha_rows row_count=
+    thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+    ? found : updated;
+  ::my_ok(thd, row_count, id, buff);
+  thd->updated_row_count+= row_count;
   DBUG_RETURN(FALSE);
 }
 

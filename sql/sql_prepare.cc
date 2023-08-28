@@ -122,13 +122,17 @@ When one supplies long data for a placeholder:
 #include <mysql.h>
 #else
 #include <mysql_com.h>
+#include "sql_connect.h" //update_global_user_stats
 #endif
 #include "sql_query_rewrite.h"
+
+#include <sys/time.h>
 
 #include <algorithm>
 #include <limits>
 using std::max;
 using std::min;
+
 
 /****************************************************************************/
 
@@ -2012,6 +2016,8 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_SLAVE_STOP:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_CREATE_COMPRESSION_DICTIONARY:
+  case SQLCOM_DROP_COMPRESSION_DICTIONARY:
   case SQLCOM_CREATE_DB:
   case SQLCOM_DROP_DB:
   case SQLCOM_ALTER_DB_UPGRADE:
@@ -2131,7 +2137,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
   mysql_reset_thd_for_next_command(thd);
 
   if (! (stmt= new Prepared_statement(thd)))
-    DBUG_VOID_RETURN; /* out of memory: error is set in Sql_alloc */
+    goto end; /* out of memory: error is set in Sql_alloc */
 
   if (thd->stmt_map.insert(thd, stmt))
   {
@@ -2139,7 +2145,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
       The error is set in the insert. The statement itself
       will be also deleted there (this is how the hash works).
     */
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   // set the current client capabilities before switching the protocol
@@ -2167,7 +2173,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
-  /* check_prepared_statement sends the metadata packet in case of success */
+end:
   DBUG_VOID_RETURN;
 }
 
@@ -2575,7 +2581,7 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
 
@@ -2603,9 +2609,10 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* Close connection socket; for use with client testing (Bug#43560). */
-  DBUG_EXECUTE_IF(
-      "close_conn_after_stmt_execute", thd->get_protocol()->shutdown(););
+  DBUG_EXECUTE_IF("close_conn_after_stmt_execute",
+                  thd->get_protocol()->shutdown(););
 
+end:
   DBUG_VOID_RETURN;
 }
 
@@ -2674,24 +2681,26 @@ void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows)
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
+
+  Statement_backup stmt_backup;
+
   thd->status_var.com_stmt_fetch++;
   if (!(stmt= thd->stmt_map.find(stmt_id)))
   {
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_fetch");
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   cursor= stmt->cursor;
   if (!cursor)
   {
     my_error(ER_STMT_HAS_NO_OPEN_CURSOR, MYF(0), stmt_id);
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   thd->stmt_arena= stmt;
-  Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, stmt);
 
   cursor->fetch(num_rows);
@@ -2705,6 +2714,7 @@ void mysqld_stmt_fetch(THD *thd, ulong stmt_id, ulong num_rows)
   stmt_backup.restore_thd(thd, stmt);
   thd->stmt_arena= thd;
 
+end:
   DBUG_VOID_RETURN;
 }
 
@@ -2739,7 +2749,7 @@ void mysqld_stmt_reset(THD *thd, ulong stmt_id)
     char llbuf[22];
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), static_cast<int>(sizeof(llbuf)),
              llstr(stmt_id, llbuf), "mysqld_stmt_reset");
-    DBUG_VOID_RETURN;
+    goto end;
   }
 
   stmt->close_cursor();
@@ -2756,6 +2766,7 @@ void mysqld_stmt_reset(THD *thd, ulong stmt_id)
 
   my_ok(thd);
 
+end:
   DBUG_VOID_RETURN;
 }
 

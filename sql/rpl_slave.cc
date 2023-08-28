@@ -893,6 +893,7 @@ read_rotate_from_relay_log(char *filename, char *master_log_file,
   Log_event *ev= NULL;
   bool done= false;
   enum_read_rotate_from_relay_log_status ret= NOT_FOUND_ROTATE;
+  Format_description_log_event* new_fdle;
   while (!done &&
          (ev= Log_event::read_log_event(&log, 0, fd_ev_p, opt_slave_sql_verify_checksum)) !=
          NULL)
@@ -901,9 +902,19 @@ read_rotate_from_relay_log(char *filename, char *master_log_file,
     switch (ev->get_type_code())
     {
     case binary_log::FORMAT_DESCRIPTION_EVENT:
+      new_fdle= static_cast<Format_description_log_event*>(ev);
+      new_fdle->copy_crypto_data(*fd_ev_p);
       if (fd_ev_p != &fd_ev)
         delete fd_ev_p;
-      fd_ev_p= (Format_description_log_event *)ev;
+      fd_ev_p= new_fdle;
+      break;
+    case binary_log::START_ENCRYPTION_EVENT:
+      if (fd_ev_p->start_decryption(static_cast<Start_encryption_log_event*>(ev)))
+      {
+        sql_print_error("Could not initialize decryption of binlog.");
+        done= true;
+        ret= ERROR;
+      }
       break;
     case binary_log::ROTATE_EVENT:
       /*
@@ -1307,6 +1318,21 @@ int load_mi_and_rli_from_repositories(Master_info* mi,
   int init_error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   THD *thd= current_thd;
+  bool binlog_prot_acquired= false;
+
+  if (thd && !thd->backup_binlog_lock.is_acquired())
+  {
+    const ulong timeout= thd->variables.lock_wait_timeout;
+
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&mi->rli->data_lock);
+
+    if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                   timeout))
+      DBUG_RETURN(1);
+
+    binlog_prot_acquired= true;
+  }
 
   /*
     We need a mutex while we are changing master info parameters to
@@ -1389,6 +1415,13 @@ end:
   if (!init_error && mi->rli->is_relay_log_recovery
       && mi->rli->mts_recovery_group_cnt)
     init_error= fill_mts_gaps_and_recover(mi);
+
+  if (binlog_prot_acquired)
+  {
+      DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+      thd->backup_binlog_lock.release_protection(thd);
+  }
+
   DBUG_RETURN(init_error);
 }
 
@@ -2254,8 +2287,14 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
   if (abort_loop || thd->killed || rli->abort_slave)
   {
     rli->sql_thread_kill_accepted= true;
+    /* NOTE: In MTS mode if all workers are done and if the partial trx
+       (if any) can be rolled back safely we can accept the kill */
+    const bool can_rollback= rli->abort_slave &&
+                       (!rli->is_mts_in_group() ||
+                        (rli->mts_workers_queue_empty() &&
+                         !rli->cannot_safely_rollback()));
     is_parallel_warn= (rli->is_parallel_exec() &&
-                       (rli->is_mts_in_group() || thd->killed));
+                       (!can_rollback || thd->killed));
     /*
       Slave can execute stop being in one of two MTS or Single-Threaded mode.
       The modes define different criteria to accept the stop.
@@ -2328,7 +2367,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
       }
       if (rli->sql_thread_kill_accepted)
       {
-        rli->last_event_start_time= 0;
         if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
         {
           rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
@@ -2345,6 +2383,10 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
       }
     }
   }
+
+  if (rli->sql_thread_kill_accepted)
+    rli->last_event_start_time= 0;
+
   DBUG_RETURN(rli->sql_thread_kill_accepted);
 }
 
@@ -2563,7 +2605,9 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
 
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
-                    const char act[]= "now wait_for signal.get_master_uuid";
+                    const char act[]
+                        = "now signal in_get_master_version_and_clock "
+                        "wait_for signal.get_master_uuid";
                     assert(opt_debug_sync_timeout > 0);
                     assert(!debug_sync_set_action(current_thd,
                                                   STRING_WITH_LEN(act)));
@@ -2828,7 +2872,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP",
                   {
                     const char act[]=
-                      "now "
+                      "now signal in_get_master_version_and_clock "
                       "wait_for signal.get_unix_timestamp";
                     assert(opt_debug_sync_timeout > 0);
                     assert(!debug_sync_set_action(current_thd,
@@ -2836,6 +2880,12 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                   };);
 
   master_res= NULL;
+  DBUG_EXECUTE_IF("get_master_version.timestamp.ER_NET_READ_INTERRUPTED",
+                   {
+                     DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+                     DBUG_SET("-d,get_master_version.timestamp."
+                             "ER_NET_READ_INTERRUPTED");
+                   });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
@@ -2883,7 +2933,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
                   {
                     const char act[]=
-                      "now "
+                      "now signal in_get_master_version_and_clock "
                       "wait_for signal.get_server_id";
                     assert(opt_debug_sync_timeout > 0);
                     assert(!debug_sync_set_action(current_thd, 
@@ -3086,6 +3136,12 @@ when it try to get the value of TIME_ZONE global variable from master.";
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     sprintf(query, query_format, llbuf);
 
+    DBUG_EXECUTE_IF("get_master_version.heartbeat.ER_NET_READ_INTERRUPTED",
+                    {
+                      DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
+                      DBUG_SET("-d,get_master_version.heartbeat."
+                               "ER_NET_READ_INTERRUPTED");
+                    });
     if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))))
     {
       if (check_io_slave_killed(mi->info_thd, mi, NULL))
@@ -4630,7 +4686,8 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   int type= ev->get_type_code();
   if (sql_delay && type != binary_log::ROTATE_EVENT &&
       type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-      type != binary_log::START_EVENT_V3)
+      type != binary_log::START_EVENT_V3 &&
+      type != binary_log::START_ENCRYPTION_EVENT)
   {
     // The time when we should execute the event.
     time_t sql_delay_end=
@@ -5020,7 +5077,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != binary_log::ROTATE_EVENT &&
         ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT)
+        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
+        ev->get_type_code() != binary_log::START_ENCRYPTION_EVENT)
     {
       if (ev->starts_group())
       {
@@ -5129,6 +5187,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
     begin_event->common_header->data_written= 0;
     begin_event->server_id= ev->server_id;
     /*
+      This event is not generated on master and is only specific to replicas.
+      So, we don't want this BEGIN query to respect MASTER_DELAY.
+      Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+      event which triggered this.
+    */
+    begin_event->common_header->when= ev->common_header->when;
+    /*
       We must be careful to avoid SQL thread increasing its position
       farther than the event that triggered this QUERY(BEGIN).
     */
@@ -5155,6 +5220,13 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   ((Query_log_event*) rollback_event)->db= "";
   rollback_event->common_header->data_written= 0;
   rollback_event->server_id= ev->server_id;
+  /*
+    This event is not generated on master and is only specific to replicas.
+    So, we don't want this ROLLBACK query to respect MASTER_DELAY.
+    Make the timestamp to be same as that of the FORMAT_DESCRIPTION_EVENT
+    event which triggered this.
+  */
+  rollback_event->common_header->when= ev->common_header->when;
   /*
     We must be careful to avoid SQL thread increasing its position
     farther than the event that triggered this QUERY(ROLLBACK).
@@ -5846,6 +5918,22 @@ requesting master dump") ||
       */
       THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
       event_len= read_event(mysql, mi, &suppress_warnings);
+
+      DBUG_EXECUTE_IF("relay_xid_trigger",
+        if (event_len != packet_error)
+        {
+          const uchar* event_buf= (const uchar*)mysql->net.read_pos + 1;
+          Log_event_type event_type= (Log_event_type)
+                                        event_buf[EVENT_TYPE_OFFSET];
+          if (event_type == binary_log::XID_EVENT)
+          {
+            const char act[]= "now signal relay_xid_reached wait_for resume";
+            assert(!debug_sync_set_action(current_thd,
+                                               STRING_WITH_LEN(act)));
+          }
+        }
+      );
+
       if (check_io_slave_killed(thd, mi, "Slave I/O thread killed while \
 reading event"))
         goto err;
@@ -6020,7 +6108,7 @@ ignore_log_space_limit=%d",
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_unknown_event",
-        if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
+        if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >= binary_log::MYSQL_END_EVENT)
           thd->killed= THD::KILLED_NO_VALUE;
       );
       DBUG_EXECUTE_IF("stop_io_after_queuing_event",
@@ -6574,14 +6662,16 @@ bool mts_recovery_groups(Relay_log_info *rli)
         sql_print_error("%s", errmsg);
         goto err;
       }
+      p_fdle->reset_crypto();
       /*
         Looking for the actual relay checksum algorithm that is present in
-        a FD at head events of the relay log.
+        a FD at head events of the relay log. We also check if relay log is
+        encrypted by checking for the presence of START_ENCRYPTION_EVENT.
       */
       if (!checksum_detected)
       {
         int i= 0;
-        while (i < 4 && (ev= Log_event::read_log_event(&log,
+        while (i < 5 && (ev= Log_event::read_log_event(&log,
                (mysql_mutex_t*) 0, p_fdle, 0)))
         {
           if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -6589,6 +6679,14 @@ bool mts_recovery_groups(Relay_log_info *rli)
             p_fdle->common_footer->checksum_alg=
                                    ev->common_footer->checksum_alg;
             checksum_detected= TRUE;
+          }
+          if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+          {
+            if (p_fdle->start_decryption((Start_encryption_log_event*) ev))
+            {
+              delete ev;
+              goto err;
+            }
           }
           delete ev;
           i++;
@@ -6612,9 +6710,19 @@ bool mts_recovery_groups(Relay_log_info *rli)
         if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
 
+        if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
+        {
+          if (p_fdle->start_decryption((Start_encryption_log_event*) ev))
+          {
+            delete ev;
+            goto err;
+          }
+        }
+
         if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
             ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT)
+            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
+            ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT)
         {
           delete ev;
           ev= NULL;
@@ -6730,6 +6838,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   ulong cnt;
   bool error= FALSE;
   struct timespec curr_clock;
+  bool binlog_prot_acquired= false;
   time_t ts=0;
 
   DBUG_ENTER("checkpoint_routine");
@@ -6749,14 +6858,24 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                  };);
 #endif
 
+#ifndef NDEBUG
   /*
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 
   */
-  assert(!rli->gaq->full() ||
-         ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-          rli->checkpoint_seqno == rli->checkpoint_group));
+  const bool precondition= !rli->gaq->full() ||
+    ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
+      rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+     rli->checkpoint_seqno == rli->checkpoint_group);
+  if (!precondition)
+  {
+    fprintf(stderr, "rli->gaq->full() = %d\n", rli->gaq->full());
+    fprintf(stderr, "rli->checkpoint_seqno = %u\n", rli->checkpoint_seqno);
+    fprintf(stderr, "rli->checkpoint_group = %u\n", rli->checkpoint_group);
+    fprintf(stderr, "rli->mts_group_status = %d\n", rli->mts_group_status);
+    assert(precondition);
+  }
+#endif
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.
@@ -6827,9 +6946,32 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
             rli->least_occupied_workers.end());
 
   if (need_data_lock)
+  {
+    THD * const info_thd= rli->info_thd;
+    const ulong timeout= info_thd->variables.lock_wait_timeout;
+
+    /*
+      Acquire protection against global BINLOG lock before rli->data_lock is
+      locked (otherwise we would also block SHOW SLAVE STATUS).
+    */
+    assert(!info_thd->backup_binlog_lock.is_acquired());
+    DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+    mysql_mutex_assert_not_owner(&rli->data_lock);
+    error= info_thd->backup_binlog_lock.acquire_protection(info_thd,
+                                                           MDL_EXPLICIT,
+                                                           timeout);
+    if (error)
+      goto end;
+
+    binlog_prot_acquired= true;
+
     mysql_mutex_lock(&rli->data_lock);
+  }
   else
+  {
     mysql_mutex_assert_owner(&rli->data_lock);
+    assert(rli->info_thd->backup_binlog_lock.is_protection_acquired());
+  }
 
   /*
     "Coordinator::commit_positions" {
@@ -6884,6 +7026,13 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* end-of "Coordinator::"commit_positions" */
 
 end:
+
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    rli->info_thd->backup_binlog_lock.release_protection(rli->info_thd);
+  }
+
 #ifndef NDEBUG
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
@@ -8167,7 +8316,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   char *save_buf= NULL; // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN + FN_REFLEN];
   Gtid gtid= { 0, 0 };
-  Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
+  Log_event_type event_type= (Log_event_type)static_cast<uchar>(buf[EVENT_TYPE_OFFSET]);
 
   assert(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
          checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF || 
@@ -8216,7 +8365,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
               
   // Emulate the network corruption
   DBUG_EXECUTE_IF("corrupt_queue_event",
-    if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT)
+    if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+        event_type != binary_log::START_ENCRYPTION_EVENT)
     {
       char *debug_event_buf_c = (char*) buf;
       int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
@@ -8440,6 +8590,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                  "could not queue event from master");
       goto err;
     }
+    new_fdle->copy_crypto_data(*(mi->get_mi_description_event()));
+
     if (new_fdle->common_footer->checksum_alg ==
                                  binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
       new_fdle->common_footer->checksum_alg= binary_log::BINLOG_CHECKSUM_ALG_OFF;
@@ -8502,9 +8654,15 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       to the last skipped transaction. Note that,
       we update only the positions and not the file names, as a ROTATE
       EVENT from the master prior to this will update the file name.
+
+      When master's binlog is encrypted it will also sent heartbeat
+      event after reading Start_encryption_event from the binlog.
+      As Start_encryption_event is not sent to slave, the master
+      informs the slave to update it's master_log_pos by sending
+      heartbeat event.
     */
-    if (mi->is_auto_position()  && mi->get_master_log_pos() <
-       hb.common_header->log_pos &&  mi->get_master_log_name() != NULL)
+    if (mi->get_master_log_pos() < hb.common_header->log_pos &&
+        mi->get_master_log_name() != NULL)
     {
 
       assert(memcmp(const_cast<char*>(mi->get_master_log_name()),
@@ -8670,7 +8828,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     if (event_type == binary_log::WRITE_ROWS_EVENT ||
         event_type == binary_log::PREVIOUS_GTIDS_LOG_EVENT)
     {
-      char *event_buf= const_cast<char*>(buf);
+      uchar *event_buf= const_cast<uchar*>(reinterpret_cast<const uchar*>(buf));
       /* Overwrite the log event type with an unknown type. */
       event_buf[EVENT_TYPE_OFFSET]= binary_log::ENUM_END_EVENT + 1;
       /* Set LOG_EVENT_IGNORABLE_F for the log event. */
@@ -8754,7 +8912,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   {
     bool is_error= false;
     /* write the event to the relay log */
-    if (likely(rli->relay_log.append_buffer(buf, event_len, mi) == 0))
+    if (likely(rli->relay_log.append_buffer(reinterpret_cast<uchar*>(const_cast<char*>(buf)), event_len, mi) == 0))
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
@@ -9462,6 +9620,7 @@ static Log_event* next_event(Relay_log_info* rli)
       assert(rli->cur_log_fd >= 0);
       mysql_file_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
+      rli->get_rli_description_event()->reset_crypto();
 
       if (relay_log_purge)
       {
@@ -11065,6 +11224,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
     options are not used.
   */
   bool need_relay_log_purge= 1;
+  bool binlog_prot_acquired= false;
 
   /*
     We want to save the old receive configurations so that we can use them to
@@ -11435,6 +11595,21 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
     relay_log_purge= save_relay_log_purge;
 
+    if (!thd->backup_binlog_lock.is_acquired())
+    {
+      const ulong timeout= thd->variables.lock_wait_timeout;
+
+      DBUG_PRINT("debug", ("Acquiring binlog protection lock"));
+      mysql_mutex_assert_not_owner(&mi->rli->data_lock);
+      if (thd->backup_binlog_lock.acquire_protection(thd, MDL_EXPLICIT,
+                                                     timeout))
+      {
+        goto err;
+      }
+
+      binlog_prot_acquired= true;
+    }
+
     /*
       Coordinates in rli were spoilt by the 'if (need_relay_log_purge)' block,
       so restore them to good values. If we left them to ''/0, that would work;
@@ -11499,7 +11674,22 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       goto err;
     }
 
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    thd->backup_binlog_lock.release_protection(thd);
+  }
+
+  unlock_slave_threads(mi);
+  mi->channel_unlock();
+  DBUG_RETURN(false);
+
 err:
+  if (binlog_prot_acquired)
+  {
+    DBUG_PRINT("debug", ("Releasing binlog protection lock"));
+    thd->backup_binlog_lock.release_protection(thd);
+  }
 
   unlock_slave_threads(mi);
   mi->channel_unlock();
