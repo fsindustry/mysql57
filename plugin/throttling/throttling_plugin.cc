@@ -13,17 +13,6 @@ static volatile int number_of_calls;
 static my_bool g_plugin_installed = FALSE;
 
 /*
-  Record buffer mutex.
-*/
-static mysql_mutex_t g_record_buffer_mutex;
-
-/*
-  Event recording buffer.
-*/
-static char *g_record_buffer;
-
-
-/*
   Plugin status variables for SHOW STATUS
 */
 
@@ -112,23 +101,24 @@ static struct st_mysql_sys_var *throttling_sys_vars[] = {
 /*
   Plugin library descriptor
 */
-plugin_info throttler_info = {
-    "simple_parser",
+plugin_info throttling_info = {
+    "throttling",
     "fsindustry",
-    "a throttler based on keywords"
+    "a throttler based on keywords",
+    0x0100
 };
 
-mysql_declare_plugin(audit_null)
+mysql_declare_plugin(throttling)
         {
             MYSQL_AUDIT_PLUGIN, /* type */
             &throttling_descriptor, /* descriptor */
-            throttler_info.name, /* name */
-            throttler_info.author, /* author */
-            throttler_info.description, /* description */
+            throttling_info.name, /* name */
+            throttling_info.author, /* author */
+            throttling_info.description, /* description */
             PLUGIN_LICENSE_GPL, /* plugin license */
             throttling_plugin_init, /* init function (when loaded) */
             throttling_plugin_deinit, /* deinit function (when unloaded) */
-            0x0100, /* version 1.0 */
+            throttling_info.version, /* version 1.0 */
             throttling_status, /* status variables */
             throttling_sys_vars, /* system variables */
             NULL,

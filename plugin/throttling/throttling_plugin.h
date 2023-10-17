@@ -20,6 +20,7 @@ typedef struct {
   const char *name;
   const char *author;
   const char *description;
+  unsigned int version;
 } plugin_info;
 
 
