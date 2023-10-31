@@ -2,8 +2,8 @@
 // Created by fsindustry on 2023/10/23.
 //
 
-#ifndef MYSQL_THROTTLE_H
-#define MYSQL_THROTTLE_H
+#ifndef MYSQL_THROTTLER_H
+#define MYSQL_THROTTLER_H
 
 #include <string>
 #include <mysql/plugin.h>
@@ -12,7 +12,7 @@
 /**
  * this is a base class, define interface of throttling strategy
  */
-class throttle {
+class throttler {
 public:
 
   /**
@@ -36,4 +36,4 @@ public:
 };
 
 
-#endif //MYSQL_THROTTLE_H
+#endif //MYSQL_THROTTLER_H

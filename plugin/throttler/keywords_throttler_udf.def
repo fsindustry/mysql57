@@ -1,0 +1,16 @@
+LIBRARY		throttler
+VERSION		1.0
+EXPORTS
+  add_keywords_throttler_rule_init
+  add_keywords_throttler_rule_deinit
+  add_keywords_throttler_rule
+  keywords_throttler_rules_init
+  keywords_throttler_rules_deinit
+  keywords_throttler_rules
+  delete_keywords_throttler_rules_init
+  delete_keywords_throttler_rules_deinit
+  delete_keywords_throttler_rules
+  truncate_keywords_throttler_rules_init
+  truncate_keywords_throttler_rules_deinit
+  truncate_keywords_throttler_rules
+

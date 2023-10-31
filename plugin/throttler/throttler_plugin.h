@@ -2,16 +2,17 @@
 // Created by fsindustry on 2023/10/16.
 //
 
-#ifndef MYSQL_THROTTLING_PLUGIN_H
-#define MYSQL_THROTTLING_PLUGIN_H
+#ifndef MYSQL_THROTTLER_PLUGIN_H
+#define MYSQL_THROTTLER_PLUGIN_H
 
-#include <stdio.h>
+#include <cstdio>
 #include <m_ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <my_sys.h>
 #include <mysqld_error.h>
 #include "my_compiler.h"
+#include "throttler.h"
 
 /**
  * description information for plugin
@@ -23,5 +24,6 @@ typedef struct {
   unsigned int version;
 } plugin_info;
 
+extern throttler *current_throttler;
 
-#endif //MYSQL_THROTTLING_PLUGIN_H
+#endif //MYSQL_THROTTLER_PLUGIN_H

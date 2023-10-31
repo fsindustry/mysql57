@@ -2,21 +2,21 @@
 // Created by fsindustry on 2023/10/23.
 //
 
-#include "keywords_throttle.h"
+#include "keywords_throttler.h"
 
 #ifdef HAVE_PSI_INTERFACE
-PSI_rwlock_key key_keywords_throttle_lock_rules_;
+PSI_rwlock_key key_keywords_throttler_lock_rules_;
 
-static PSI_rwlock_info all_keywords_throttle_rwlocks[] =
+static PSI_rwlock_info all_keywords_throttler_rwlocks[] =
     {
-        {&key_keywords_throttle_lock_rules_, "LOCK_plugin_keywords_throttle_rules_", 0}
+        {&key_keywords_throttler_lock_rules_, "LOCK_plugin_keywords_throttler_rules_", 0}
     };
 
 static void init_keywords_throttle_psi_keys() {
-  const char *category = "keywords_throttle";
+  const char *category = "keywords_throttler";
   int count;
-  count = array_elements(all_keywords_throttle_rwlocks);
-  mysql_rwlock_register(category, all_keywords_throttle_rwlocks, count);
+  count = array_elements(all_keywords_throttler_rwlocks);
+  mysql_rwlock_register(category, all_keywords_throttler_rwlocks, count);
 }
 
 #endif
@@ -87,24 +87,36 @@ std::vector<keywords_rule> keywords_rule_mamager::get_rules(const std::vector<st
   return result;
 }
 
+std::vector<keywords_rule> keywords_rule_mamager::get_all_rules() {
 
-keywords_throttle::keywords_throttle() {
+  auto_rw_lock_read read_lock(&keywords_rule_lock);
+
+  std::vector<keywords_rule> result;
+  for (const auto& pair : *rule_map) {
+    result.push_back(pair.second);
+  }
+
+  return result;
+}
+
+
+keywords_throttler::keywords_throttler() {
 #ifdef HAVE_PSI_INTERFACE
   init_keywords_throttle_psi_keys();
 #endif
   mamager = new keywords_rule_mamager;
-  mysql_rwlock_init(key_keywords_throttle_lock_rules_, &mamager->keywords_rule_lock);
+  mysql_rwlock_init(key_keywords_throttler_lock_rules_, &mamager->keywords_rule_lock);
 }
 
-keywords_throttle::~keywords_throttle() {
+keywords_throttler::~keywords_throttler() {
   delete mamager;
 }
 
-int keywords_throttle::check_before_execute(THD *thd, const mysql_event_query *event) {
+int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *event) {
   return 0;
 }
 
-int keywords_throttle::adjust_after_execute(THD *thd, const mysql_event_query *event) {
+int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *event) {
   return 0;
 }
 

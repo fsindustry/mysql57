@@ -2,7 +2,7 @@
 // Created by fsindustry on 2023/10/23.
 //
 
-#include "throttle.h"
+#include "throttler.h"
 #include <unordered_map>
 #include <vector>
 #include <memory>
@@ -14,9 +14,9 @@ class keywords_rule {
 public:
   std::string id; // identify a unique rule
   std::string keywords; // delimited by ~, example: A~B~C
-  int max_concurrency;
-  int current_concurrency;
-  long reject_count;
+  int32 max_concurrency;
+  uint32 current_concurrency;
+  uint64 reject_count;
 
   // todo add compiled regex here ...
 
@@ -39,7 +39,7 @@ public:
 
   std::vector<keywords_rule> get_rules(const std::vector<std::string> *ids);
 
-private:
+  std::vector<keywords_rule> get_all_rules();
 
 public:
   // rwlock is used to lock all rules when update
@@ -53,15 +53,19 @@ public:
 /**
  * keywords throttle implementation
  */
-class keywords_throttle : public throttle {
+class keywords_throttler : public throttler {
 public:
-  keywords_throttle();
+  keywords_throttler();
 
-  virtual ~keywords_throttle();
+  virtual ~keywords_throttler();
 
   int check_before_execute(THD *thd, const mysql_event_query *event) override;
 
   int adjust_after_execute(THD *thd, const mysql_event_query *event) override;
+
+  inline keywords_rule_mamager *getMamager() const {
+    return mamager;
+  }
 
 private:
   keywords_rule_mamager *mamager;
