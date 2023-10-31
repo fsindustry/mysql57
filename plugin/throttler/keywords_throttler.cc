@@ -70,6 +70,7 @@ int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
 int keywords_rule_mamager::truncate_rules() {
   auto_rw_lock_write write_lock(&keywords_rule_lock);
   rule_map = std::make_shared<rule_map_t>();
+  return 0;
 }
 
 std::vector<keywords_rule> keywords_rule_mamager::get_rules(const std::vector<std::string> *ids) {

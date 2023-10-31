@@ -2,7 +2,6 @@
 // Created by fsindustry on 2023/10/16.
 //
 #include <my_global.h>
-#include <my_sys.h>
 #include <mysql_com.h>
 #include "keywords_throttler.h"
 #include "throttler_plugin.h"
@@ -99,14 +98,14 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
 
   std::vector<std::string> ids;
   uint32 i = 0;
-  for(; i < args->arg_count; i++){
-    if(args->arg_type[i] == STRING_RESULT && args->args[i]){
+  for (; i < args->arg_count; i++) {
+    if (args->arg_type[i] == STRING_RESULT && args->args[i]) {
       ids.push_back(std::string(args->args[i], args->lengths[i]));
     }
   }
 
   std::vector<keywords_rule> rules;
-  if(args->arg_count == 0){
+  if (args->arg_count == 0) {
     rules = rule_manager->get_all_rules();
   } else {
     rules = rule_manager->get_rules(&ids);
@@ -134,8 +133,8 @@ delete_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, 
 
   std::vector<std::string> ids;
   uint32 i = 0;
-  for(; i < args->arg_count; i++){
-    if(args->arg_type[i] == STRING_RESULT && args->args[i]){
+  for (; i < args->arg_count; i++) {
+    if (args->arg_type[i] == STRING_RESULT && args->args[i]) {
       ids.push_back(std::string(args->args[i], args->lengths[i]));
     }
   }

@@ -33,6 +33,8 @@ public:
    */
   virtual int adjust_after_execute(MYSQL_THD thd, const mysql_event_query *event) = 0;
 
+  virtual ~throttler();
+
 };
 
 
