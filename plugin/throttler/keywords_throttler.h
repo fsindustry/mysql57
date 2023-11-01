@@ -3,12 +3,9 @@
 //
 
 #include "throttler.h"
+#include <unordered_map>
 #include <vector>
 #include <memory>
-#include <boost/unordered_map.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-
 
 /**
  * define a throttling rule
@@ -22,9 +19,12 @@ public:
   uint64 reject_count;
 
   // todo add compiled regex here ...
+
+  keywords_rule() = default;
+  keywords_rule(const keywords_rule& other) = default;
 };
 
-typedef boost::unordered_map<std::string, keywords_rule> rule_map_t;
+typedef std::unordered_map<std::string, keywords_rule> rule_map_t;
 
 /**
  * define how to manage throttling rules
@@ -47,7 +47,7 @@ public:
 
   // map is used to store rules
   // format: map( id, keywords_rule* )
-  boost::shared_ptr<rule_map_t> rule_map;
+  std::shared_ptr<rule_map_t> rule_map;
 };
 
 /**
@@ -59,9 +59,9 @@ public:
 
   virtual ~keywords_throttler();
 
-  int check_before_execute(THD *thd, const mysql_event_query *event);
+  int check_before_execute(THD *thd, const mysql_event_query *event) override;
 
-  int adjust_after_execute(THD *thd, const mysql_event_query *event);
+  int adjust_after_execute(THD *thd, const mysql_event_query *event) override;
 
   inline keywords_rule_mamager *getMamager() const {
     return mamager;

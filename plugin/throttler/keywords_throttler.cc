@@ -24,7 +24,7 @@ static void init_keywords_throttle_psi_keys() {
 
 int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {
 
-  boost::shared_ptr<rule_map_t> new_rule_map;
+  std::shared_ptr<rule_map_t> new_rule_map;
 
   {
     // Create a copy of the current rule_map
@@ -32,8 +32,8 @@ int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {
     new_rule_map = rule_map;
   }
 
-  for (std::vector<keywords_rule>::const_iterator it = rules->begin(); it != rules->end(); ++it) {
-    new_rule_map->insert(std::make_pair(it->id, *it));
+  for (const keywords_rule& rule : *rules) {
+    new_rule_map->emplace(rule.id, rule);
   }
 
   {
@@ -47,7 +47,7 @@ int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {
 
 int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
 
-  boost::shared_ptr<rule_map_t> new_rule_map;
+  std::shared_ptr<rule_map_t> new_rule_map;
 
   {
     // Create a copy of the current rule_map
@@ -55,8 +55,8 @@ int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
     new_rule_map = rule_map;
   }
 
-  for (std::vector<std::string>::iterator it = ids->begin(); it != ids->end(); ++it) {
-    new_rule_map->erase(*it);
+  for (const std::string& id : *ids) {
+    new_rule_map->erase(id);
   }
 
   {
@@ -69,7 +69,7 @@ int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
 
 int keywords_rule_mamager::truncate_rules() {
   auto_rw_lock_write write_lock(&keywords_rule_lock);
-  rule_map = boost::make_shared<rule_map_t>();
+  rule_map = std::make_shared<rule_map_t>();
   return 0;
 }
 
@@ -78,10 +78,10 @@ std::vector<keywords_rule> keywords_rule_mamager::get_rules(const std::vector<st
   auto_rw_lock_read read_lock(&keywords_rule_lock);
 
   std::vector<keywords_rule> result;
-  for (std::vector<std::string>::const_iterator it = ids->begin(); it != ids->end(); ++it) {
-    boost::unordered::unordered_map<std::string,keywords_rule>::iterator map_it = rule_map->find(*it);
-    if (map_it != rule_map->end()) {
-      result.push_back(map_it->second);
+  for (const auto &id : *ids) {
+    auto it = rule_map->find(id);
+    if (it != rule_map->end()) {
+      result.push_back(it->second);
     }
   }
 
@@ -93,10 +93,8 @@ std::vector<keywords_rule> keywords_rule_mamager::get_all_rules() {
   auto_rw_lock_read read_lock(&keywords_rule_lock);
 
   std::vector<keywords_rule> result;
-
-  boost::unordered::unordered_map<std::string,keywords_rule>::iterator map_it;
-  for (map_it = rule_map->begin(); map_it != rule_map->end(); ++map_it) {
-    result.push_back(map_it->second);
+  for (const auto& pair : *rule_map) {
+    result.push_back(pair.second);
   }
 
   return result;
