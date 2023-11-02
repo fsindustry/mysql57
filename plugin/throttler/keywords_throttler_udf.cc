@@ -3,6 +3,7 @@
 //
 #include <my_global.h>
 #include <mysql_com.h>
+#include <algorithm>
 #include "keywords_throttler.h"
 #include "throttler_plugin.h"
 
@@ -75,11 +76,15 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   }
   rule.max_concurrency = max_concurrency;
   rules.push_back(rule);
+
+  // todo compile regex for current rule
+
   rule_manager->add_rules(&rules);
 
   // set return value which will be sent to client.
-  strcpy(result, "success");
-  *length = 7;
+  std::string res = "success";
+  strcpy(result, res.c_str());
+  *length = res.length();
   return result;
 }
 
@@ -88,7 +93,9 @@ my_bool keywords_throttler_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *me
 }
 
 void keywords_throttler_rules_deinit(UDF_INIT *initid) {
-
+  if (initid->ptr) {
+    delete[] initid->ptr;
+  }
 }
 
 char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
@@ -112,9 +119,29 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
   }
 
   // set return value which will be sent to client.
-  strcpy(result, "success");
-  *length = 7;
-  return result;
+  std::string res;
+  if (rules.empty()) {
+    res.append("no keywords throttler rules.");
+  } else {
+    std::sort(rules.begin(), rules.end(), [](const keywords_rule &r1, const keywords_rule &r2) {
+      return r1.id < r2.id;
+    });
+
+    for (const keywords_rule &rule: rules) {
+      res.append(rule.id);
+      res.append(",");
+      res.append(rule.keywords);
+      res.append(",");
+      res.append(std::to_string(rule.max_concurrency));
+      res.append("\n");
+    }
+  }
+
+  char *buf = new char[res.length()];
+  initid->ptr = buf;
+  strcpy(buf, res.c_str());
+  *length = res.length();
+  return buf;
 }
 
 my_bool delete_keywords_throttler_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
@@ -141,8 +168,9 @@ delete_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, 
   rule_manager->delete_rules(&ids);
 
   // set return value which will be sent to client.
-  strcpy(result, "success");
-  *length = 7;
+  std::string res = "success";
+  strcpy(result, res.c_str());
+  *length = res.length();
   return result;
 }
 
@@ -162,8 +190,9 @@ truncate_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result
   rule_manager->truncate_rules();
 
   // set return value which will be sent to client.
-  strcpy(result, "success");
-  *length = 7;
+  std::string res = "success";
+  strcpy(result, res.c_str());
+  *length = res.length();
   return result;
 }
 
