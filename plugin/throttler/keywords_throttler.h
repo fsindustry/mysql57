@@ -99,15 +99,31 @@ private:
 public:
 
   inline keywords_rule_type get_rule_type_by_name(const std::string &name) {
-    return name_rule_type_mapper[name];
+    auto it = name_rule_type_mapper.find(name);
+    if (it != name_rule_type_mapper.end()) {
+      return it->second;
+    }
+    return RULETYPE_UNSUPPORT;
   }
 
   inline std::string get_name_by_rule_type(keywords_rule_type type) {
-    return rule_type_name_mapper[type];
+    auto it = rule_type_name_mapper.find(type);
+    if (it != rule_type_name_mapper.end()) {
+      return it->second;
+    }
+    return rule_type_name_mapper[RULETYPE_UNSUPPORT];
   }
 
   inline keywords_rule_type get_rule_type_by_sql_cmd(enum_sql_command sql_cmd_type) {
-    return sql_cmd_rule_type_mapper[sql_cmd_type];
+    auto it = sql_cmd_rule_type_mapper.find(sql_cmd_type);
+    if (it != sql_cmd_rule_type_mapper.end()) {
+      return it->second;
+    }
+    return RULETYPE_UNSUPPORT;
+  }
+
+  inline bool valid_sql_cmd_type(enum_sql_command sql_cmd_type) {
+    return get_rule_type_by_sql_cmd(sql_cmd_type) != RULETYPE_UNSUPPORT;
   }
 
   int add_rules(const std::vector<keywords_rule> *rules);
