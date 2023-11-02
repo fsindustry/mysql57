@@ -33,8 +33,9 @@ C_MODE_END
 
 my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 
-  if (args->arg_count != 3) {
-    strcpy(message, "Wrong arguments count for add_keywords_throttler_rule, need 3 args: id, keywords, concurrency");
+  if (args->arg_count != 4) {
+    strcpy(message,
+           "Wrong arguments count for add_keywords_throttler_rule, need 4 args: id, rule_type, keywords, concurrency");
     return 1;
   }
 
@@ -42,13 +43,28 @@ my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char 
     strcpy(message, "Wrong argument type for id(string)");
     return 1;
   }
-
   if (args->arg_type[1] != STRING_RESULT) {
+    strcpy(message, "Wrong argument type for rule_type(string)");
+    return 1;
+  }
+
+  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  std::string rule_type_name = std::string(args->args[1], args->lengths[1]);
+  transform(rule_type_name.begin(), rule_type_name.end(), rule_type_name.begin(), ::tolower);
+  keywords_rule_type rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
+  if (rule_type == RULETYPE_UNSUPPORT) {
+    std::string err_msg = "Wrong argument type for rule_type(string), invalid rule_type: " + rule_type_name;
+    strcpy(message, err_msg.c_str());
+    return 1;
+  }
+
+  if (args->arg_type[2] != STRING_RESULT) {
     strcpy(message, "Wrong argument type for keywords(string)");
     return 1;
   }
 
-  if (args->arg_type[2] != INT_RESULT) {
+  if (args->arg_type[3] != INT_RESULT) {
     strcpy(message, "Wrong argument type for concurrency(int)");
     return 1;
   }
@@ -68,8 +84,11 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   std::vector<keywords_rule> rules;
   keywords_rule rule;
   rule.id = std::string(args->args[0], args->lengths[0]);
-  rule.keywords = std::string(args->args[1], args->lengths[1]);
-  int32 max_concurrency = *((int32 *) args->args[2]);
+  std::string rule_type_name = std::string(args->args[1], args->lengths[1]);
+  transform(rule_type_name.begin(), rule_type_name.end(), rule_type_name.begin(), ::tolower);
+  rule.rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
+  rule.keywords = std::string(args->args[2], args->lengths[2]);
+  int32 max_concurrency = *((int32 *) args->args[3]);
   // if max concurrency is unlimited, adjust it to -1
   if (max_concurrency < 0) {
     max_concurrency = -1;
@@ -78,6 +97,8 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   rules.push_back(rule);
 
   // todo compile regex for current rule
+  // 1.变为正则表达式
+  // 2.编译正则表达式，产生一个正则对象；
 
   rule_manager->add_rules(&rules);
 
@@ -129,6 +150,8 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
 
     for (const keywords_rule &rule: rules) {
       res.append(rule.id);
+      res.append(",");
+      res.append(rule_manager->get_name_by_rule_type(rule.rule_type));
       res.append(",");
       res.append(rule.keywords);
       res.append(",");

@@ -24,11 +24,11 @@ static void init_keywords_throttle_psi_keys() {
 
 
 keywords_rule::keywords_rule()
-    : id(""), keywords(""), max_concurrency(0) {
+    : rule_type(RULETYPE_UNSUPPORT), max_concurrency(0) {
 }
 
-keywords_rule::keywords_rule(std::string id, std::string keywords, int32 max_concurrency)
-    : id(std::move(id)), keywords(std::move(keywords)), max_concurrency(max_concurrency) {
+keywords_rule::keywords_rule(std::string id, keywords_rule_type rule_type, std::string keywords, int32 max_concurrency)
+    : id(std::move(id)), rule_type(rule_type), keywords(std::move(keywords)), max_concurrency(max_concurrency) {
 }
 
 int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {
@@ -93,6 +93,11 @@ std::vector<keywords_rule> keywords_rule_mamager::get_all_rules() {
 
 keywords_rule_mamager::keywords_rule_mamager() : rule_changed(false) {
   this->rule_map = std::make_shared<rule_map_t>();
+  mysql_rwlock_init(key_keywords_throttler_lock_rules_, &keywords_rule_lock);
+}
+
+keywords_rule_mamager::~keywords_rule_mamager() {
+  mysql_rwlock_destroy(&keywords_rule_lock);
 }
 
 
@@ -101,7 +106,6 @@ keywords_throttler::keywords_throttler() {
   init_keywords_throttle_psi_keys();
 #endif
   mamager = new keywords_rule_mamager;
-  mysql_rwlock_init(key_keywords_throttler_lock_rules_, &mamager->keywords_rule_lock);
 }
 
 keywords_throttler::~keywords_throttler() {
