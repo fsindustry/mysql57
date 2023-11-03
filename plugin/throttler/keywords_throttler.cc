@@ -89,10 +89,10 @@ keywords_rule &keywords_rule::operator=(const keywords_rule &other) {
   return *this;
 }
 
-keywords_rule &keywords_rule::operator=(keywords_rule &&other) {
+keywords_rule &keywords_rule::operator=(keywords_rule &&other) noexcept {
   if (this != &other) {
     id = std::move(other.id);
-    rule_type = std::move(other.rule_type);
+    rule_type = other.rule_type;
     keywords = std::move(other.keywords);
     regex = std::move(other.regex);
     max_concurrency = other.max_concurrency;
