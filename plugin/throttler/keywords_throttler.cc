@@ -23,7 +23,7 @@ static void init_keywords_throttle_psi_keys() {
 #endif
 
 keywords_rule::keywords_rule() : id(""),
-                                 rule_type(keywords_rule_type()),
+                                 sql_type(keywords_sql_type()),
                                  keywords(""),
                                  regex(""),
                                  max_concurrency(0),
@@ -33,7 +33,7 @@ keywords_rule::keywords_rule() : id(""),
 
 keywords_rule::keywords_rule(const keywords_rule &other)
     : id(other.id),
-      rule_type(other.rule_type),
+      sql_type(other.sql_type),
       keywords(other.keywords),
       regex(other.regex),
       max_concurrency(other.max_concurrency),
@@ -55,7 +55,7 @@ keywords_rule::keywords_rule(const keywords_rule &other)
 // 移动构造函数
 keywords_rule::keywords_rule(keywords_rule &&other) noexcept
     : id(std::move(other.id)),
-      rule_type(other.rule_type),
+      sql_type(other.sql_type),
       keywords(std::move(other.keywords)),
       regex(std::move(other.regex)),
       max_concurrency(other.max_concurrency),
@@ -66,7 +66,7 @@ keywords_rule::keywords_rule(keywords_rule &&other) noexcept
 keywords_rule &keywords_rule::operator=(const keywords_rule &other) {
   if (this != &other) {
     id = other.id;
-    rule_type = other.rule_type;
+    sql_type = other.sql_type;
     keywords = other.keywords;
     regex = other.regex;
     max_concurrency = other.max_concurrency;
@@ -92,7 +92,7 @@ keywords_rule &keywords_rule::operator=(const keywords_rule &other) {
 keywords_rule &keywords_rule::operator=(keywords_rule &&other) noexcept {
   if (this != &other) {
     id = std::move(other.id);
-    rule_type = other.rule_type;
+    sql_type = other.sql_type;
     keywords = std::move(other.keywords);
     regex = std::move(other.regex);
     max_concurrency = other.max_concurrency;

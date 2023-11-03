@@ -36,7 +36,7 @@ my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char 
 
   if (args->arg_count != 4) {
     strcpy(message,
-           "Wrong arguments count for add_keywords_throttler_rule, need 4 args: id, rule_type, keywords, concurrency");
+           "Wrong arguments count for add_keywords_throttler_rule, need 4 args: id, sql_type, keywords, concurrency");
     return 1;
   }
 
@@ -45,17 +45,17 @@ my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char 
     return 1;
   }
   if (args->arg_type[1] != STRING_RESULT) {
-    strcpy(message, "Wrong argument type for rule_type(string)");
+    strcpy(message, "Wrong argument type for sql_type(string)");
     return 1;
   }
 
   keywords_throttler *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->getMamager();
-  std::string rule_type_name = std::string(args->args[1], args->lengths[1]);
-  transform(rule_type_name.begin(), rule_type_name.end(), rule_type_name.begin(), ::tolower);
-  keywords_rule_type rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
-  if (rule_type == RULETYPE_UNSUPPORT) {
-    std::string err_msg = "Wrong argument type for rule_type(string), invalid rule_type: " + rule_type_name;
+  std::string sql_type_name = std::string(args->args[1], args->lengths[1]);
+  transform(sql_type_name.begin(), sql_type_name.end(), sql_type_name.begin(), ::tolower);
+  keywords_sql_type sql_type = rule_manager->get_sql_type_by_name(sql_type_name);
+  if (sql_type == RULETYPE_UNSUPPORT) {
+    std::string err_msg = "Wrong argument type for sql_type(string), invalid sql_type: " + sql_type_name;
     strcpy(message, err_msg.c_str());
     return 1;
   }
@@ -85,9 +85,9 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   std::vector<std::shared_ptr<keywords_rule>> rules;
   std::shared_ptr<keywords_rule> rule = std::make_shared<keywords_rule>();
   rule->id = std::string(args->args[0], args->lengths[0]);
-  std::string rule_type_name = std::string(args->args[1], args->lengths[1]);
-  transform(rule_type_name.begin(), rule_type_name.end(), rule_type_name.begin(), ::tolower);
-  rule->rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
+  std::string sql_type_name = std::string(args->args[1], args->lengths[1]);
+  transform(sql_type_name.begin(), sql_type_name.end(), sql_type_name.begin(), ::tolower);
+  rule->sql_type = rule_manager->get_sql_type_by_name(sql_type_name);
   rule->keywords = std::string(args->args[2], args->lengths[2]);
 
   // todo compile regex for current rule
@@ -154,7 +154,7 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
     for (const std::shared_ptr<keywords_rule> &rule: rules) {
       res.append(rule->id);
       res.append(",");
-      res.append(rule_manager->get_name_by_rule_type(rule->rule_type));
+      res.append(rule_manager->get_name_by_sql_type(rule->sql_type));
       res.append(",");
       res.append(rule->keywords);
       res.append(",");

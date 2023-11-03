@@ -10,8 +10,8 @@
 /**
  * define keywords rule type
  */
-enum keywords_rule_type {
-  RULETYPE_UNSUPPORT, // put this to the head of keywords_rule_type
+enum keywords_sql_type {
+  RULETYPE_UNSUPPORT, // put this to the head of keywords_sql_type
   RULETYPE_SELECT,
   RULETYPE_INSERT,
   RULETYPE_UPDATE,
@@ -25,7 +25,7 @@ enum keywords_rule_type {
 class keywords_rule {
 public:
   std::string id; // identify a unique rule
-  keywords_rule_type rule_type; // SQL command type
+  keywords_sql_type sql_type; // SQL command type
   std::string keywords; // delimited by ~, example: A~B~C
   std::string regex; // regex that converted by keywords
   int32 max_concurrency; // max concurrency
@@ -48,6 +48,7 @@ public:
 };
 
 typedef std::unordered_map<std::string, std::shared_ptr<keywords_rule>> rule_map_t;
+typedef std::unordered_map<keywords_sql_type, std::shared_ptr<rule_map_t>> rule_type_map_t;
 
 /**
  * define how to manage throttling rules
@@ -58,7 +59,7 @@ private:
 /**
  * rule type name to rule type enum map
  */
-  std::unordered_map<std::string, keywords_rule_type> name_rule_type_mapper = {
+  std::unordered_map<std::string, keywords_sql_type> name_to_sql_type_mapper = {
       {"select",  RULETYPE_SELECT},
       {"insert",  RULETYPE_INSERT},
       {"update",  RULETYPE_UPDATE},
@@ -69,7 +70,7 @@ private:
   /**
  * rule type enum to rule type name map
  */
-  std::unordered_map<uint32, std::string> rule_type_name_mapper = {
+  std::unordered_map<uint32, std::string> sql_type_to_name_mapper = {
       {RULETYPE_UNSUPPORT, "unsupport"},
       {RULETYPE_SELECT,    "select"},
       {RULETYPE_INSERT,    "insert"},
@@ -81,7 +82,7 @@ private:
 /**
  * sql command type to rule type enum map
  */
-  std::unordered_map<uint32, keywords_rule_type> sql_cmd_rule_type_mapper = {
+  std::unordered_map<uint32, keywords_sql_type> sql_cmd_to_sql_type_mapper = {
       {SQLCOM_SELECT,         RULETYPE_SELECT},
       {SQLCOM_INSERT,         RULETYPE_INSERT},
       {SQLCOM_INSERT_SELECT,  RULETYPE_INSERT},
@@ -94,32 +95,32 @@ private:
   };
 public:
 
-  inline keywords_rule_type get_rule_type_by_name(const std::string &name) {
-    auto it = name_rule_type_mapper.find(name);
-    if (it != name_rule_type_mapper.end()) {
+  inline keywords_sql_type get_sql_type_by_name(const std::string &name) {
+    auto it = name_to_sql_type_mapper.find(name);
+    if (it != name_to_sql_type_mapper.end()) {
       return it->second;
     }
     return RULETYPE_UNSUPPORT;
   }
 
-  inline std::string get_name_by_rule_type(keywords_rule_type type) {
-    auto it = rule_type_name_mapper.find(type);
-    if (it != rule_type_name_mapper.end()) {
+  inline std::string get_name_by_sql_type(keywords_sql_type type) {
+    auto it = sql_type_to_name_mapper.find(type);
+    if (it != sql_type_to_name_mapper.end()) {
       return it->second;
     }
-    return rule_type_name_mapper[RULETYPE_UNSUPPORT];
+    return sql_type_to_name_mapper[RULETYPE_UNSUPPORT];
   }
 
-  inline keywords_rule_type get_rule_type_by_sql_cmd(enum_sql_command sql_cmd_type) {
-    auto it = sql_cmd_rule_type_mapper.find(sql_cmd_type);
-    if (it != sql_cmd_rule_type_mapper.end()) {
+  inline keywords_sql_type get_sql_type_by_sql_cmd(enum_sql_command sql_cmd_type) {
+    auto it = sql_cmd_to_sql_type_mapper.find(sql_cmd_type);
+    if (it != sql_cmd_to_sql_type_mapper.end()) {
       return it->second;
     }
     return RULETYPE_UNSUPPORT;
   }
 
   inline bool valid_sql_cmd_type(enum_sql_command sql_cmd_type) {
-    return get_rule_type_by_sql_cmd(sql_cmd_type) != RULETYPE_UNSUPPORT;
+    return get_sql_type_by_sql_cmd(sql_cmd_type) != RULETYPE_UNSUPPORT;
   }
 
   int add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules);
