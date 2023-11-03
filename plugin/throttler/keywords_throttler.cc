@@ -22,13 +22,85 @@ static void init_keywords_throttle_psi_keys() {
 
 #endif
 
+keywords_rule::keywords_rule() : id(""),
+                                 rule_type(keywords_rule_type()),
+                                 keywords(""),
+                                 regex(""),
+                                 max_concurrency(0),
+                                 concurrency_counter(new atomic_counter(0)),
+                                 reject_counter(new atomic_counter(0)),
+                                 throttled(false) {}
 
-keywords_rule::keywords_rule()
-    : rule_type(RULETYPE_UNSUPPORT), max_concurrency(0) {
+keywords_rule::keywords_rule(const keywords_rule &other)
+    : id(other.id),
+      rule_type(other.rule_type),
+      keywords(other.keywords),
+      regex(other.regex),
+      max_concurrency(other.max_concurrency),
+      throttled(other.throttled.load()) {
+
+  if (other.concurrency_counter) {
+    concurrency_counter = std::unique_ptr<base_counter>(new atomic_counter(other.concurrency_counter->get()));
+  } else {
+    concurrency_counter = nullptr;
+  }
+
+  if (other.reject_counter) {
+    reject_counter = std::unique_ptr<base_counter>(new atomic_counter(other.reject_counter->get()));
+  } else {
+    reject_counter = nullptr;
+  }
 }
 
-keywords_rule::keywords_rule(std::string id, keywords_rule_type rule_type, std::string keywords, int32 max_concurrency)
-    : id(std::move(id)), rule_type(rule_type), keywords(std::move(keywords)), max_concurrency(max_concurrency) {
+// 移动构造函数
+keywords_rule::keywords_rule(keywords_rule &&other) noexcept
+    : id(std::move(other.id)),
+      rule_type(std::move(other.rule_type)),
+      keywords(std::move(other.keywords)),
+      regex(std::move(other.regex)),
+      max_concurrency(other.max_concurrency),
+      concurrency_counter(std::move(other.concurrency_counter)),
+      reject_counter(std::move(other.reject_counter)),
+      throttled(other.throttled.load()) {}
+
+keywords_rule &keywords_rule::operator=(const keywords_rule &other) {
+  if (this != &other) {
+    id = other.id;
+    rule_type = other.rule_type;
+    keywords = other.keywords;
+    regex = other.regex;
+    max_concurrency = other.max_concurrency;
+    throttled.store(other.throttled.load());
+
+    // 复制 concurrency_counter，确保不共享资源
+    if (other.concurrency_counter) {
+      concurrency_counter = std::unique_ptr<base_counter>(new atomic_counter(other.concurrency_counter->get()));
+    } else {
+      concurrency_counter = nullptr;
+    }
+
+    // 复制 reject_counter，确保不共享资源
+    if (other.reject_counter) {
+      reject_counter = std::unique_ptr<base_counter>(new atomic_counter(other.reject_counter->get()));
+    } else {
+      reject_counter = nullptr;
+    }
+  }
+  return *this;
+}
+
+keywords_rule &keywords_rule::operator=(keywords_rule &&other) {
+  if (this != &other) {
+    id = std::move(other.id);
+    rule_type = std::move(other.rule_type);
+    keywords = std::move(other.keywords);
+    regex = std::move(other.regex);
+    max_concurrency = other.max_concurrency;
+    concurrency_counter = std::move(other.concurrency_counter);
+    reject_counter = std::move(other.reject_counter);
+    throttled.store(other.throttled.load());
+  }
+  return *this;
 }
 
 int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {

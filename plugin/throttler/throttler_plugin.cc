@@ -96,7 +96,7 @@ static my_bool g_plugin_installed = FALSE;
 static struct st_mysql_show_var throttler_status[] =
     {
         {"throttler_called", (char *) &number_of_calls, SHOW_INT,  SHOW_SCOPE_GLOBAL},
-        {NULL, NULL,                                     SHOW_LONG, SHOW_SCOPE_GLOBAL},
+        {NULL, NULL,                                    SHOW_LONG, SHOW_SCOPE_GLOBAL},
     };
 
 /**
@@ -106,7 +106,7 @@ static struct st_mysql_show_var throttler_status[] =
 my_bool throttler_enabled;
 
 static void update_throttler_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
-                                      const void *value) {
+                                     const void *value) {
   throttler_enabled = *static_cast<const int *>(value);
 }
 
@@ -160,8 +160,8 @@ static int throttler_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
  *         Non-Zero, abort
  */
 static int throttler_notify(MYSQL_THD thd,
-                             mysql_event_class_t event_class,
-                             const void *event) {
+                            mysql_event_class_t event_class,
+                            const void *event) {
 
   if (!throttler_enabled) {
     return 0;

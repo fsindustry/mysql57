@@ -27,29 +27,25 @@ public:
   std::string id; // identify a unique rule
   keywords_rule_type rule_type; // SQL command type
   std::string keywords; // delimited by ~, example: A~B~C
+  std::string regex; // regex that converted by keywords
   int32 max_concurrency; // max concurrency
-
-  // todo add compiled regex here ...
+  std::unique_ptr<base_counter> concurrency_counter;
+  std::unique_ptr<base_counter> reject_counter;
+  std::atomic<bool> throttled; // flag to indicate whether triggerred the rule to limit traffic.
 
   keywords_rule();
 
-  keywords_rule(std::string id,
-                keywords_rule_type rule_type,
-                std::string keywords,
-                int32 max_concurrency);
+  keywords_rule(const keywords_rule &other);
 
+  keywords_rule(keywords_rule &&other) noexcept ;
+
+  keywords_rule &operator=(const keywords_rule &other);
+
+  keywords_rule &operator=(keywords_rule &&other);
+
+  // 析构函数
   virtual ~keywords_rule() = default;
 };
-
-class keywords_rule_status {
-public:
-  base_counter *concurrency_counter;
-  base_counter *reject_counter;
-  std::shared_ptr<keywords_rule> ref_rule;
-
-};
-
-typedef std::unordered_map<std::string, keywords_rule_status> rule_status_map_t;
 
 typedef std::unordered_map<std::string, keywords_rule> rule_map_t;
 
