@@ -8,6 +8,8 @@
 
 class base_counter {
 public:
+  virtual void set(uint64 v) = 0;
+
   virtual uint64 get() = 0;
 
   virtual uint64 inc() = 0;
@@ -29,6 +31,11 @@ class atomic_counter : public base_counter {
 private:
   std::atomic<uint64> counter{};
 public:
+
+  void set(uint64 v) override {
+    counter.store(v, std::memory_order_relaxed);
+  }
+
   uint64 get() override {
     return counter.load(std::memory_order_acquire);
   };
@@ -49,8 +56,17 @@ public:
 
   explicit atomic_counter(const uint64 count) : counter(count) {}
 
+  atomic_counter(atomic_counter &other) noexcept {
+    this->counter = other.get();
+  }
+
   atomic_counter(atomic_counter &&other) noexcept {
     this->counter = other.get();
+  }
+
+  atomic_counter &operator=(atomic_counter &other) {
+    this->counter = other.get();
+    return *this;
   }
 
   atomic_counter &operator=(atomic_counter &&other) {
