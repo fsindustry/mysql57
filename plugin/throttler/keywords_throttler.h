@@ -47,8 +47,47 @@ public:
   virtual ~keywords_rule() = default;
 };
 
+
 typedef std::unordered_map<std::string, std::shared_ptr<keywords_rule>> rule_map_t;
-typedef std::unordered_map<keywords_sql_type, std::shared_ptr<rule_map_t>> rule_type_map_t;
+
+
+/**
+ * define a throttling rule shard
+ * which divide keywords rules into different shard by sql type
+ */
+class keywords_rule_shard {
+private:
+  keywords_sql_type sql_type; // sql type to flag current shard
+  std::shared_ptr<rule_map_t> rule_map; // store all rules for current sql type, map( rule id, rule )
+  mysql_rwlock_t shard_lock; // rwlock to control rule changes in concurrent environment.
+  // todo put compiled regex object here
+
+public:
+
+  keywords_rule_shard();
+
+  keywords_rule_shard(const keywords_rule_shard &other);
+
+  keywords_rule_shard(keywords_rule_shard &&other) noexcept;
+
+  keywords_rule_shard &operator=(const keywords_rule_shard &other);
+
+  keywords_rule_shard &operator=(keywords_rule_shard &&other) noexcept;
+
+  virtual ~keywords_rule_shard();
+
+  int add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules);
+
+  int delete_rules(std::vector<std::string> *ids);
+
+  int truncate_rules();
+
+  std::vector<std::shared_ptr<keywords_rule>> get_rules(const std::vector<std::string> *ids);
+
+  std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
+};
+
+typedef std::unordered_map<keywords_sql_type, std::shared_ptr<keywords_rule_shard>> rule_shard_map_t;
 
 /**
  * define how to manage throttling rules
@@ -95,6 +134,15 @@ private:
   };
 public:
 
+  // map is used to store rule shard
+  // map( sql_type, rule shard)
+  std::shared_ptr<rule_shard_map_t> rule_shard_map;
+
+public:
+  keywords_rule_mamager();
+
+  virtual ~keywords_rule_mamager() = default;
+
   inline keywords_sql_type get_sql_type_by_name(const std::string &name) {
     auto it = name_to_sql_type_mapper.find(name);
     if (it != name_to_sql_type_mapper.end()) {
@@ -132,21 +180,6 @@ public:
   std::vector<std::shared_ptr<keywords_rule>> get_rules(const std::vector<std::string> *ids);
 
   std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
-
-  keywords_rule_mamager();
-
-  ~keywords_rule_mamager();
-
-public:
-  // rwlock is used to lock all rules when update
-  mysql_rwlock_t keywords_rule_lock{};
-
-  // map is used to store rules
-  // format: map( id, keywords_rule* )
-  std::shared_ptr<rule_map_t> rule_map;
-
-  // set true if rule changed
-  std::atomic<bool> rule_changed;
 };
 
 /**
