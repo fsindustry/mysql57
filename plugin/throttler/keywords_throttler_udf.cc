@@ -4,6 +4,7 @@
 #include <my_global.h>
 #include <mysql_com.h>
 #include <algorithm>
+#include <memory>
 #include "keywords_throttler.h"
 #include "throttler_plugin.h"
 
@@ -81,24 +82,26 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   keywords_rule_mamager *rule_manager = throttle->getMamager();
 
   // packet keywords rule according to input args.
-  std::vector<keywords_rule> rules;
-  keywords_rule rule;
-  rule.id = std::string(args->args[0], args->lengths[0]);
+  std::vector<std::shared_ptr<keywords_rule>> rules;
+  std::shared_ptr<keywords_rule> rule = std::make_shared<keywords_rule>();
+  rule->id = std::string(args->args[0], args->lengths[0]);
   std::string rule_type_name = std::string(args->args[1], args->lengths[1]);
   transform(rule_type_name.begin(), rule_type_name.end(), rule_type_name.begin(), ::tolower);
-  rule.rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
-  rule.keywords = std::string(args->args[2], args->lengths[2]);
+  rule->rule_type = rule_manager->get_rule_type_by_name(rule_type_name);
+  rule->keywords = std::string(args->args[2], args->lengths[2]);
+
+  // todo compile regex for current rule
+  // 1.变为正则表达式
+  // 2.编译正则表达式，产生一个正则对象；
+  rule->regex = "";
+
   int32 max_concurrency = *((int32 *) args->args[3]);
   // if max concurrency is unlimited, adjust it to -1
   if (max_concurrency < 0) {
     max_concurrency = -1;
   }
-  rule.max_concurrency = max_concurrency;
+  rule->max_concurrency = max_concurrency;
   rules.push_back(rule);
-
-  // todo compile regex for current rule
-  // 1.变为正则表达式
-  // 2.编译正则表达式，产生一个正则对象；
 
   rule_manager->add_rules(&rules);
 
@@ -121,18 +124,18 @@ void keywords_throttler_rules_deinit(UDF_INIT *initid) {
 
 char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                char *error) {
-  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  auto *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->getMamager();
 
   std::vector<std::string> ids;
   uint32 i = 0;
   for (; i < args->arg_count; i++) {
     if (args->arg_type[i] == STRING_RESULT && args->args[i]) {
-      ids.push_back(std::string(args->args[i], args->lengths[i]));
+      ids.emplace_back(args->args[i], args->lengths[i]);
     }
   }
 
-  std::vector<keywords_rule> rules;
+  std::vector<std::shared_ptr<keywords_rule>> rules;
   if (args->arg_count == 0) {
     rules = rule_manager->get_all_rules();
   } else {
@@ -144,18 +147,18 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
   if (rules.empty()) {
     res.append("no keywords throttler rules.");
   } else {
-    std::sort(rules.begin(), rules.end(), [](const keywords_rule &r1, const keywords_rule &r2) {
-      return r1.id < r2.id;
+    std::sort(rules.begin(), rules.end(), [](const std::shared_ptr<keywords_rule> &r1, const std::shared_ptr<keywords_rule> &r2) {
+      return r1->id < r2->id;
     });
 
-    for (const keywords_rule &rule: rules) {
-      res.append(rule.id);
+    for (const std::shared_ptr<keywords_rule> &rule: rules) {
+      res.append(rule->id);
       res.append(",");
-      res.append(rule_manager->get_name_by_rule_type(rule.rule_type));
+      res.append(rule_manager->get_name_by_rule_type(rule->rule_type));
       res.append(",");
-      res.append(rule.keywords);
+      res.append(rule->keywords);
       res.append(",");
-      res.append(std::to_string(rule.max_concurrency));
+      res.append(std::to_string(rule->max_concurrency));
       res.append("\n");
     }
   }

@@ -167,12 +167,21 @@ static int throttler_notify(MYSQL_THD thd,
     return 0;
   }
 
+  // todo if connection user is inner superuser, just skip
+
   number_of_calls++;
 
   if (event_class == MYSQL_AUDIT_QUERY_CLASS) {
     // query event which contains SQL statements string.
     const struct mysql_event_query *event_query =
         (const struct mysql_event_query *) event;
+
+    // if sql_cmd_type is not support throttler, just return and continue run
+    keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+    keywords_rule_mamager *rule_manager = throttle->getMamager();
+    if (!rule_manager->valid_sql_cmd_type(event_query->sql_command_id)) {
+      return 0;
+    }
 
     unsigned long event_subclass = (unsigned long) *(int *) event;
     LEX_CSTRING event_name = event_to_str(event_class, event_subclass);

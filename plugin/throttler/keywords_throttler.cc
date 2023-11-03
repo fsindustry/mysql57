@@ -55,7 +55,7 @@ keywords_rule::keywords_rule(const keywords_rule &other)
 // 移动构造函数
 keywords_rule::keywords_rule(keywords_rule &&other) noexcept
     : id(std::move(other.id)),
-      rule_type(std::move(other.rule_type)),
+      rule_type(other.rule_type),
       keywords(std::move(other.keywords)),
       regex(std::move(other.regex)),
       max_concurrency(other.max_concurrency),
@@ -103,15 +103,15 @@ keywords_rule &keywords_rule::operator=(keywords_rule &&other) noexcept {
   return *this;
 }
 
-int keywords_rule_mamager::add_rules(const std::vector<keywords_rule> *rules) {
+int keywords_rule_mamager::add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules) {
 
   auto_rw_lock_write write_lock(&keywords_rule_lock);
 
-  for (const keywords_rule &rule: *rules) {
-    if (rule_map->find(rule.id) != rule_map->end()) {
-      (*rule_map)[rule.id] = rule;
+  for (const std::shared_ptr<keywords_rule> &rule: *rules) {
+    if (rule_map->find(rule->id) != rule_map->end()) {
+      (*rule_map)[rule->id] = rule;
     } else {
-      rule_map->emplace(rule.id, rule);
+      rule_map->emplace(rule->id, rule);
     }
   }
 
@@ -136,11 +136,11 @@ int keywords_rule_mamager::truncate_rules() {
   return 0;
 }
 
-std::vector<keywords_rule> keywords_rule_mamager::get_rules(const std::vector<std::string> *ids) {
+std::vector<std::shared_ptr<keywords_rule>> keywords_rule_mamager::get_rules(const std::vector<std::string> *ids) {
 
   auto_rw_lock_read read_lock(&keywords_rule_lock);
 
-  std::vector<keywords_rule> result;
+  std::vector<std::shared_ptr<keywords_rule>> result;
   for (const auto &id: *ids) {
     auto it = rule_map->find(id);
     if (it != rule_map->end()) {
@@ -151,11 +151,11 @@ std::vector<keywords_rule> keywords_rule_mamager::get_rules(const std::vector<st
   return result;
 }
 
-std::vector<keywords_rule> keywords_rule_mamager::get_all_rules() {
+std::vector<std::shared_ptr<keywords_rule>> keywords_rule_mamager::get_all_rules() {
 
   auto_rw_lock_read read_lock(&keywords_rule_lock);
 
-  std::vector<keywords_rule> result;
+  std::vector<std::shared_ptr<keywords_rule>> result;
   for (const auto &pair: *rule_map) {
     result.push_back(pair.second);
   }

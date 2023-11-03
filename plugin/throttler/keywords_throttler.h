@@ -37,17 +37,17 @@ public:
 
   keywords_rule(const keywords_rule &other);
 
-  keywords_rule(keywords_rule &&other) noexcept ;
+  keywords_rule(keywords_rule &&other) noexcept;
 
   keywords_rule &operator=(const keywords_rule &other);
 
-  keywords_rule &operator=(keywords_rule &&other) noexcept ;
+  keywords_rule &operator=(keywords_rule &&other) noexcept;
 
   // 析构函数
   virtual ~keywords_rule() = default;
 };
 
-typedef std::unordered_map<std::string, keywords_rule> rule_map_t;
+typedef std::unordered_map<std::string, std::shared_ptr<keywords_rule>> rule_map_t;
 
 /**
  * define how to manage throttling rules
@@ -122,15 +122,15 @@ public:
     return get_rule_type_by_sql_cmd(sql_cmd_type) != RULETYPE_UNSUPPORT;
   }
 
-  int add_rules(const std::vector<keywords_rule> *rules);
+  int add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules);
 
   int delete_rules(std::vector<std::string> *ids);
 
   int truncate_rules();
 
-  std::vector<keywords_rule> get_rules(const std::vector<std::string> *ids);
+  std::vector<std::shared_ptr<keywords_rule>> get_rules(const std::vector<std::string> *ids);
 
-  std::vector<keywords_rule> get_all_rules();
+  std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
 
   keywords_rule_mamager();
 
