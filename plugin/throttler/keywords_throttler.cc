@@ -210,6 +210,15 @@ keywords_rule_mamager::keywords_rule_mamager() {
 }
 
 int keywords_rule_mamager::add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules) {
+
+  std::unordered_map<keywords_sql_type, std::vector<std::shared_ptr<keywords_rule_shard>>> add_map;
+  for (auto &rule: *rules) {
+    if (add_map.find(rule->sql_type) == add_map.end()) {
+      std::vector<std::shared_ptr<keywords_rule_shard>> tmp_vector;
+      add_map.emplace(rule->sql_type, tmp_vector);
+    }
+  }
+
   return 0;
 }
 
