@@ -211,33 +211,115 @@ keywords_rule_mamager::keywords_rule_mamager() {
 
 int keywords_rule_mamager::add_rules(const std::vector<std::shared_ptr<keywords_rule>> *rules) {
 
-  std::unordered_map<keywords_sql_type, std::vector<std::shared_ptr<keywords_rule_shard>>> add_map;
+  if (rules->empty()) {
+    return 0;
+  }
+
+  // list rules by sql type
+  std::unordered_map<keywords_sql_type, std::vector<std::shared_ptr<keywords_rule>>> tmp_map;
   for (auto &rule: *rules) {
-    if (add_map.find(rule->sql_type) == add_map.end()) {
-      std::vector<std::shared_ptr<keywords_rule_shard>> tmp_vector;
-      add_map.emplace(rule->sql_type, tmp_vector);
+    if (rule->sql_type == RULETYPE_UNSUPPORT) {
+      continue;
     }
+
+    if (tmp_map.find(rule->sql_type) == tmp_map.end()) {
+      tmp_map.emplace(rule->sql_type, std::vector<std::shared_ptr<keywords_rule>>{});
+    }
+    tmp_map[rule->sql_type].push_back(rule);
+  }
+
+  if (tmp_map.empty()) {
+    return 0;
+  }
+
+  // add rules by shard
+  for (auto &pair: tmp_map) {
+    auto iter = rule_shard_map->find(pair.first);
+    if (iter == rule_shard_map->end()) {
+      continue;
+    }
+    std::shared_ptr<keywords_rule_shard> rule_shard = iter->second;
+    rule_shard->add_rules(&pair.second);
   }
 
   return 0;
 }
 
 int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
+
+  // query rules by id, and list rules by sql type
+  // map( sql type, ids )
+  std::unordered_map<keywords_sql_type, std::vector<std::string>> tmp_map;
+  for (auto &pair: *rule_shard_map) {
+    std::shared_ptr<keywords_rule_shard> rule_shard = pair.second;
+    std::vector<std::shared_ptr<keywords_rule>> rules = rule_shard->get_rules(ids);
+    if (rules.empty()) {
+      continue;
+    }
+
+    // list rules by sql type
+    for (auto &rule: rules) {
+      if (rule->sql_type == RULETYPE_UNSUPPORT) {
+        continue;
+      }
+
+      if (tmp_map.find(rule->sql_type) == tmp_map.end()) {
+        tmp_map.emplace(rule->sql_type, std::vector<std::string>{});
+      }
+      tmp_map[rule->sql_type].push_back(rule->id);
+    }
+  }
+
+  // delete rules by shard
+  for (auto &pair: tmp_map) {
+    auto iter = rule_shard_map->find(pair.first);
+    if (iter == rule_shard_map->end()) {
+      continue;
+    }
+    std::shared_ptr<keywords_rule_shard> rule_shard = iter->second;
+    rule_shard->delete_rules(&pair.second);
+  }
+
   return 0;
 }
 
 int keywords_rule_mamager::truncate_rules() {
+  // truncate rules by shard
+  for (auto &pair: *rule_shard_map) {
+    std::shared_ptr<keywords_rule_shard> rule_shard = pair.second;
+    rule_shard->truncate_rules();
+  }
   return 0;
 }
 
 std::vector<std::shared_ptr<keywords_rule>> keywords_rule_mamager::get_rules(const std::vector<std::string> *ids) {
-  std::vector<std::shared_ptr<keywords_rule>> res;
-  return res;
+  // query rules by shard
+  std::vector<std::shared_ptr<keywords_rule>> result;
+  for (auto &pair: *rule_shard_map) {
+    std::shared_ptr<keywords_rule_shard> rule_shard = pair.second;
+    std::vector<std::shared_ptr<keywords_rule>> rules = rule_shard->get_rules(ids);
+    if (rules.empty()) {
+      continue;
+    }
+    result.emplace(rules.begin());
+  }
+
+  return result;
 }
 
 std::vector<std::shared_ptr<keywords_rule>> keywords_rule_mamager::get_all_rules() {
-  std::vector<std::shared_ptr<keywords_rule>> res;
-  return res;
+  // query all rules by shard
+  std::vector<std::shared_ptr<keywords_rule>> result;
+  for (auto &pair: *rule_shard_map) {
+    std::shared_ptr<keywords_rule_shard> rule_shard = pair.second;
+    std::vector<std::shared_ptr<keywords_rule>> rules = rule_shard->get_all_rules();
+    if (rules.empty()) {
+      continue;
+    }
+    result.emplace(rules.begin());
+  }
+
+  return result;
 }
 
 keywords_throttler::keywords_throttler() {
