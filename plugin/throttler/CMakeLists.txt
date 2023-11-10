@@ -1,15 +1,19 @@
-set(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_CXX_STANDARD 11)
 
-# add boost source code into plugin
-SET(Boost_USE_STATIC_LIBS OFF)
-ADD_DEFINITIONS(-DBOOST_ALL_NO_LIB -DBOOST_NO_AUTO_PTR)
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_INCLUDE_DIR})
+set(HYPERSCAN_ROOT "/home/fsindustry/develop/hyperscan")
 
+FIND_LIBRARY(libhs hs ${HYPERSCAN_ROOT}/lib64)
+IF(NOT libhs)
+    MESSAGE(FATAL_ERROR “libhs not found”)
+ENDIF(NOT libhs)
+
+include_directories(${HYPERSCAN_ROOT}/include)
+link_directories(${HYPERSCAN_ROOT}/lib64)
 
 # Set source files variable
 SET(THROTTLER_SOURCES throttler_plugin.h throttler_plugin.cc throttler.h keywords_throttler.h keywords_throttler.cc keywords_throttler_udf.cc throttler_counter.h)
 
-
 # Register plugin
-MYSQL_ADD_PLUGIN(throttler ${THROTTLER_SOURCES} ${BOOST_LIB_SOURCES}
+MYSQL_ADD_PLUGIN(throttler ${THROTTLER_SOURCES}
+        LINK_LIBRARIES hs
         MODULE_ONLY MODULE_OUTPUT_NAME "throttler")
