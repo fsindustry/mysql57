@@ -6,6 +6,8 @@
 #include "throttler_counter.h"
 #include <unordered_map>
 #include <vector>
+#include <hs/hs_compile.h>
+#include <map>
 
 /**
  * define keywords rule type
@@ -43,13 +45,43 @@ public:
 
   keywords_rule &operator=(keywords_rule &&other) noexcept;
 
-  // 析构函数
   virtual ~keywords_rule() = default;
 };
 
+/**
+ * store all rules for current sql type, map( rule id, rule )
+ * we use ordered map to keep the order of rules by rule id here.
+ */
+typedef std::map<std::string, std::shared_ptr<keywords_rule>> rule_map_t;
 
-typedef std::unordered_map<std::string, std::shared_ptr<keywords_rule>> rule_map_t;
+/**
+ * store compiled keywords rule regex
+ */
+class keywords_rule_database {
+private:
+  /**
+   * when there is no rules for current database, just set access_all = true
+   */
+  bool access_all;
 
+  /**
+   * store relationships between hyperscan database indics and keywords rule ids.
+   * format: map ( database index, rule id )
+   */
+  std::unordered_map<int, std::string> *id_map;
+
+  /**
+   * compiled hyperscan database object
+   */
+  hs_database_t *database;
+
+public:
+  keywords_rule_database();
+
+  virtual ~keywords_rule_database();
+
+  int init(std::shared_ptr<rule_map_t> &rule_map);
+};
 
 /**
  * define a throttling rule shard
@@ -59,8 +91,15 @@ class keywords_rule_shard {
 private:
   keywords_sql_type sql_type; // sql type to flag current shard
   std::shared_ptr<rule_map_t> rule_map; // store all rules for current sql type, map( rule id, rule )
+  std::shared_ptr<keywords_rule_database> rule_database; // store compiled regex object here, we use hyperscan hs_database_t
+  std::atomic<int> current_version; // record current version of compiled rules
   mysql_rwlock_t shard_lock; // rwlock to control rule changes in concurrent environment.
-  // todo put compiled regex object here
+
+  inline void update_version() {
+    current_version++;
+  }
+
+  int update_database();
 
 public:
 
@@ -85,6 +124,8 @@ public:
   std::vector<std::shared_ptr<keywords_rule>> get_rules(const std::vector<std::string> *ids);
 
   std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
+
+  bool changed(int version);
 };
 
 typedef std::unordered_map<keywords_sql_type, std::shared_ptr<keywords_rule_shard>> rule_shard_map_t;
@@ -134,8 +175,10 @@ private:
   };
 public:
 
-  // map is used to store rule shard
-  // map( sql_type, rule shard)
+  /**
+   * map is used to store rule shard
+   * map( sql_type, rule shard)
+   */
   std::shared_ptr<rule_shard_map_t> rule_shard_map;
 
 public:

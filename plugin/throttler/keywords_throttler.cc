@@ -3,6 +3,7 @@
 //
 
 #include <utility>
+#include <cstring>
 #include "keywords_throttler.h"
 
 #ifdef HAVE_PSI_INTERFACE
@@ -100,21 +101,93 @@ keywords_rule &keywords_rule::operator=(keywords_rule &&other) noexcept {
   return *this;
 }
 
+keywords_rule_database::keywords_rule_database() : access_all(true),
+                                                   id_map(nullptr),
+                                                   database(nullptr) {}
+
+keywords_rule_database::~keywords_rule_database() {
+  delete id_map;
+  if (database) {
+    hs_free_database(database);
+  }
+}
+
+int keywords_rule_database::init(std::shared_ptr<rule_map_t> &rule_map) {
+  const uint64_t rule_count = rule_map->size();
+
+  // if no rules for current database
+  if (rule_count == 0) {
+    access_all = true;
+    id_map = nullptr;
+    database = nullptr;
+    return 0;
+  }
+
+  // collect resources for database compiling
+  int i = 0;
+  char **patterns = new char *[rule_count];
+  auto *ids = new uint32_t[rule_count];
+  auto *flags = new uint32_t[rule_count];
+  auto *tmp_map = new std::unordered_map<int, std::string>(rule_count);
+  for (auto &pair: *rule_map) {
+    uint64_t length = pair.second->regex.size();
+    patterns[i] = new char[length + 1];
+    std::strcpy(patterns[i], pair.second->regex.c_str());
+    ids[i] = i;
+    flags[i] = HS_FLAG_DOTALL | HS_FLAG_SINGLEMATCH;
+    tmp_map->emplace(i, pair.second->id);
+  }
+
+  // compile database
+  hs_database_t *tmp_database;
+  hs_compile_error_t *compile_err;
+  if (hs_compile_multi(patterns, flags, ids, 4,
+                       HS_MODE_BLOCK, nullptr, &tmp_database,
+                       &compile_err) != HS_SUCCESS) {
+    // todo print errors
+
+    delete[] patterns;
+    delete[] ids;
+    delete[] flags;
+    delete tmp_map;
+    hs_free_compile_error(compile_err);
+    return 1;
+  }
+
+  // set attributes
+  access_all = false;
+  id_map = tmp_map;
+  database = tmp_database;
+
+  // release resources
+  delete[] patterns;
+  delete[] ids;
+  delete[] flags;
+  delete tmp_map;
+  return 0;
+}
+
 keywords_rule_shard::keywords_rule_shard() {
   sql_type = keywords_sql_type();
   rule_map = std::make_shared<rule_map_t>();
+  rule_database = std::make_shared<keywords_rule_database>();
+  current_version = 0;
   mysql_rwlock_init(key_keywords_throttler_lock_rules_, &shard_lock);
 }
 
 keywords_rule_shard::keywords_rule_shard(const keywords_rule_shard &other) {
   sql_type = other.sql_type;
   rule_map = other.rule_map;
+  rule_database = other.rule_database;
+  current_version.store(other.current_version);
   mysql_rwlock_init(key_keywords_throttler_lock_rules_, &shard_lock);
 }
 
 keywords_rule_shard::keywords_rule_shard(keywords_rule_shard &&other) noexcept {
   sql_type = other.sql_type;
   rule_map = std::move(other.rule_map);
+  rule_database = std::move(other.rule_database);
+  current_version.store(other.current_version);
   mysql_rwlock_init(key_keywords_throttler_lock_rules_, &shard_lock);
 }
 
@@ -122,6 +195,7 @@ keywords_rule_shard &keywords_rule_shard::operator=(const keywords_rule_shard &o
   if (this != &other) {
     sql_type = other.sql_type;
     rule_map = other.rule_map;
+    current_version.store(other.current_version);
     mysql_rwlock_init(key_keywords_throttler_lock_rules_, &shard_lock);
   }
   return *this;
@@ -131,6 +205,8 @@ keywords_rule_shard &keywords_rule_shard::operator=(keywords_rule_shard &&other)
   if (this != &other) {
     sql_type = other.sql_type;
     rule_map = std::move(other.rule_map);
+    rule_database = std::move(other.rule_database);
+    current_version.store(other.current_version);
     mysql_rwlock_init(key_keywords_throttler_lock_rules_, &shard_lock);
   }
   return *this;
@@ -152,7 +228,7 @@ int keywords_rule_shard::add_rules(const std::vector<std::shared_ptr<keywords_ru
     }
   }
 
-  return 0;
+  return update_database();;
 }
 
 
@@ -164,13 +240,13 @@ int keywords_rule_shard::delete_rules(std::vector<std::string> *ids) {
     rule_map->erase(id);
   }
 
-  return 0;
+  return update_database();
 }
 
 int keywords_rule_shard::truncate_rules() {
   auto_rw_lock_write write_lock(&shard_lock);
   rule_map = std::make_shared<rule_map_t>();
-  return 0;
+  return update_database();
 }
 
 std::vector<std::shared_ptr<keywords_rule>> keywords_rule_shard::get_rules(const std::vector<std::string> *ids) {
@@ -198,6 +274,23 @@ std::vector<std::shared_ptr<keywords_rule>> keywords_rule_shard::get_all_rules()
   }
 
   return result;
+}
+
+bool keywords_rule_shard::changed(int version) {
+  return current_version != version;
+}
+
+int keywords_rule_shard::update_database() {
+  std::shared_ptr<keywords_rule_database> new_database = std::make_shared<keywords_rule_database>();
+  int error = new_database->init(rule_map);
+  if (error) {
+    // todo print error
+    return error;
+  }
+
+  rule_database = new_database;
+  update_version();
+  return 0;
 }
 
 keywords_rule_mamager::keywords_rule_mamager() {
@@ -239,7 +332,11 @@ int keywords_rule_mamager::add_rules(const std::vector<std::shared_ptr<keywords_
       continue;
     }
     std::shared_ptr<keywords_rule_shard> rule_shard = iter->second;
-    rule_shard->add_rules(&pair.second);
+    int error = rule_shard->add_rules(&pair.second);
+    if (error) {
+      // todo print error msg
+      return error;
+    }
   }
 
   return 0;
@@ -277,7 +374,11 @@ int keywords_rule_mamager::delete_rules(std::vector<std::string> *ids) {
       continue;
     }
     std::shared_ptr<keywords_rule_shard> rule_shard = iter->second;
-    rule_shard->delete_rules(&pair.second);
+    int error = rule_shard->delete_rules(&pair.second);
+    if (error) {
+      // todo print error msg
+      return error;
+    }
   }
 
   return 0;
@@ -287,7 +388,11 @@ int keywords_rule_mamager::truncate_rules() {
   // truncate rules by shard
   for (auto &pair: *rule_shard_map) {
     std::shared_ptr<keywords_rule_shard> rule_shard = pair.second;
-    rule_shard->truncate_rules();
+    int error = rule_shard->truncate_rules();
+    if (error) {
+      // todo print error msg
+      return error;
+    }
   }
   return 0;
 }

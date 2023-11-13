@@ -90,10 +90,11 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
   rule->sql_type = rule_manager->get_sql_type_by_name(sql_type_name);
   rule->keywords = std::string(args->args[2], args->lengths[2]);
 
-  // todo compile regex for current rule
-  // 1.变为正则表达式
-  // 2.编译正则表达式，产生一个正则对象；
-  rule->regex = "";
+  // convert keywords to regex string
+  rule->regex.append(".*");
+  rule->regex.append(rule->keywords);
+  rule->regex.append(".*");
+  rule->regex.replace(rule->regex.begin(), rule->regex.end(), "~", ".*");
 
   int32 max_concurrency = *((int32 *) args->args[3]);
   // if max concurrency is unlimited, adjust it to -1
@@ -147,9 +148,10 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
   if (rules.empty()) {
     res.append("no keywords throttler rules.");
   } else {
-    std::sort(rules.begin(), rules.end(), [](const std::shared_ptr<keywords_rule> &r1, const std::shared_ptr<keywords_rule> &r2) {
-      return r1->id < r2->id;
-    });
+    std::sort(rules.begin(), rules.end(),
+              [](const std::shared_ptr<keywords_rule> &r1, const std::shared_ptr<keywords_rule> &r2) {
+                return r1->id < r2->id;
+              });
 
     for (const std::shared_ptr<keywords_rule> &rule: rules) {
       res.append(rule->id);
