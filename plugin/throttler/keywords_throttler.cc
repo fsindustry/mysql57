@@ -438,6 +438,15 @@ keywords_throttler::~keywords_throttler() {
   delete mamager;
 }
 
+
+int keywords_throttler::after_thd_initialled(THD *thd, const mysql_event_connection *event) {
+  return 0;
+}
+
+int keywords_throttler::before_thd_destroyed(THD *thd, const mysql_event_connection *event) {
+  return 0;
+}
+
 int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *event) {
   return 0;
 }
@@ -445,3 +454,4 @@ int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *
 int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *event) {
   return 0;
 }
+

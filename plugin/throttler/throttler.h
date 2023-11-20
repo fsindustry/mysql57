@@ -16,6 +16,24 @@ class throttler {
 public:
 
   /**
+   * after thd initialled, call this method to initial throttler thread context.
+   * @param thd session context
+   * @param event connect event
+   * @return zero, success;
+   *         non-zero, triggered limiting rules or an error occur
+   */
+  virtual int after_thd_initialled(MYSQL_THD thd, const mysql_event_connection *event) = 0;
+
+  /**
+   * before thd destoryed, call this method to clean throttler thread context.
+   * @param thd session context
+   * @param event disconnect event
+   * @return zero, success;
+   *         non-zero, triggered limiting rules or an error occur
+   */
+  virtual int before_thd_destroyed(MYSQL_THD thd, const mysql_event_connection *event) = 0;
+
+  /**
    * Check whether the throttling rules are triggered before query executing
    * @param thd session context
    * @param event query event
@@ -33,8 +51,7 @@ public:
    */
   virtual int adjust_after_execute(MYSQL_THD thd, const mysql_event_query *event) = 0;
 
-  virtual ~throttler() {};
-
+  virtual ~throttler() = 0;
 };
 
 

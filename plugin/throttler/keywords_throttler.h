@@ -232,13 +232,17 @@ class keywords_throttler : public throttler {
 public:
   keywords_throttler();
 
-  virtual ~keywords_throttler();
+  ~keywords_throttler() override;
+
+  int after_thd_initialled(MYSQL_THD thd, const mysql_event_connection *event) override;
+
+  int before_thd_destroyed(MYSQL_THD thd, const mysql_event_connection *event) override;
 
   int check_before_execute(THD *thd, const mysql_event_query *event) override;
 
   int adjust_after_execute(THD *thd, const mysql_event_query *event) override;
 
-  inline keywords_rule_mamager *getMamager() const {
+  inline keywords_rule_mamager *get_mamager() const {
     return mamager;
   }
 

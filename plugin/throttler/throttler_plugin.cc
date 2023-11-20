@@ -178,7 +178,7 @@ static int throttler_notify(MYSQL_THD thd,
 
     // if sql_cmd_type is not support throttler, just return and continue run
     keywords_throttler *throttle = (keywords_throttler *) current_throttler;
-    keywords_rule_mamager *rule_manager = throttle->getMamager();
+    keywords_rule_mamager *rule_manager = throttle->get_mamager();
     if (!rule_manager->valid_sql_cmd_type(event_query->sql_command_id)) {
       return 0;
     }
@@ -192,6 +192,18 @@ static int throttler_notify(MYSQL_THD thd,
         return current_throttler->check_before_execute(thd, event_query);
       case MYSQL_AUDIT_QUERY_STATUS_END:
         return current_throttler->adjust_after_execute(thd, event_query);
+      default:
+        break;
+    }
+  } else if (event_class == MYSQL_AUDIT_CONNECTION_CLASS) {
+    // connection event which contains connection information.
+    const struct mysql_event_connection *event_connection =
+        (const struct mysql_event_connection *) event;
+    switch (event_connection->event_subclass) {
+      case MYSQL_AUDIT_CONNECTION_CONNECT:
+        return current_throttler->after_thd_initialled(thd, event_connection);
+      case MYSQL_AUDIT_CONNECTION_DISCONNECT:
+        return current_throttler->before_thd_destroyed(thd, event_connection);
       default:
         break;
     }
@@ -210,7 +222,7 @@ static struct st_mysql_audit throttler_descriptor =
         throttler_notify,                                /* notify function */
         {
             0,
-            0,
+            (unsigned long) MYSQL_AUDIT_CONNECTION_ALL,
             0,
             0,
             0,

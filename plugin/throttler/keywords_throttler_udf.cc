@@ -50,7 +50,7 @@ my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char 
   }
 
   keywords_throttler *throttle = (keywords_throttler *) current_throttler;
-  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  keywords_rule_mamager *rule_manager = throttle->get_mamager();
   std::string sql_type_name = std::string(args->args[1], args->lengths[1]);
   transform(sql_type_name.begin(), sql_type_name.end(), sql_type_name.begin(), ::tolower);
   keywords_sql_type sql_type = rule_manager->get_sql_type_by_name(sql_type_name);
@@ -79,7 +79,7 @@ void add_keywords_throttler_rule_deinit(UDF_INIT *initid) {
 char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                   char *error) {
   keywords_throttler *throttle = (keywords_throttler *) current_throttler;
-  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  keywords_rule_mamager *rule_manager = throttle->get_mamager();
 
   // packet keywords rule according to input args.
   std::vector<std::shared_ptr<keywords_rule>> rules;
@@ -126,7 +126,7 @@ void keywords_throttler_rules_deinit(UDF_INIT *initid) {
 char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                char *error) {
   auto *throttle = (keywords_throttler *) current_throttler;
-  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  keywords_rule_mamager *rule_manager = throttle->get_mamager();
 
   std::vector<std::string> ids;
   uint32 i = 0;
@@ -184,7 +184,7 @@ char *
 delete_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                 char *error) {
   keywords_throttler *throttle = (keywords_throttler *) current_throttler;
-  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  keywords_rule_mamager *rule_manager = throttle->get_mamager();
 
   std::vector<std::string> ids;
   uint32 i = 0;
@@ -214,7 +214,7 @@ char *
 truncate_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                   char *error) {
   keywords_throttler *throttle = (keywords_throttler *) current_throttler;
-  keywords_rule_mamager *rule_manager = throttle->getMamager();
+  keywords_rule_mamager *rule_manager = throttle->get_mamager();
   rule_manager->truncate_rules();
 
   // set return value which will be sent to client.
