@@ -1,7 +1,5 @@
 SET(CMAKE_CXX_STANDARD 11)
 
-set(HYPERSCAN_ROOT "/home/fsindustry/develop/hyperscan")
-
 FIND_LIBRARY(libhs hs ${HYPERSCAN_ROOT}/lib64)
 IF(NOT libhs)
     MESSAGE(FATAL_ERROR “libhs not found”)
