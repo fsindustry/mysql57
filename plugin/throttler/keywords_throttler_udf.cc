@@ -49,7 +49,7 @@ my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char 
     return 1;
   }
 
-  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  auto *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->get_mamager();
   std::string sql_type_name = std::string(args->args[1], args->lengths[1]);
   transform(sql_type_name.begin(), sql_type_name.end(), sql_type_name.begin(), ::tolower);
@@ -78,7 +78,7 @@ void add_keywords_throttler_rule_deinit(UDF_INIT *initid) {
 
 char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                   char *error) {
-  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  auto *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->get_mamager();
 
   // packet keywords rule according to input args.
@@ -183,14 +183,14 @@ void delete_keywords_throttler_rules_deinit(UDF_INIT *initid) {
 char *
 delete_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                 char *error) {
-  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  auto *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->get_mamager();
 
   std::vector<std::string> ids;
   uint32 i = 0;
   for (; i < args->arg_count; i++) {
     if (args->arg_type[i] == STRING_RESULT && args->args[i]) {
-      ids.push_back(std::string(args->args[i], args->lengths[i]));
+      ids.emplace_back(args->args[i], args->lengths[i]);
     }
   }
   rule_manager->delete_rules(&ids);
@@ -213,7 +213,7 @@ void truncate_keywords_throttler_rules_deinit(UDF_INIT *initid) {
 char *
 truncate_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, unsigned long *length, char *is_null,
                                   char *error) {
-  keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+  auto *throttle = (keywords_throttler *) current_throttler;
   keywords_rule_mamager *rule_manager = throttle->get_mamager();
   rule_manager->truncate_rules();
 

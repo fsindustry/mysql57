@@ -96,7 +96,7 @@ static my_bool g_plugin_installed = FALSE;
 static struct st_mysql_show_var throttler_status[] =
     {
         {"throttler_called", (char *) &number_of_calls, SHOW_INT,  SHOW_SCOPE_GLOBAL},
-        {NULL, NULL,                                    SHOW_LONG, SHOW_SCOPE_GLOBAL},
+        {nullptr, nullptr,                                    SHOW_LONG, SHOW_SCOPE_GLOBAL},
     };
 
 /**
@@ -116,7 +116,7 @@ static MYSQL_SYSVAR_BOOL(
     throttler_enabled,
     PLUGIN_VAR_OPCMDARG,
     "Enable throttler or not. default: false",
-    NULL,
+    nullptr,
     update_throttler_enabled,
     false);
 
@@ -173,17 +173,17 @@ static int throttler_notify(MYSQL_THD thd,
 
   if (event_class == MYSQL_AUDIT_QUERY_CLASS) {
     // query event which contains SQL statements string.
-    const struct mysql_event_query *event_query =
+    const auto *event_query =
         (const struct mysql_event_query *) event;
 
     // if sql_cmd_type is not support throttler, just return and continue run
-    keywords_throttler *throttle = (keywords_throttler *) current_throttler;
+    auto *throttle = (keywords_throttler *) current_throttler;
     keywords_rule_mamager *rule_manager = throttle->get_mamager();
     if (!rule_manager->valid_sql_cmd_type(event_query->sql_command_id)) {
       return 0;
     }
 
-    unsigned long event_subclass = (unsigned long) *(int *) event;
+    auto event_subclass = (unsigned long) *(int *) event;
     LEX_CSTRING event_name = event_to_str(event_class, event_subclass);
     sql_print_information("plugin throttler recived a event: %s, sql: %s", event_name.str, event_query->query.str);
 
@@ -197,7 +197,7 @@ static int throttler_notify(MYSQL_THD thd,
     }
   } else if (event_class == MYSQL_AUDIT_CONNECTION_CLASS) {
     // connection event which contains connection information.
-    const struct mysql_event_connection *event_connection =
+    const auto *event_connection =
         (const struct mysql_event_connection *) event;
     switch (event_connection->event_subclass) {
       case MYSQL_AUDIT_CONNECTION_CONNECT:
@@ -218,7 +218,7 @@ static int throttler_notify(MYSQL_THD thd,
 static struct st_mysql_audit throttler_descriptor =
     {
         MYSQL_AUDIT_INTERFACE_VERSION,                    /* interface version    */
-        NULL,                                             /* release_thd function */
+        nullptr,                                             /* release_thd function */
         throttler_notify,                                /* notify function */
         {
             0,
@@ -238,7 +238,7 @@ static struct st_mysql_audit throttler_descriptor =
 
 static struct st_mysql_sys_var *throttler_sys_vars[] = {
     MYSQL_SYSVAR(enabled),
-    NULL
+    nullptr
 };
 
 /*
@@ -264,6 +264,6 @@ mysql_declare_plugin(throttler)
             throttler_info.version, /* version 1.0 */
             throttler_status, /* status variables */
             throttler_sys_vars, /* system variables */
-            NULL,
+            nullptr,
             0
         }mysql_declare_plugin_end;

@@ -112,7 +112,7 @@ keywords_rule_database::~keywords_rule_database() {
   }
 }
 
-int keywords_rule_database::init(std::shared_ptr<rule_map_t> &rule_map) {
+int keywords_rule_database::init(const std::shared_ptr<rule_map_t> &rule_map) {
   const uint64_t rule_count = rule_map->size();
 
   // if no rules for current database
@@ -128,7 +128,7 @@ int keywords_rule_database::init(std::shared_ptr<rule_map_t> &rule_map) {
   char **patterns = new char *[rule_count];
   auto *ids = new uint32_t[rule_count];
   auto *flags = new uint32_t[rule_count];
-  auto *tmp_map = new std::unordered_map<int, std::string>(rule_count);
+  auto *tmp_map = new std::unordered_map<uint32_t, std::string>(rule_count);
   for (auto &pair: *rule_map) {
     uint64_t length = pair.second->regex.size();
     patterns[i] = new char[length + 1];
@@ -228,7 +228,7 @@ int keywords_rule_shard::add_rules(const std::vector<std::shared_ptr<keywords_ru
     }
   }
 
-  return update_database();;
+  return update_database();
 }
 
 
@@ -276,7 +276,18 @@ std::vector<std::shared_ptr<keywords_rule>> keywords_rule_shard::get_all_rules()
   return result;
 }
 
-bool keywords_rule_shard::changed(int version) {
+
+std::shared_ptr<keywords_rule> keywords_rule_shard::get_rule_by_id(const std::string &rule_id) {
+  auto_rw_lock_read read_lock(&shard_lock);
+
+  auto it = rule_map->find(rule_id);
+  if (it == rule_map->end()) {
+    return nullptr;
+  }
+  return it->second;
+}
+
+bool keywords_rule_shard::changed(uint32_t version) {
   return current_version != version;
 }
 
@@ -427,6 +438,78 @@ std::vector<std::shared_ptr<keywords_rule>> keywords_rule_mamager::get_all_rules
   return result;
 }
 
+keywords_rule_context::keywords_rule_context() : current_version(0),
+                                                 rule_database(std::make_shared<keywords_rule_database>()),
+                                                 scratch(nullptr),
+                                                 matched_rule_ids(std::vector<std::string>()),
+                                                 last_matched_rule(nullptr) {
+}
+
+keywords_rule_context::~keywords_rule_context() {
+  if (scratch) {
+    hs_free_scratch(scratch);
+  }
+}
+
+int keywords_rule_context::init(uint32_t version, const std::shared_ptr<keywords_rule_database> &database) {
+
+  current_version = version;
+  if (!database) {
+    rule_database = std::make_shared<keywords_rule_database>();
+    if (scratch) {
+      hs_free_scratch(scratch);
+      scratch = nullptr;
+    }
+    return 0;
+  }
+
+  rule_database = database;
+  hs_scratch_t *tmp_scratch = nullptr;
+  if (hs_alloc_scratch(rule_database->get_database(), &tmp_scratch) != HS_SUCCESS) {
+    // todo print error log
+    return -1;
+  }
+  scratch = tmp_scratch;
+  matched_rule_ids.clear();
+  last_matched_rule = nullptr;
+  return 0;
+}
+
+static int matched_callback(unsigned int id, unsigned long long from,
+                            unsigned long long to, unsigned int flags, void *ctx) {
+  auto *context = (keywords_rule_context *) ctx;
+  std::string rule_id = context->rule_database->get_rule_id(id);
+  context->matched_rule_ids.push_back(rule_id);
+  return 0;
+}
+
+int keywords_rule_context::match(const char *query, size_t length) {
+  if (hs_scan(this->rule_database->get_database(), query, length, 0, scratch, matched_callback, this) !=
+      HS_SUCCESS) {
+    // todo print error log
+    return -1;
+  }
+
+  return 0;
+}
+
+
+bool keywords_rule_context::has_matched_rules() {
+  return !matched_rule_ids.empty();
+}
+
+void keywords_rule_context::clean_matched_rules() {
+  matched_rule_ids.clear();
+}
+
+std::string keywords_rule_context::get_first_matched_rule() {
+  if (has_matched_rules()) {
+    return matched_rule_ids[0];
+  }
+  return "";
+}
+
+
 keywords_throttler::keywords_throttler() {
 #ifdef HAVE_PSI_INTERFACE
   init_keywords_throttle_psi_keys();
@@ -440,18 +523,97 @@ keywords_throttler::~keywords_throttler() {
 
 
 int keywords_throttler::after_thd_initialled(THD *thd, const mysql_event_connection *event) {
+  context_map = new rule_context_map_t;
+  context_map->emplace(RULETYPE_SELECT, std::make_shared<keywords_rule_context>());
+  context_map->emplace(RULETYPE_INSERT, std::make_shared<keywords_rule_context>());
+  context_map->emplace(RULETYPE_UPDATE, std::make_shared<keywords_rule_context>());
+  context_map->emplace(RULETYPE_DELETE, std::make_shared<keywords_rule_context>());
+  context_map->emplace(RULETYPE_REPLACE, std::make_shared<keywords_rule_context>());
   return 0;
 }
 
 int keywords_throttler::before_thd_destroyed(THD *thd, const mysql_event_connection *event) {
+  delete context_map;
+  context_map = nullptr;
   return 0;
 }
 
 int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *event) {
+
+  // if thd or event is null, just return
+  if (!thd || !event) {
+    return 0;
+  }
+
+  keywords_sql_type sql_type = mamager->get_sql_type_by_sql_cmd(event->sql_command_id);
+  if (sql_type == RULETYPE_UNSUPPORT) { // unsupportted sql type, just pass through it.
+    return 0;
+  }
+
+  std::shared_ptr<keywords_rule_shard> shard = mamager->get_shard_by_sql_type(sql_type);
+  std::shared_ptr<keywords_rule_context> context = keywords_throttler::get_context_by_sql_type(sql_type);
+
+  // if rule updated, rebuild context
+  if (shard->get_current_version() != context->current_version) {
+    context = std::make_shared<keywords_rule_context>();
+    context->init(shard->get_current_version(), shard->get_rule_database());
+    (*context_map)[sql_type] = context;
+  }
+
+  // no rules for current shard, just access all request
+  if (context->rule_database->is_access_all()) {
+    return 0;
+  }
+
+  if (!context->match(event->query.str, event->query.length)) {
+    // todo print error log
+    return -1;
+  }
+
+  // if no rules matched, just access request
+  if (!context->has_matched_rules()) {
+    return 0;
+  }
+
+  std::string rule_id = context->get_first_matched_rule();
+  std::shared_ptr<keywords_rule> rule = shard->get_rule_by_id(rule_id);
+  // if can't find rules, just access request
+  if (!rule) {
+    return 0;
+  }
+
+  // if rule has been throttled, reject the request, and increase reject counter
+  if (rule->throttled) {
+    // todo print error log
+    rule->reject_counter->inc();
+    return -1;
+  }
+
+  // if rule is not throttled, increase concurrency counter
+  rule->concurrency_counter->inc();
+  context->last_matched_rule = rule;
+
   return 0;
 }
 
 int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *event) {
+
+  // if thd or event is null, just return
+  if (!thd || !event) {
+    return 0;
+  }
+
+  keywords_sql_type sql_type = mamager->get_sql_type_by_sql_cmd(event->sql_command_id);
+  if (sql_type == RULETYPE_UNSUPPORT) { // unsupportted sql type, just pass through it.
+    return 0;
+  }
+
+  // if current SQL matched rule, we need to decrease the concurrency counter.
+  std::shared_ptr<keywords_rule_context> context = keywords_throttler::get_context_by_sql_type(sql_type);
+  if (context->last_matched_rule) {
+    context->last_matched_rule->concurrency_counter->dec();
+  }
   return 0;
 }
+
 

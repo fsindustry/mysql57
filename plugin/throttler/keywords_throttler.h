@@ -6,8 +6,9 @@
 #include "throttler_counter.h"
 #include <unordered_map>
 #include <vector>
-#include <hs/hs_compile.h>
 #include <map>
+#include <hs/hs.h>
+#include <hs/hs_common.h>
 
 /**
  * define keywords rule type
@@ -68,7 +69,7 @@ private:
    * store relationships between hyperscan database indics and keywords rule ids.
    * format: map ( database index, rule id )
    */
-  std::unordered_map<int, std::string> *id_map;
+  std::unordered_map<uint32_t, std::string> *id_map;
 
   /**
    * compiled hyperscan database object
@@ -80,7 +81,23 @@ public:
 
   virtual ~keywords_rule_database();
 
-  int init(std::shared_ptr<rule_map_t> &rule_map);
+  int init(const std::shared_ptr<rule_map_t> &rule_map);
+
+  inline bool is_access_all() const {
+    return access_all;
+  }
+
+  inline hs_database_t *get_database() const {
+    return database;
+  }
+
+  inline std::string get_rule_id(uint32_t index) {
+    auto iter = id_map->find(index);
+    if (iter == id_map->end()) {
+      return "";
+    }
+    return iter->second;
+  }
 };
 
 /**
@@ -92,7 +109,7 @@ private:
   keywords_sql_type sql_type; // sql type to flag current shard
   std::shared_ptr<rule_map_t> rule_map; // store all rules for current sql type, map( rule id, rule )
   std::shared_ptr<keywords_rule_database> rule_database; // store compiled regex object here, we use hyperscan hs_database_t
-  std::atomic<int> current_version; // record current version of compiled rules
+  std::atomic<uint32_t> current_version; // record current version of compiled rules
   mysql_rwlock_t shard_lock; // rwlock to control rule changes in concurrent environment.
 
   inline void update_version() {
@@ -125,7 +142,17 @@ public:
 
   std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
 
-  bool changed(int version);
+  std::shared_ptr<keywords_rule> get_rule_by_id(const std::string& rule_id);
+
+  bool changed(uint32_t version);
+
+  inline const std::atomic<uint32_t> &get_current_version() const {
+    return current_version;
+  }
+
+  inline const std::shared_ptr<keywords_rule_database> &get_rule_database() const {
+    return rule_database;
+  }
 };
 
 typedef std::unordered_map<keywords_sql_type, std::shared_ptr<keywords_rule_shard>> rule_shard_map_t;
@@ -223,7 +250,47 @@ public:
   std::vector<std::shared_ptr<keywords_rule>> get_rules(const std::vector<std::string> *ids);
 
   std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
+
+  inline std::shared_ptr<keywords_rule_shard> get_shard_by_sql_type(keywords_sql_type sql_type) {
+    auto iter = rule_shard_map->find(sql_type);
+    if (iter == rule_shard_map->end()) {
+      return nullptr;
+    }
+    return iter->second;
+  }
 };
+
+
+/**
+ * rule context which used for rule matching and status store.
+ */
+class keywords_rule_context {
+public:
+  uint32_t current_version; // rule version for appointed sql type
+  std::shared_ptr<keywords_rule_database> rule_database; // compiled database for appointed sql type
+  hs_scratch_t *scratch; // scratch allocated for database to match rules.
+  std::vector<std::string> matched_rule_ids;
+  std::shared_ptr<keywords_rule> last_matched_rule;
+
+  keywords_rule_context();
+
+  virtual ~keywords_rule_context();
+
+  int init(uint32_t version, const std::shared_ptr<keywords_rule_database> &database);
+
+  int match(const char *query, size_t length);
+
+  bool has_matched_rules();
+
+  void clean_matched_rules();
+
+  std::string get_first_matched_rule();
+};
+
+/**
+ * store rule context by sql type
+ */
+typedef std::map<keywords_sql_type, std::shared_ptr<keywords_rule_context>> rule_context_map_t;
 
 /**
  * keywords throttle implementation
@@ -246,8 +313,21 @@ public:
     return mamager;
   }
 
+  static inline std::shared_ptr<keywords_rule_context> get_context_by_sql_type(keywords_sql_type sql_type) {
+    auto iter = context_map->find(sql_type);
+    if (iter == context_map->end()) {
+      return nullptr;
+    }
+    return iter->second;
+  }
+
 private:
   keywords_rule_mamager *mamager;
+
+  /**
+   * context map is a thread local member, so that each thread has its own context
+   */
+  thread_local static rule_context_map_t *context_map;
 };
 
 /**
@@ -255,7 +335,9 @@ private:
  */
 class auto_rw_lock_read {
 public:
-  explicit auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(NULL) {
+  auto_rw_lock_read(const auto_rw_lock_read &) = delete;         /* Not copyable. */
+  void operator=(const auto_rw_lock_read &) = delete;            /* Not assignable. */
+  explicit auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(nullptr) {
     if (lock && 0 == mysql_rwlock_rdlock(lock))
       rw_lock = lock;
   }
@@ -267,9 +349,6 @@ public:
 
 private:
   mysql_rwlock_t *rw_lock;
-
-  auto_rw_lock_read(const auto_rw_lock_read &);         /* Not copyable. */
-  void operator=(const auto_rw_lock_read &);            /* Not assignable. */
 };
 
 /**
@@ -277,7 +356,9 @@ private:
  */
 class auto_rw_lock_write {
 public:
-  explicit auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(NULL) {
+  auto_rw_lock_write(const auto_rw_lock_write &) = delete;        /* Non-copyable */
+  void operator=(const auto_rw_lock_write &) = delete;            /* Non-assignable */
+  explicit auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(nullptr) {
     if (lock && 0 == mysql_rwlock_wrlock(lock))
       rw_lock = lock;
   }
@@ -289,9 +370,6 @@ public:
 
 private:
   mysql_rwlock_t *rw_lock;
-
-  auto_rw_lock_write(const auto_rw_lock_write &);        /* Non-copyable */
-  void operator=(const auto_rw_lock_write &);            /* Non-assignable */
 };
 
 

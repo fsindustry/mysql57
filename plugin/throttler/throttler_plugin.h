@@ -10,7 +10,6 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <my_sys.h>
-#include <mysqld_error.h>
 #include "my_compiler.h"
 #include "throttler.h"
 
