@@ -615,5 +615,3 @@ int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *
   }
   return 0;
 }
-
-
