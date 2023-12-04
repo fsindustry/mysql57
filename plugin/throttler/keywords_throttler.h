@@ -142,7 +142,7 @@ public:
 
   std::vector<std::shared_ptr<keywords_rule>> get_all_rules();
 
-  std::shared_ptr<keywords_rule> get_rule_by_id(const std::string& rule_id);
+  std::shared_ptr<keywords_rule> get_rule_by_id(const std::string &rule_id);
 
   bool changed(uint32_t version);
 
@@ -313,21 +313,10 @@ public:
     return mamager;
   }
 
-  static inline std::shared_ptr<keywords_rule_context> get_context_by_sql_type(keywords_sql_type sql_type) {
-    auto iter = context_map->find(sql_type);
-    if (iter == context_map->end()) {
-      return nullptr;
-    }
-    return iter->second;
-  }
+  static std::shared_ptr<keywords_rule_context> get_context_by_sql_type(keywords_sql_type sql_type);
 
 private:
   keywords_rule_mamager *mamager;
-
-  /**
-   * context map is a thread local member, so that each thread has its own context
-   */
-  thread_local static rule_context_map_t *context_map;
 };
 
 /**

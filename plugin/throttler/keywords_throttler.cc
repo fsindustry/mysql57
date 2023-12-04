@@ -5,6 +5,7 @@
 #include <utility>
 #include <cstring>
 #include "keywords_throttler.h"
+#include "mysqld.h"
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_rwlock_key key_keywords_throttler_lock_rules_;
@@ -22,6 +23,8 @@ static void init_keywords_throttle_psi_keys() {
 }
 
 #endif
+
+thread_local_key_t THR_THROTTLER_CONTEXT_MAP_KEY;
 
 keywords_rule::keywords_rule() : id(""),
                                  sql_type(keywords_sql_type()),
@@ -514,27 +517,32 @@ keywords_throttler::keywords_throttler() {
 #ifdef HAVE_PSI_INTERFACE
   init_keywords_throttle_psi_keys();
 #endif
+  my_create_thread_local_key(&THR_THROTTLER_CONTEXT_MAP_KEY, NULL);
   mamager = new keywords_rule_mamager;
 }
 
 keywords_throttler::~keywords_throttler() {
+  my_delete_thread_local_key(THR_THROTTLER_CONTEXT_MAP_KEY);
   delete mamager;
 }
 
 
 int keywords_throttler::after_thd_initialled(THD *thd, const mysql_event_connection *event) {
-  context_map = new rule_context_map_t;
+  rule_context_map_t *context_map = new rule_context_map_t;
   context_map->emplace(RULETYPE_SELECT, std::make_shared<keywords_rule_context>());
   context_map->emplace(RULETYPE_INSERT, std::make_shared<keywords_rule_context>());
   context_map->emplace(RULETYPE_UPDATE, std::make_shared<keywords_rule_context>());
   context_map->emplace(RULETYPE_DELETE, std::make_shared<keywords_rule_context>());
   context_map->emplace(RULETYPE_REPLACE, std::make_shared<keywords_rule_context>());
+  my_set_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY, context_map);
   return 0;
 }
 
 int keywords_throttler::before_thd_destroyed(THD *thd, const mysql_event_connection *event) {
+  rule_context_map_t *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
   delete context_map;
   context_map = nullptr;
+  my_set_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY,NULL);
   return 0;
 }
 
@@ -557,6 +565,11 @@ int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *
   if (shard->get_current_version() != context->current_version) {
     context = std::make_shared<keywords_rule_context>();
     context->init(shard->get_current_version(), shard->get_rule_database());
+    auto *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
+    if (!context_map) {
+      // todo print error log
+      return -1;
+    }
     (*context_map)[sql_type] = context;
   }
 
@@ -614,4 +627,16 @@ int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *
     context->last_matched_rule->concurrency_counter->dec();
   }
   return 0;
+}
+
+std::shared_ptr<keywords_rule_context> keywords_throttler::get_context_by_sql_type(keywords_sql_type sql_type) {
+  auto *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
+  if (!context_map) {
+    return nullptr;
+  }
+  auto iter = context_map->find(sql_type);
+  if (iter == context_map->end()) {
+    return nullptr;
+  }
+  return iter->second;
 }

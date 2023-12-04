@@ -15,3 +15,4 @@ SET(THROTTLER_SOURCES throttler_plugin.h throttler_plugin.cc throttler.h keyword
 MYSQL_ADD_PLUGIN(throttler ${THROTTLER_SOURCES}
         LINK_LIBRARIES hs
         MODULE_ONLY MODULE_OUTPUT_NAME "throttler")
+add_dependencies(throttler sql)

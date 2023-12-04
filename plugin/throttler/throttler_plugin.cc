@@ -72,7 +72,6 @@ LEX_CSTRING event_names[][6] = {
     }
 };
 
-
 static LEX_CSTRING event_to_str(unsigned int event_class,
                                 unsigned long event_subclass) {
   int count;
@@ -96,7 +95,7 @@ static my_bool g_plugin_installed = FALSE;
 static struct st_mysql_show_var throttler_status[] =
     {
         {"throttler_called", (char *) &number_of_calls, SHOW_INT,  SHOW_SCOPE_GLOBAL},
-        {nullptr, nullptr,                                    SHOW_LONG, SHOW_SCOPE_GLOBAL},
+        {nullptr,            nullptr,                   SHOW_LONG, SHOW_SCOPE_GLOBAL},
     };
 
 /**
@@ -167,8 +166,11 @@ static int throttler_notify(MYSQL_THD thd,
     return 0;
   }
 
-  // todo if connection user is inner superuser, just skip
+  if (!current_throttler) {
+    return 0;
+  }
 
+  // todo if connection user is inner superuser, just skip
   number_of_calls++;
 
   if (event_class == MYSQL_AUDIT_QUERY_CLASS) {
