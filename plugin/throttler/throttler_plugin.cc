@@ -103,6 +103,7 @@ static struct st_mysql_show_var throttler_status[] =
  * define global vars reference to the system vars
  */
 my_bool throttler_enabled;
+char * throttler_white_list;
 
 static void update_throttler_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
                                      const void *value) {
@@ -118,6 +119,42 @@ static MYSQL_SYSVAR_BOOL(
     nullptr,
     update_throttler_enabled,
     false);
+
+static int update_throttler_white_list(MYSQL_THD thd, st_mysql_sys_var *var, void* save,
+                            struct st_mysql_value *value){
+  DBUG_ENTER("update_throttler_white_list");
+
+  char buff[NAME_CHAR_LEN];
+  const char *str;
+  int length= sizeof(buff);
+  std::string config_string;
+  if (!(str= value->val_str(value, buff, &length))){
+    DBUG_RETURN(1);
+  }
+
+
+  std::shared_ptr<std::unordered_set<std::string>> tmpset = std::make_shared<std::unordered_set<std::string>>();
+  std::string token;
+  std::stringstream ss(str);
+  while (std::getline(ss, token, ',')) {
+    // 将分解的子字符串插入到哈希集合中
+    tmpset->insert(token);
+  }
+
+  white_list_users.swap(tmpset);
+
+  DBUG_RETURN(0);
+}
+
+static MYSQL_SYSVAR_STR(
+    white_list,
+    throttler_white_list,
+/* optional var | malloc string | no set default */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT,
+    "The white list of throttler.",
+    update_throttler_white_list,
+    NULL,
+    NULL);
 
 throttler *current_throttler;
 
@@ -240,6 +277,7 @@ static struct st_mysql_audit throttler_descriptor =
 
 static struct st_mysql_sys_var *throttler_sys_vars[] = {
     MYSQL_SYSVAR(enabled),
+    MYSQL_SYSVAR(white_list),
     nullptr
 };
 
