@@ -4,8 +4,8 @@
 
 #include <utility>
 #include <cstring>
+#include <algorithm>
 #include "keywords_throttler.h"
-#include "mysqld.h"
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_rwlock_key key_keywords_throttler_lock_rules_;
@@ -512,6 +512,28 @@ std::string keywords_rule_context::get_first_matched_rule() {
   return "";
 }
 
+throttler_thd_context::throttler_thd_context(bool whitelist_user, std::string user_name)
+    : whitelist_user(whitelist_user), user_name(user_name) {
+  auto *tmp_map = new rule_context_map_t;
+  tmp_map->emplace(RULETYPE_SELECT, std::make_shared<keywords_rule_context>());
+  tmp_map->emplace(RULETYPE_INSERT, std::make_shared<keywords_rule_context>());
+  tmp_map->emplace(RULETYPE_UPDATE, std::make_shared<keywords_rule_context>());
+  tmp_map->emplace(RULETYPE_DELETE, std::make_shared<keywords_rule_context>());
+  tmp_map->emplace(RULETYPE_REPLACE, std::make_shared<keywords_rule_context>());
+  this->context_map = tmp_map;
+}
+
+throttler_thd_context::~throttler_thd_context() {
+  delete context_map;
+}
+
+std::shared_ptr<keywords_rule_context> throttler_thd_context::get_context_by_sql_type(keywords_sql_type sql_type) {
+  auto iter = context_map->find(sql_type);
+  if (iter == context_map->end()) {
+    return nullptr;
+  }
+  return iter->second;
+}
 
 keywords_throttler::keywords_throttler() {
 #ifdef HAVE_PSI_INTERFACE
@@ -519,31 +541,69 @@ keywords_throttler::keywords_throttler() {
 #endif
   my_create_thread_local_key(&THR_THROTTLER_CONTEXT_MAP_KEY, NULL);
   mamager = new keywords_rule_mamager;
+  whitelist = new throttler_whitelist;
 }
 
 keywords_throttler::~keywords_throttler() {
   my_delete_thread_local_key(THR_THROTTLER_CONTEXT_MAP_KEY);
   delete mamager;
+  delete whitelist;
 }
 
 
 int keywords_throttler::after_thd_initialled(THD *thd, const mysql_event_connection *event) {
-  rule_context_map_t *context_map = new rule_context_map_t;
-  context_map->emplace(RULETYPE_SELECT, std::make_shared<keywords_rule_context>());
-  context_map->emplace(RULETYPE_INSERT, std::make_shared<keywords_rule_context>());
-  context_map->emplace(RULETYPE_UPDATE, std::make_shared<keywords_rule_context>());
-  context_map->emplace(RULETYPE_DELETE, std::make_shared<keywords_rule_context>());
-  context_map->emplace(RULETYPE_REPLACE, std::make_shared<keywords_rule_context>());
-  my_set_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY, context_map);
+  std::string curr_user(event->user.str, event->user.length);
+  add_thd_context(thd, curr_user);
   return 0;
 }
 
+void keywords_throttler::add_thd_context(THD *thd, std::string &curr_user) {
+  bool is_whitelist_user = false;
+  if (is_super_user(thd) || whitelist->contains(curr_user)) {
+    is_whitelist_user = true;
+  }
+  throttler_thd_context *thd_context = new throttler_thd_context(is_whitelist_user, curr_user);
+  set_thd_context(thd_context);
+}
+
 int keywords_throttler::before_thd_destroyed(THD *thd, const mysql_event_connection *event) {
-  rule_context_map_t *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
-  delete context_map;
-  context_map = nullptr;
-  my_set_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY,NULL);
+  auto *thd_context = get_thd_context();
+  delete thd_context;
+  set_thd_context(NULL);
   return 0;
+}
+
+bool get_property(MYSQL_SECURITY_CONTEXT m_sctx, const char *property, LEX_CSTRING *value) {
+  value->length = 0;
+  value->str = 0;
+  return security_context_get_option(m_sctx, property, value);
+}
+
+std::string keywords_throttler::get_user(THD *thd) {
+  MYSQL_SECURITY_CONTEXT m_sctx;
+  if (thd_get_security_context(thd, &m_sctx)) {
+    return "";
+  }
+
+  MYSQL_LEX_CSTRING user_str;
+  if (get_property(m_sctx, "user", &user_str)) {
+    return "";
+  }
+
+  return std::string(user_str.str, user_str.length);
+}
+
+bool keywords_throttler::is_super_user(THD *thd) {
+  MYSQL_SECURITY_CONTEXT m_sctx;
+  if (thd_get_security_context(thd, &m_sctx)) {
+    return "";
+  }
+
+  bool has_super = false;
+  if (security_context_get_option(m_sctx, "privilege_super", &has_super))
+    return false;
+
+  return has_super;
 }
 
 int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *event) {
@@ -553,24 +613,33 @@ int keywords_throttler::check_before_execute(THD *thd, const mysql_event_query *
     return 0;
   }
 
+  // get thd context
+  auto *thd_context = get_thd_context();
+  if (!thd_context) {
+    bool is_whitelist_user = false;
+    std::string curr_user = get_user(thd);
+    add_thd_context(thd, curr_user);
+    thd_context = get_thd_context();
+  }
+
+  // if current user is whitelist user, just return
+  if (thd_context->whitelist_user) {
+    return 0;
+  }
+
   keywords_sql_type sql_type = mamager->get_sql_type_by_sql_cmd(event->sql_command_id);
   if (sql_type == RULETYPE_UNSUPPORT) { // unsupportted sql type, just pass through it.
     return 0;
   }
 
   std::shared_ptr<keywords_rule_shard> shard = mamager->get_shard_by_sql_type(sql_type);
-  std::shared_ptr<keywords_rule_context> context = keywords_throttler::get_context_by_sql_type(sql_type);
+  std::shared_ptr<keywords_rule_context> context = thd_context->get_context_by_sql_type(sql_type);
 
   // if rule updated, rebuild context
   if (shard->get_current_version() != context->current_version) {
     context = std::make_shared<keywords_rule_context>();
     context->init(shard->get_current_version(), shard->get_rule_database());
-    auto *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
-    if (!context_map) {
-      // todo print error log
-      return -1;
-    }
-    (*context_map)[sql_type] = context;
+    (*thd_context->context_map)[sql_type] = context;
   }
 
   // no rules for current shard, just access all request
@@ -616,27 +685,80 @@ int keywords_throttler::adjust_after_execute(THD *thd, const mysql_event_query *
     return 0;
   }
 
+  // get thd context
+  auto *thd_context = get_thd_context();
+  if (!thd_context) {
+    return 0;
+  }
+
+  // if current user is whitelist user, just return
+  if (thd_context->whitelist_user) {
+    return 0;
+  }
+
   keywords_sql_type sql_type = mamager->get_sql_type_by_sql_cmd(event->sql_command_id);
   if (sql_type == RULETYPE_UNSUPPORT) { // unsupportted sql type, just pass through it.
     return 0;
   }
 
   // if current SQL matched rule, we need to decrease the concurrency counter.
-  std::shared_ptr<keywords_rule_context> context = keywords_throttler::get_context_by_sql_type(sql_type);
+  std::shared_ptr<keywords_rule_context> context = thd_context->get_context_by_sql_type(sql_type);
   if (context->last_matched_rule) {
     context->last_matched_rule->concurrency_counter->dec();
   }
   return 0;
 }
 
-std::shared_ptr<keywords_rule_context> keywords_throttler::get_context_by_sql_type(keywords_sql_type sql_type) {
-  auto *context_map = (rule_context_map_t *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
-  if (!context_map) {
-    return nullptr;
+throttler_whitelist *keywords_throttler::get_whitelist() {
+  return whitelist;
+}
+
+throttler_thd_context *keywords_throttler::get_thd_context() {
+  return (throttler_thd_context *) my_get_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY);
+}
+
+void keywords_throttler::set_thd_context(throttler_thd_context *ctx) {
+  my_set_thread_local(THR_THROTTLER_CONTEXT_MAP_KEY, ctx);
+}
+
+throttler_whitelist::throttler_whitelist() : whitelist_users(std::make_shared<std::unordered_set<std::string>>()) {
+  mysql_rwlock_init(key_keywords_throttler_lock_rules_, &whitelist_lock);
+}
+
+throttler_whitelist::~throttler_whitelist() {
+  mysql_rwlock_destroy(&whitelist_lock);
+}
+
+std::string trim(const std::string &str) {
+  auto start = std::find_if_not(str.begin(), str.end(), [](int ch) {
+    return std::isspace(ch);
+  });
+
+  auto end = std::find_if_not(str.rbegin(), str.rend(), [](int ch) {
+    return std::isspace(ch);
+  }).base();
+
+  return (start < end ? std::string(start, end) : std::string());
+}
+
+void throttler_whitelist::update(std::string &users) {
+
+  auto *tmpset = new std::unordered_set<std::string>();
+  std::string token;
+  std::stringstream ss(users);
+  while (std::getline(ss, token, ',')) {
+    token = trim(token);
+    if (token.empty()) {
+      continue;
+    }
+    tmpset->insert(trim(token));
   }
-  auto iter = context_map->find(sql_type);
-  if (iter == context_map->end()) {
-    return nullptr;
-  }
-  return iter->second;
+
+  auto_rw_lock_write write_lock(&whitelist_lock);
+  whitelist_users->swap(*tmpset);
+}
+
+bool throttler_whitelist::contains(std::string &user) {
+  auto_rw_lock_read read_lock(&whitelist_lock);
+  return whitelist_users->find(user) != whitelist_users->end();
 }

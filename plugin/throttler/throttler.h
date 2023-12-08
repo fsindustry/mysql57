@@ -8,6 +8,27 @@
 #include <string>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
+#include <unordered_set>
+#include <memory>
+
+
+class throttler_whitelist {
+private:
+  /// rwlock to control rule changes in concurrent environment.
+  mysql_rwlock_t whitelist_lock;
+  /// store user name in whitelist
+  std::shared_ptr<std::unordered_set<std::string>> whitelist_users;
+
+public:
+
+  throttler_whitelist();
+
+  ~throttler_whitelist();
+
+  void update(std::string &users);
+
+  bool contains(std::string &user);
+};
 
 /**
  * this is a base class, define interface of throttling strategy
@@ -51,8 +72,9 @@ public:
    */
   virtual int adjust_after_execute(MYSQL_THD thd, const mysql_event_query *event) = 0;
 
+  virtual throttler_whitelist *get_whitelist() = 0;
+
   virtual ~throttler() {};
 };
-
 
 #endif //MYSQL_THROTTLER_H

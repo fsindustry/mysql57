@@ -34,6 +34,29 @@ C_MODE_END
 
 my_bool add_keywords_throttler_rule_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
 
+  if (!throttler_enabled) {
+    strcpy(message,"throttler is not enabled");
+    return 1;
+  }
+
+  if (!current_throttler) {
+    strcpy(message,"throttler is not initialized");
+    return 1;
+  }
+
+  // get thd context
+  auto *thd_context = ((keywords_throttler *) current_throttler)->get_thd_context();
+  if (!thd_context) {
+    strcpy(message,"throttler thd context is not initialized");
+    return 1;
+  }
+
+  // if current user is whitelist user, just return
+  if (!thd_context->whitelist_user) {
+    strcpy(message,"Access Deny. Only whitelist user can call function add_keywords_throttler_rule");
+    return 1;
+  }
+
   if (args->arg_count != 4) {
     strcpy(message,
            "Wrong arguments count for add_keywords_throttler_rule, need 4 args: id, sql_type, keywords, concurrency");
@@ -114,6 +137,29 @@ char *add_keywords_throttler_rule(UDF_INIT *initid, UDF_ARGS *args, char *result
 }
 
 my_bool keywords_throttler_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+  if (!throttler_enabled) {
+    strcpy(message,"throttler is not enabled");
+    return 1;
+  }
+
+  if (!current_throttler) {
+    strcpy(message,"throttler is not initialized");
+    return 1;
+  }
+
+  // get thd context
+  auto *thd_context = ((keywords_throttler *) current_throttler)->get_thd_context();
+  if (!thd_context) {
+    strcpy(message,"throttler thd context is not initialized");
+    return 1;
+  }
+
+  // if current user is whitelist user, just return
+  if (!thd_context->whitelist_user) {
+    strcpy(message,"Access Deny. Only whitelist user can call function keywords_throttler_rules");
+    return 1;
+  }
+
   return 0;
 }
 
@@ -173,6 +219,30 @@ char *keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, u
 }
 
 my_bool delete_keywords_throttler_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+
+  if (!throttler_enabled) {
+    strcpy(message,"throttler is not enabled");
+    return 1;
+  }
+
+  if (!current_throttler) {
+    strcpy(message,"throttler is not initialized");
+    return 1;
+  }
+
+  // get thd context
+  auto *thd_context = ((keywords_throttler *) current_throttler)->get_thd_context();
+  if (!thd_context) {
+    strcpy(message,"throttler thd context is not initialized");
+    return 1;
+  }
+
+  // if current user is whitelist user, just return
+  if (!thd_context->whitelist_user) {
+    strcpy(message,"Access Deny. Only whitelist user can call function delete_keywords_throttler_rules");
+    return 1;
+  }
+
   return 0;
 }
 
@@ -203,6 +273,30 @@ delete_keywords_throttler_rules(UDF_INIT *initid, UDF_ARGS *args, char *result, 
 }
 
 my_bool truncate_keywords_throttler_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
+
+  if (!throttler_enabled) {
+    strcpy(message,"throttler is not enabled");
+    return 1;
+  }
+
+  if (!current_throttler) {
+    strcpy(message,"throttler is not initialized");
+    return 1;
+  }
+
+  // get thd context
+  auto *thd_context = ((keywords_throttler *) current_throttler)->get_thd_context();
+  if (!thd_context) {
+    strcpy(message,"throttler thd context is not initialized");
+    return 1;
+  }
+
+  // if current user is whitelist user, just return
+  if (!thd_context->whitelist_user) {
+    strcpy(message,"Access Deny. Only whitelist user can call function truncate_keywords_throttler_rules");
+    return 1;
+  }
+
   return 0;
 }
 

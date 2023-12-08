@@ -23,6 +23,7 @@ typedef struct {
   unsigned int version;
 } plugin_info;
 
+extern my_bool throttler_enabled;
 extern throttler *current_throttler;
 
 #endif //MYSQL_THROTTLER_PLUGIN_H

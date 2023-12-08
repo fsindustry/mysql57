@@ -293,6 +293,19 @@ public:
  */
 typedef std::map<keywords_sql_type, std::shared_ptr<keywords_rule_context>> rule_context_map_t;
 
+class throttler_thd_context {
+public:
+  bool whitelist_user;
+  std::string user_name;
+  rule_context_map_t *context_map;
+
+  throttler_thd_context(bool whitelist_user,std::string user_name);
+
+  ~throttler_thd_context();
+
+  std::shared_ptr<keywords_rule_context> get_context_by_sql_type(keywords_sql_type sql_type);
+};
+
 /**
  * keywords throttle implementation
  */
@@ -314,10 +327,23 @@ public:
     return mamager;
   }
 
-  static std::shared_ptr<keywords_rule_context> get_context_by_sql_type(keywords_sql_type sql_type);
+  throttler_whitelist *get_whitelist() override;
+
+  throttler_thd_context *get_thd_context();
+
+  void set_thd_context(throttler_thd_context *ctx);
+
+  std::string get_user(THD *thd);
+  bool is_super_user(THD *thd);
+
+private:
+
+  void add_thd_context(THD *thd, std::string &curr_user);
 
 private:
   keywords_rule_mamager *mamager;
+  throttler_whitelist *whitelist;
+
 };
 
 /**

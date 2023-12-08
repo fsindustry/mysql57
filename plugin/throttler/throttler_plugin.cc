@@ -103,7 +103,7 @@ static struct st_mysql_show_var throttler_status[] =
  * define global vars reference to the system vars
  */
 my_bool throttler_enabled;
-char * throttler_white_list;
+char *throttler_whitelist;
 
 static void update_throttler_enabled(MYSQL_THD, struct st_mysql_sys_var *, void *,
                                      const void *value) {
@@ -120,36 +120,28 @@ static MYSQL_SYSVAR_BOOL(
     update_throttler_enabled,
     false);
 
-static int update_throttler_white_list(MYSQL_THD thd, st_mysql_sys_var *var, void* save,
-                            struct st_mysql_value *value){
+static int update_throttler_white_list(MYSQL_THD thd, st_mysql_sys_var *var, void *save,
+                                       struct st_mysql_value *value) {
   DBUG_ENTER("update_throttler_white_list");
 
   char buff[NAME_CHAR_LEN];
   const char *str;
-  int length= sizeof(buff);
-  std::string config_string;
-  if (!(str= value->val_str(value, buff, &length))){
-    DBUG_RETURN(1);
-  }
+  int length = sizeof(buff);
 
+  (*(const char **) save) = NULL;
 
-  std::shared_ptr<std::unordered_set<std::string>> tmpset = std::make_shared<std::unordered_set<std::string>>();
-  std::string token;
-  std::stringstream ss(str);
-  while (std::getline(ss, token, ',')) {
-    // 将分解的子字符串插入到哈希集合中
-    tmpset->insert(token);
-  }
+  if (!(str = value->val_str(value, buff, &length)))
+    DBUG_RETURN(1); /* purecov: inspected */
 
-  white_list_users.swap(tmpset);
+  std::string whitelist_str(str);
+  current_throttler->get_whitelist()->update(whitelist_str);
 
   DBUG_RETURN(0);
 }
 
 static MYSQL_SYSVAR_STR(
-    white_list,
-    throttler_white_list,
-/* optional var | malloc string | no set default */
+    whitelist,
+    throttler_whitelist,
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_NODEFAULT,
     "The white list of throttler.",
     update_throttler_white_list,
@@ -207,17 +199,20 @@ static int throttler_notify(MYSQL_THD thd,
     return 0;
   }
 
-  // todo if connection user is inner superuser, just skip
+  // if connection user is inner superuser, just skip
+  auto *throttler = (keywords_throttler *) current_throttler;
+  if (throttler->is_super_user(thd)) {
+    return 0;
+  }
+
   number_of_calls++;
 
   if (event_class == MYSQL_AUDIT_QUERY_CLASS) {
     // query event which contains SQL statements string.
     const auto *event_query =
         (const struct mysql_event_query *) event;
-
     // if sql_cmd_type is not support throttler, just return and continue run
-    auto *throttle = (keywords_throttler *) current_throttler;
-    keywords_rule_mamager *rule_manager = throttle->get_mamager();
+    keywords_rule_mamager *rule_manager = throttler->get_mamager();
     if (!rule_manager->valid_sql_cmd_type(event_query->sql_command_id)) {
       return 0;
     }
@@ -277,7 +272,7 @@ static struct st_mysql_audit throttler_descriptor =
 
 static struct st_mysql_sys_var *throttler_sys_vars[] = {
     MYSQL_SYSVAR(enabled),
-    MYSQL_SYSVAR(white_list),
+    MYSQL_SYSVAR(whitelist),
     nullptr
 };
 
