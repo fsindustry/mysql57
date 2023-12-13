@@ -79,6 +79,9 @@ public:
       first_record(false),
       // @todo Can this be substituted with select->is_explicitly_grouped()?
       grouped(select->is_explicitly_grouped()),
+      // started by fzx @20231207 about offset pushdown
+      pushed_offset(false),
+      // ended by fzx @20231207 about offset pushdown
       do_send_rows(true),
       all_table_map(0),
       const_table_map(0),
@@ -233,6 +236,12 @@ public:
   bool     sort_and_group; 
   bool     first_record;
   bool     grouped;          ///< If query contains GROUP BY clause
+
+  // started by fzx @20231207 about offset pushdown
+  /// True if pushed down offset
+  bool pushed_offset;
+  // ended by fzx @20231207 about offset pushdown
+
   bool     do_send_rows;     ///< If true, send produced rows using query_result
   table_map all_table_map;   ///< Set of tables contained in query
   table_map const_table_map; ///< Set of tables found to be const
@@ -676,6 +685,15 @@ public:
   */
   bool fts_index_access(JOIN_TAB *tab);
 
+  // started by fzx @20231207 about offset pushdown
+  /**
+   * check if statement query multiple tables
+   * @return true, query multiple tables;
+   *         false, query single table;
+   */
+  bool has_multi_tables();
+  // ended by fzx @20231207 about offset pushdown
+
   Next_select_func get_end_select_func();
 
 private:
@@ -871,6 +889,12 @@ private:
 
 bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
                             bool other_tbls_ok);
+
+// started by fzx @20231207 about offset pushdown
+bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck);
+bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck);
+// ended by fzx @20231207 about offset pushdown
+
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,

@@ -482,6 +482,16 @@ public:
   void push_index_cond(const JOIN_TAB *join_tab,
                        uint keyno, Opt_trace_object *trace_obj);
 
+  // started by fzx @20231207 about offset pushdown
+  /**
+   * try to pushdown offset to table handler
+   * @param join_tab query execution plan node
+   * @param keyno index used to scan data
+   * @param trace_obj trace object where information is to be added
+   */
+  void push_offset(const JOIN_TAB *join_tab, int keyno, Opt_trace_object *trace_obj);
+  // ended by fzx @20231207 about offset pushdown
+
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 

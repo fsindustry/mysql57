@@ -58,6 +58,9 @@ enum opt_hints_enum
   QB_NAME_HINT_ENUM,
   SEMIJOIN_HINT_ENUM,
   SUBQUERY_HINT_ENUM,
+  // started by fzx @20231207 about offset pushdown
+  OFFSET_PUSHDOWN_HINT_ENUM,
+  // ended by fzx @20231207 about offset pushdown
   MAX_HINT_ENUM
 };
 

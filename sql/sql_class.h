@@ -651,6 +651,11 @@ typedef struct system_status_var
   /* Number of statements sent from the client. */
   ulonglong questions;
 
+  // started by fzx @20231207 about offset pushdown
+  /* How many times has the offset been pushed down */
+  ulonglong offset_pushdown_count;
+  // ended by fzx @20231207 about offset pushdown
+
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];
 

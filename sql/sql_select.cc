@@ -2119,6 +2119,101 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
 }
 
 
+// started by fzx @20231207 about offset pushdown
+void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
+                          Opt_trace_object *trace_obj) {
+  JOIN *const join = this->join();
+  DBUG_ENTER("push_offset");
+
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join);
+  assert(join_tab == join->best_ref[idx()]);
+  assert(join_tab->table_ref);
+
+  TABLE *const tbl = table();
+
+  // Only InnoDB supports offset pushdown
+  if (tbl->s->db_type() != innodb_hton)
+    DBUG_VOID_RETURN;
+
+  LEX *const lex = join->thd->lex;
+
+  if (lex->unit->offset_limit_cnt <= 0) {
+    tbl->file->offset_limit_cnt = 0;
+    DBUG_VOID_RETURN;
+  }
+
+  // TODO: Currently, MRR doesn't support offset pushdown
+  // 1) statement has mrr hint.
+  // 2) statement contains range where conditions.
+  // 3) statement can be optimized by mrr.
+  QUICK_SELECT_I* qck = join_tab->quick();
+  if (qck && hint_key_state(join->thd, tbl, keyno, MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) &&
+      (qck->get_type() ==  QUICK_SELECT_I::QS_TYPE_RANGE || qck->get_type() ==  QUICK_SELECT_I::QS_TYPE_RANGE_DESC) &&
+      !(((QUICK_RANGE_SELECT *)qck)->mrr_flags & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))) {
+    trace_obj->add("not_pushed_offset_due_to_MRR", true);
+    DBUG_VOID_RETURN;
+  }
+
+  /*
+    If all conditions pushed down by ICP, condition() is null.
+    If QEP_TAB::type() is JT_ALL or JT_INDEX_SCAN, @keyno may be less than 0.
+  */
+  bool no_extra_cond = (!condition() ||
+                        ((join->where_cond->type() == Item::COND_ITEM ||
+                          join->where_cond->type() == Item::FUNC_ITEM) && keyno >= 0 &&
+                         (!qck || no_extra_where_conds(condition(), tbl, keyno, qck))));
+
+  /*
+    We will only attempt to push down the offset condition when the following
+    criteria are true:
+    1. The use of offset_pushdown is not disabled by the optimizer_switch hint.
+    2. The query is a select statement.
+    3. The statement is a single table query, namely doesn't contain subqueries,
+       unions and stored procedure calls.
+    4. The query does not include HAVING, GROUP BY, DISTINCT clause.
+    5. The where_cond only uses fields covered by index keyno in the table tbl.
+    6. The JOIN_TAB is not part of a subquery that has guarded conditions
+       that can be turned on or off during execution of a 'Full scan on NULL
+       key'.
+       @see Item_in_optimizer::val_int()
+       @see subselect_iterator_engine::exec()
+       @see TABLE_REF::cond_guards
+       @see setup_join_buffering
+    7. The statement doesn't contain subqueries, unions and stored procedure
+       calls.
+    8. The query does not include aggregation function.
+    9. The query does not include ORDER BY clause, or the ORDER BY clause
+       is optimized
+  */
+
+  if (hint_key_state(join->thd, tbl, keyno, OFFSET_PUSHDOWN_HINT_ENUM,
+                     OPTIMIZER_SWITCH_OFFSET_PUSHDOWN) &&
+      lex->sql_command == SQLCOM_SELECT && !join->having_cond &&
+      (join->group_list == NULL ||
+       join->ordered_index_usage == JOIN::ordered_index_group_by) &&
+      !join->select_distinct && no_extra_cond &&
+      !has_guarded_conds() && lex->is_single_level_stmt() &&
+      !lex->select_lex->agg_func_used() &&
+      (join->order == NULL ||
+       join->ordered_index_usage == JOIN::ordered_index_order_by)) {
+    tbl->file->offset_limit_cnt = lex->unit->offset_limit_cnt;
+    join->pushed_offset = true;
+    trace_obj->add("pushed_offset", true);
+
+    /* Increment the offset_pushdown counter, only when offset is pushed down. */
+    join->thd->status_var.offset_pushdown_count++;
+  } else {
+    tbl->file->offset_limit_cnt = 0;
+    trace_obj->add("pushed_offset", false);
+  }
+
+  DBUG_PRINT("info", ("join->pushed_offset: %d", join->pushed_offset));
+  DBUG_VOID_RETURN;
+}
+// ended by fzx @20231207 about offset pushdown
+
+
+
 /**
   Plan refinement stage: do various setup things for the executor
 
@@ -2148,6 +2243,10 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
   Opt_trace_context * const trace= &join->thd->opt_trace;
   Opt_trace_object wrapper(trace);
   Opt_trace_array trace_refine_plan(trace, "refine_plan");
+
+  // started by fzx @20231207 about offset pushdown
+  bool has_multi_tables = join->has_multi_tables();
+  // ended by fzx @20231207 about offset pushdown
 
   if (setup_semijoin_dups_elimination(join, no_jbuf_after))
     DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -2202,6 +2301,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         table->set_keyread(TRUE);
       else
         qep_tab->push_index_cond(tab, qep_tab->ref().key, &trace_refine_table);
+
+      // started by fzx @20231207 about offset pushdown
+      // if query have only one table, try to pushdown offset
+      if (!has_multi_tables){
+        qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
+      }
+      // ended by fzx @20231207 about offset pushdown
       break;
     case JT_ALL:
       join->thd->set_status_no_index_used();
@@ -2234,9 +2340,9 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
       }
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
-	join->thd->set_status_no_good_index_used();
-	if (statistics)
-	  join->thd->inc_status_select_range_check();
+	      join->thd->set_status_no_good_index_used();
+	      if (statistics)
+	        join->thd->inc_status_select_range_check();
       }
       else
       {
@@ -2248,6 +2354,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
             join->thd->inc_status_select_full_join();
         }
       }
+
+      // started by fzx @20231207 about offset pushdown
+      // if query have only one table, try to pushdown offset
+      if (!has_multi_tables) {
+        qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
+      }
+      // ended by fzx @20231207 about offset pushdown
       break;
     case JT_RANGE:
     case JT_INDEX_MERGE:
@@ -2268,6 +2381,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         if (!table->key_read)
           qep_tab->push_index_cond(tab, qep_tab->quick()->index,
                                    &trace_refine_table);
+
+        // started by fzx @20231207 about offset pushdown
+        // if query have only one table, try to pushdown offset
+        if (!has_multi_tables) {
+          qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
+        }
+        // ended by fzx @20231207 about offset pushdown
       }
       if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST)
       {

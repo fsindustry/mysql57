@@ -503,6 +503,11 @@ public:
   void save_last_pos()
   { file->position(record); }
   int get_type() const { return QS_TYPE_RANGE; }
+
+  // started by fzx @20231207 about offset pushdown
+  Quick_ranges *get_ranges() { return &ranges; }
+  // ended by fzx @20231207 about offset pushdown
+
   virtual bool is_loose_index_scan() const { return false; }
   virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);

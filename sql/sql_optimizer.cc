@@ -48,6 +48,7 @@
 #include "sql_test.h"            // print_where
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
 #include "opt_hints.h"           // hint_table_state
+#include "item_timefunc.h"
 
 #include <algorithm>
 using std::max;
@@ -10871,6 +10872,24 @@ bool JOIN::fts_index_access(JOIN_TAB *tab)
   return true;
 }
 
+// started by fzx @20231207 about offset pushdown
+bool JOIN::has_multi_tables() {
+  // walk through all primary tables, and check the table count
+  for (uint i = const_tables; i < primary_tables; i++) {
+    QEP_TAB *const cur_tab = &this->qep_tab[i];
+    if (!cur_tab) {
+      continue;
+    }
+    TABLE_LIST *const table_ref = cur_tab->table_ref;
+    if (table_ref && (table_ref->next_global || table_ref->next_local)) {
+      return true; // return ture whenever query contains more than one table;
+    }
+  }
+  return false;
+}
+// ended by fzx @20231207 about offset pushdown
+
+
 
 /**
    For {semijoin,subquery} materialization: calculates various cost
@@ -11417,3 +11436,735 @@ static uint32 get_key_length_tmp_table(Item *item)
   return len;
 }
 
+// started by fzx @20231207 about offset pushdown
+
+/**
+   Tests if field type is an integer
+
+   @param type Field type, as returned by field->type()
+
+   @returns true if integer type, false otherwise
+ */
+inline bool is_integer_type(enum_field_types type) {
+  switch (type) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+  Tests if field type is a string type
+
+  @param type Field type, as returned by field->type()
+
+  @returns true if string type, false otherwise
+*/
+inline bool is_string_type(enum_field_types type) {
+  switch (type) {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_JSON:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
+  Compare two float numbers of the same type.
+  @param val1 the first float number
+  @param val2 the second float number
+  @retval -1 if val1 is less than val2,
+  @retval 0 if val1 is almost equal to val2,
+  @retval 1 if val1 is greater than val2
+*/
+template<typename T>
+int almost_equals(T val1, T val2) {
+  return val1 < val2 ? -1 : (val1 == val2 ? 0 : 1);
+}
+
+template<>
+inline int almost_equals(float val1, float val2) {
+  return fabs(val1 - val2) < FLT_EPSILON ? 0 : (val1 > val2 ? 1 : -1);
+}
+
+template<>
+inline int almost_equals(double val1, double val2) {
+  return fabs(val1 - val2) < DBL_EPSILON ? 0 : (val1 > val2 ? 1 : -1);
+}
+
+
+/**
+  Converts a temporal value to a string with the format:
+
+  DATE -> YYYY-MM-DD
+  TIME -> HH:MM:SS[.fraction]
+  DATETIME -> YYYY-MM-DD HH:MM:SS[.fraction]
+  TIMESTAMP -> XXXXX[.YYYYY]
+
+  @param      type        MySQL field type
+  @param      value_ptr   Temporal binary value
+                          For example: QUICK_RANGE_SELECT::min_key/max_key
+  @param      dec         Precision, in the range 0..6
+  @param[out] str         Destnation string
+
+  @return The pointer of the result string
+*/
+
+static String *convert_temporal_to_str(const enum_field_types type, const char *value_ptr, uint8 dec, String *str) {
+  if (!value_ptr || !str)
+    return NULL;
+
+  char buf[MAX_DATE_STRING_REP_LENGTH];
+  int buflen = 0;
+  MYSQL_TIME ltime;
+  struct timeval tm;
+
+  switch(type) {
+    case MYSQL_TYPE_DATE: {
+      uint32 tmp = uint3korr(value_ptr);
+      int part;
+      char *pos = buf + 10;
+      buflen = 10;
+
+      /* Open coded to get more speed */
+      *pos-- = 0;  // End NULL
+      part = (int) (tmp & 31);
+      *pos-- = (char) ('0' + part % 10);
+      *pos-- = (char) ('0' + part / 10);
+      *pos-- = '-';
+      part = (int) (tmp >> 5 & 15);
+      *pos-- = (char) ('0' + part % 10);
+      *pos-- = (char) ('0' + part / 10);
+      *pos-- = '-';
+      part = (int) (tmp >> 9);
+      *pos-- = (char) ('0' + part % 10);
+      part /= 10;
+      *pos-- = (char) ('0' + part % 10);
+      part /= 10;
+      *pos-- = (char) ('0' + part % 10);
+      part /= 10;
+      *pos = (char) ('0' + part);
+      break;
+    }
+    case MYSQL_TYPE_TIME: {
+      longlong packed = my_time_packed_from_binary((const unsigned char *)value_ptr, dec);
+      TIME_from_longlong_time_packed(&ltime, packed);
+      buflen = my_time_to_str(&ltime, buf, dec);
+      break;
+    }
+    case MYSQL_TYPE_DATETIME: {
+      longlong packed = my_datetime_packed_from_binary((const unsigned char *)value_ptr, dec);
+      TIME_from_longlong_datetime_packed(&ltime, packed);
+      buflen = my_datetime_to_str(&ltime, buf, dec);
+      break;
+    }
+    case MYSQL_TYPE_TIMESTAMP: {
+      my_timestamp_from_binary(&tm, (const unsigned char *)value_ptr, dec);
+      buflen = my_timeval_to_str(&tm, buf, dec);
+      break;
+    }
+    default:
+      return NULL;
+  }
+
+  if (str->copy(buf, buflen, &my_charset_numeric) != 0)
+    return NULL;
+
+  return str;
+}
+
+/**
+  Compare quick select range with the integer value.
+
+  @param    type           MySQL field type
+  @param    range_ptr      QUICK_RANGE_SELECT::min_key/max_key
+  @param    range_length   The length of @range_ptr
+  @param    offset         The offset of @range_ptr
+                           The @range_ptr comes from Field::ptr which includes
+                           some bytes for other meanings that need to be skipped.
+  @param    value_integer  The integer value
+
+  @returns
+    <0   left < right or there is an error
+    0    left == right
+    >0   left > right
+*/
+
+static int cmp_range_with_integer_by_type(const enum_field_types type,
+                                          const char *range_ptr,
+                                          uint16 range_length,
+                                          int offset,
+                                          longlong value_integer) {
+  if (offset >= range_length)
+    return -1;
+
+  int result = -1;
+  const char *ptr = range_ptr + offset;
+  if (type == MYSQL_TYPE_YEAR)
+    result = *ptr - value_integer;
+  else if (is_integer_type(type)) {
+    switch (range_length - offset) {
+      case 1: {
+        int32 si = (int)(signed char)*ptr;
+        result = si - value_integer;
+        break;
+      }
+      case 2: {
+        int32 si = (int32)sint2korr(ptr);
+        result = si - value_integer;
+        break;
+      }
+      case 3: {
+        int32 si = sint3korr(ptr);
+        result = si - value_integer;
+        break;
+      }
+      case 4: {
+        int32 si = sint4korr(ptr);
+        result = si - value_integer;
+        break;
+      }
+      case 8: {
+        longlong si = sint8korr(ptr);
+        result = si - value_integer;
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  return result;
+}
+
+/**
+  Compare quick select range with the string value.
+
+  @param    type           MySQL field type
+  @param    range_ptr      QUICK_RANGE_SELECT::min_key/max_key
+  @param    range_length   The length of @range_ptr
+  @param    offset         The offset of @range_ptr
+                           The @range_ptr comes from Field::ptr which includes
+                           some bytes for other meanings that need to be skipped.
+  @param    value_str      The pointer of string value
+
+  @returns
+    <0   left < right or there is an error
+    0    left == right
+    >0   left > right
+*/
+
+static int cmp_range_with_string_by_type(const enum_field_types type,
+                                         const char *range_ptr,
+                                         uint16 range_length,
+                                         int offset,
+                                         String *value_str) {
+  if (offset >= range_length)
+    return -1;
+
+  int result = -1;
+  switch(type) {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+      /*
+        The @range_ptr buffer has some useless padding bytes, so use the length
+        of @value_str when comparing.
+      */
+      result = strncmp(value_str->ptr(), range_ptr + offset, value_str->length());
+      break;
+    default:
+      break;
+  }
+
+  return result;
+}
+
+/**
+  Compare quick select range with the real(FLOAT/DOUBLE) value.
+
+  @param    type           MySQL field type
+  @param    range_ptr      QUICK_RANGE_SELECT::min_key/max_key
+  @param    range_length   The length of @range_ptr
+  @param    offset         The offset of @range_ptr
+                           The @range_ptr comes from Field::ptr which includes
+                           some bytes for other meanings that need to be skipped.
+  @param    value_real     The value of FLOAT/DOUBLE
+
+  @returns
+    <0   left < right or there is an error
+    0    left == right
+    >0   left > right
+*/
+
+static int cmp_range_with_real_by_type(const enum_field_types type,
+                                       const char *range_ptr,
+                                       uint16 range_length,
+                                       int offset,
+                                       double value_real) {
+  if (offset >= range_length)
+    return -1;
+
+  int result = -1;
+  const char *ptr = range_ptr + offset;
+  switch(type) {
+    case MYSQL_TYPE_FLOAT: {
+      float value = 0;
+      float4get(&value,(const uchar *)ptr);
+      result = almost_equals((float)value_real, value);
+      break;
+    }
+    case MYSQL_TYPE_DOUBLE: {
+      double value = 0;
+      float8get(&value, (const uchar *)ptr);
+      result = almost_equals(value_real, value);
+      break;
+    }
+    default:
+      break;
+  }
+
+  return result;
+}
+
+/**
+  Compare quick select range with the decimal value.
+
+  @param    type           MySQL field type
+  @param    range_ptr      QUICK_RANGE_SELECT::min_key/max_key
+  @param    range_length   The length of @range_ptr
+  @param    offset         The offset of @range_ptr
+                           The @range_ptr comes from Field::ptr which includes
+                           some bytes for other meanings that need to be skipped.
+  @param    value_decimal  The decimal value
+  @param    precision      The precision of decimal value
+  @param    scale          The scale of decimal value
+
+  @returns
+    <0   left < right or there is an error
+    0    left == right
+    >0   left > right
+*/
+
+static int cmp_range_with_decimal_by_type(const enum_field_types type,
+                                          const char *range_ptr,
+                                          uint16 range_length,
+                                          int offset,
+                                          my_decimal *value_decimal,
+                                          uint precision,
+                                          uint scale) {
+  if (offset >= range_length)
+    return -1;
+
+  int result = -1;
+  const uchar *ptr = pointer_cast<const uchar *>(range_ptr + offset);
+  DBUG_EXECUTE("info", print_decimal((const my_decimal *)value_decimal););
+  if (type == MYSQL_TYPE_DECIMAL || type == MYSQL_TYPE_NEWDECIMAL) {
+    my_decimal my_dec;
+    binary2my_decimal(E_DEC_FATAL_ERROR, ptr, &my_dec, precision, scale);
+    result = my_decimal_cmp(value_decimal, &my_dec);
+    DBUG_EXECUTE("info", print_decimal(&my_dec););
+  }
+
+  return result;
+}
+
+/**
+  Compare quick select range with the temporal value.
+
+  @param    type           MySQL field type
+  @param    range_ptr      QUICK_RANGE_SELECT::min_key/max_key
+  @param    range_length   The length of @range_ptr
+  @param    offset         The offset of @range_ptr
+                           The @range_ptr comes from Field::ptr which includes
+                           some bytes for other meanings that need to be skipped.
+  @param    value_str      The temporal value
+  @param    dec            Precision, in the range 0..6
+
+  @returns
+    <0   left < right or there is an error
+    0    left == right
+    >0   left > right
+*/
+
+static int cmp_range_with_temporal_by_type(const enum_field_types type,
+                                           const char *range_ptr,
+                                           uint16 range_length,
+                                           int offset,
+                                           String *value_str,
+                                           uint dec) {
+  if (offset >= range_length)
+    return -1;
+
+  // See also is_temporal_real_type()
+  if (!is_temporal_type(type) || type == MYSQL_TYPE_YEAR)
+    return -1;
+
+  int result = -1;
+  const char *ptr = range_ptr + offset;
+  String range_str;
+
+  /*
+    For TIME/DATETIME/TIMESTAMP types, if the value of where condition
+    contains fractional-seconds, such as '1990-01-01 01:02:03.123456',
+    then @min_key and @max_key in QUICK_RANGE_SELECT will truncate
+    fractional-seconds, this requires @dec must be 0.
+  */
+
+  DBUG_PRINT("info", ("value_str: %s, str_len: %lu", value_str->ptr(), value_str->length()));
+  if (convert_temporal_to_str(type, ptr, dec, &range_str))
+    result = strncmp(range_str.ptr(), value_str->ptr(),
+                     std::max(range_str.length(), value_str->length()));
+  DBUG_PRINT("info", ("range_str: %s, range_str_len: %lu", range_str.ptr(), range_str.length()));
+
+  return result;
+}
+
+/**
+  Check whether the WHERE condition matches the QUICK_RANGE_SELECT::ranges.
+
+  @param item   Part of the WHERE condition whose type must be Item::FUNC_ITEM
+  @param tbl    The table having the index
+  @param keyno  The index number
+  @param qck    The QUICK_RANGE_SELECT object
+
+  @returns true if success, false if failure
+*/
+
+bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
+                          QUICK_SELECT_I *qck) {
+  DBUG_ENTER("is_cond_match_ranges");
+
+  assert(keyno >= 0);
+  assert(qck && (qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE ||
+                 qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
+
+  if (item->type() != Item::FUNC_ITEM)
+    DBUG_RETURN(false);
+
+  Item_func *item_func = (Item_func *)item;
+  assert(item_func->argument_count() == 2);
+
+  const Item_func::Functype func_type = item_func->functype();
+  if (func_type != Item_func::EQ_FUNC && func_type != Item_func::EQUAL_FUNC &&
+      func_type != Item_func::LT_FUNC && func_type != Item_func::LE_FUNC &&
+      func_type != Item_func::GE_FUNC && func_type != Item_func::GT_FUNC)
+    DBUG_RETURN(false);
+
+  const Item_field *item_field = down_cast<const Item_field *>(item_func->arguments()[0]);
+  Item *item_value = item_func->arguments()[1];
+
+  DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
+      item_field->field->field_name, item_field->field->type(),
+      func_type, keyno));
+
+  if (!item_field->field->part_of_key.is_set(keyno) ||
+      item_field->field->type() == MYSQL_TYPE_GEOMETRY ||
+      item_field->field->type() == MYSQL_TYPE_BLOB) {
+    DBUG_RETURN(false);
+  }
+
+  const KEY *key = &tbl->key_info[keyno];
+  int key_part_idx = -1;
+  int key_part_offset = 0;
+
+  /* Find the subscript of the current field in key_part. */
+  for (uint i = 0; i < key->user_defined_key_parts; ++i) {
+    if (key->key_part[i].field == item_field->field) {
+      key_part_idx = i;
+      break;
+    }
+    key_part_offset += key->key_part[i].store_length;
+  }
+
+  if (key_part_idx == -1)
+    DBUG_RETURN(false);
+
+  /*
+    See also:
+    1. The variable str in function get_mm_leaf()
+    2. KEY_PART_INFO::init_from_field()
+  */
+  const size_t null_bytes = item_field->field->real_maybe_null() ? HA_KEY_NULL_LENGTH : 0;
+  key_part_offset += null_bytes;
+
+  Item::Type type = item_value->type();
+  enum_field_types data_type = item_value->field_type();
+  String str;
+  String *var_str = NULL;
+  longlong value_integer = 0;
+  double value_real = 0;
+  uint dec = 0;
+  my_decimal *value_decimal = NULL;
+//  uint16 value_length = key->key_part[key_part_idx].length;
+
+  enum_field_types item_field_type = item_field->field_type();
+
+  switch(type) {
+    case Item::INT_ITEM:{ // int/integer/mediumint/smallint/tinyint, year
+      if ((is_integer_type(item_field_type))) {
+        value_integer = ((Item_int *)item_value)->value; // Little-endian
+      } else if (data_type == MYSQL_TYPE_YEAR) {
+        // convert YEAR to short format, the range of YEAR is 1970-2069
+        value_integer = atoi(item_value->val_str(&str)->ptr()) - 1900;
+      } else
+        DBUG_RETURN(false);
+      break;
+    }
+    case Item::STRING_ITEM: { // char and varchar
+      if (!is_string_type(item_field_type))
+        DBUG_RETURN(false);
+      var_str = ((Item_string *)item_value)->val_str(&str);
+      if (item_field_type == MYSQL_TYPE_VARCHAR)
+        key_part_offset += HA_KEY_BLOB_LENGTH;
+      break;
+    }
+    case Item::VARBIN_ITEM: {
+      if (!is_string_type(item_field_type))
+        DBUG_RETURN(false);
+      var_str = ((Item_hex_string *)item_value)->val_str(&str);
+      if (item_field_type == MYSQL_TYPE_VARCHAR)
+        key_part_offset += HA_KEY_BLOB_LENGTH;
+      break;
+    }
+    case Item::REAL_ITEM: // float and double
+      value_real = ((Item_float *)item_value)->value;
+      break;
+    case Item::DECIMAL_ITEM: {
+      Item_decimal *item_decimal = down_cast<Item_decimal *>(item_value);
+      dec = item_decimal->decimals;
+      value_decimal = item_decimal->val_decimal(value_decimal);
+      break;
+    }
+    case Item::FUNC_ITEM: {
+      if (!is_temporal_type(data_type)) // See also is_temporal_real_type()
+        DBUG_RETURN(false);
+      if (data_type == MYSQL_TYPE_DATETIME &&
+          item_field_type == MYSQL_TYPE_TIMESTAMP) {
+        // If the type of item value of where condition is DATETIME and the type
+        // of field is TIMESTAMP, need to convert the item value to TIMESTAMP format.
+        struct timeval tm;
+        ((Item_datetime_literal *)item_value)->get_timeval(&tm, 0 /* warnings */);
+        char buf[MAX_DATE_STRING_REP_LENGTH];
+        int buflen = my_timeval_to_str(&tm, buf, dec);
+        if (str.copy(buf, buflen, &my_charset_numeric) != 0)
+          DBUG_RETURN(false);
+        data_type = MYSQL_TYPE_TIMESTAMP;
+      } else {
+        item_value->val_str(&str);
+        // Truncate fractional-seconds
+        String sep(".", str.charset());
+        int len = str.strstr(sep, 0);
+        if (len < 0) len = str.length();
+        str.set(str.ptr(), len, str.charset());
+      }
+      break;
+    }
+    default:
+      DBUG_RETURN(false);
+  }
+
+  QUICK_RANGE_SELECT *quick = static_cast<QUICK_RANGE_SELECT *>(qck);
+  Quick_ranges *ranges = quick->get_ranges();
+
+  /*
+    TODO: Currently, multi-ranges doesn't support offset pushdown
+
+    Normally, for each range, InnoDB uses row_search_mvcc() to scan data,
+    the following steps are required for each record:
+    1. Read an index record.
+    2. Read primary key record based on the index record if needed.
+    3. Convert the record format in Step 2 from InnoDB to MySQL.
+    4. Use the record of Step 3 to detect whether the end_range is reached.
+    The purpose of pushing the offset down to the engine layer is to skip
+    steps 2, 3, 4, this makes it impossible to judge whether the end_range
+    is reached.
+  */
+  DBUG_PRINT("info", ("ranges->size(): %lu", ranges->size()));
+  if (ranges->size() > 1)
+    DBUG_RETURN(false);
+
+  for (Bounds_checked_array<QUICK_RANGE *>::iterator it = ranges->begin();
+       it != ranges->end(); ++it) {
+    QUICK_RANGE *range = *it;
+
+    /*
+      If range contains item_field->field, the corresponding bit in
+      the keypart_map will be set.
+    */
+    const int min_keypart_flag = range->min_keypart_map & (1<<key_part_idx);
+    const int max_keypart_flag = range->max_keypart_map & (1<<key_part_idx);
+
+    /* If it's in descending order, switch the min_key and max_key. */
+    // todo fzx can't not distingush asc or desc in MySQL5.7
+//    const bool desc = (range->flag & DESC_FLAG);
+//    char *min_key = (char *)(desc ? range->max_key : range->min_key);
+//    char *max_key = (char *)(desc ? range->min_key : range->max_key);
+    char *min_key = (char *)(range->min_key);
+    char *max_key = (char *)(range->max_key);
+
+    int min_value_cmp = -1;
+    int max_value_cmp = -1;
+    switch(type) {
+      case Item::INT_ITEM: {
+        min_value_cmp = cmp_range_with_integer_by_type(data_type, min_key, range->min_length,
+                                                       key_part_offset, value_integer);
+        max_value_cmp = cmp_range_with_integer_by_type(data_type, max_key, range->max_length,
+                                                       key_part_offset, value_integer);
+        break;
+      }
+      case Item::STRING_ITEM:
+      case Item::VARBIN_ITEM: {
+        min_value_cmp = cmp_range_with_string_by_type(data_type, min_key, range->min_length,
+                                                      key_part_offset, var_str);
+        max_value_cmp = cmp_range_with_string_by_type(data_type, max_key, range->max_length,
+                                                      key_part_offset, var_str);
+        break;
+      }
+      case Item::REAL_ITEM: {
+        min_value_cmp = cmp_range_with_real_by_type(data_type, min_key, range->min_length,
+                                                    key_part_offset, value_real);
+        max_value_cmp = cmp_range_with_real_by_type(data_type, max_key, range->max_length,
+                                                    key_part_offset, value_real);
+        break;
+      }
+      case Item::DECIMAL_ITEM: { // DECIMAL(precision, scale)
+        uint precision = item_field->decimal_precision();
+        uint scale = precision - item_field->decimal_int_part();
+        min_value_cmp = cmp_range_with_decimal_by_type(data_type, min_key, range->min_length,
+                                                       key_part_offset, value_decimal,
+                                                       precision, scale);
+        max_value_cmp = cmp_range_with_decimal_by_type(data_type, max_key, range->max_length,
+                                                       key_part_offset, value_decimal,
+                                                       precision, scale);
+        break;
+      }
+      case Item::FUNC_ITEM: { // DATE/TIME/DATETIME/TIMESTAMP
+        min_value_cmp = cmp_range_with_temporal_by_type(data_type, min_key, range->min_length,
+                                                        key_part_offset, &str, dec);
+        max_value_cmp = cmp_range_with_temporal_by_type(data_type, max_key, range->max_length,
+                                                        key_part_offset, &str, dec);
+        break;
+      }
+      default:
+        break;
+    }
+
+    DBUG_PRINT("info", ("min_keypart_flag: %d, max_keypart_flag: %d, "
+                        "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
+        min_keypart_flag, max_keypart_flag,
+        min_value_cmp, max_value_cmp, range->flag));
+
+    switch (func_type) {
+      case Item_func::EQ_FUNC:
+      case Item_func::EQUAL_FUNC:
+        if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 &&
+            max_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+        if (max_keypart_flag && max_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      case Item_func::GE_FUNC:
+      case Item_func::GT_FUNC:
+        if (min_keypart_flag && min_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      default:
+        break;
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Check if given expression only uses fields covered by index @a keyno in the
+  table tbl. The expression can not use any fields in any other tables.
+
+  Restrict some function types from being pushed down to storage engine:
+  a) Don't push down the triggered conditions.
+  b) Stored functions contain a statement that might start new operations (like
+     DML statements) from within the storage engine.
+  c) Subqueries might contain nested subqueries and involve more tables.
+  d) Do not push down internal functions of type DD_INTERNAL_FUNC.
+     Pushing internal functions to storage engine for evaluation will open
+     data-dictionary tables. In InnoDB storage engine this will result in
+     situation like recursive latching of same page by the same thread. To avoid
+     such situation, internal functions of type DD_INTERNAL_FUNC are not pushed
+     to storage engine for evaluation.
+  e) The where conditions is a subset of QUICK_RANGE_SELECT::ranges.
+     The boundary values and scan types (>,>=,<,<=,=) for each condition must be
+     equal to or match QUICK_RANGE_SELECT::ranges.
+
+  @param  item      Expression to check
+  @param  tbl       The table having the index
+  @param  keyno     The index number
+  @param  qck       The QUICK_SELECT_I object
+
+  @returns true if success, false if failure
+*/
+
+bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno,
+                          QUICK_SELECT_I *qck) {
+  // Restrictions b and c.
+  if (item->has_stored_program() || item->has_subquery()) return false;
+
+  // No table fields in const items
+  if (item->const_during_execution()) return true;
+
+  assert(qck);
+
+  if (qck->get_type() != QUICK_SELECT_I::QS_TYPE_RANGE && qck->get_type() != QUICK_SELECT_I::QS_TYPE_RANGE_DESC)
+    return false;
+
+  const Item::Type item_type = item->type();
+
+  switch (item_type) {
+    case Item::FUNC_ITEM: {
+      Item_func *item_func = (Item_func *)item;
+      const Item_func::Functype func_type = item_func->functype();
+
+      if (func_type == Item_func::TRIG_COND_FUNC ) // Restriction a.
+        return false;
+
+      if (item_func->argument_count() == 2)
+        return is_cond_match_ranges(item, tbl, keyno, qck); // Restriction e.
+      return false;
+    }
+    case Item::COND_ITEM: {
+      /* This is a AND/OR condition. */
+      List_iterator<Item> li(*((Item_cond *)item)->argument_list());
+      Item *cond_item;
+      while ((cond_item = li++)) {
+        if (!no_extra_where_conds(cond_item, tbl, keyno, qck))
+          return false;
+      }
+      return true;
+    }
+    case Item::REF_ITEM:
+      return no_extra_where_conds(item->real_item(), tbl, keyno, qck);
+    default:
+      /* Play it safe, don't push offset if there are unknown non-const items */
+      return false;
+  }
+}
+
+// ended by fzx @20231207 about offset pushdown
