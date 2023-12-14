@@ -648,13 +648,13 @@ typedef struct system_status_var
   ulonglong max_execution_time_set;
   ulonglong max_execution_time_set_failed;
 
-  /* Number of statements sent from the client. */
-  ulonglong questions;
-
   // started by fzx @20231207 about offset pushdown
   /* How many times has the offset been pushed down */
   ulonglong offset_pushdown_count;
   // ended by fzx @20231207 about offset pushdown
+
+  /* Number of statements sent from the client. */
+  ulonglong questions;
 
   ulong com_other;
   ulong com_stat[(uint) SQLCOM_END];

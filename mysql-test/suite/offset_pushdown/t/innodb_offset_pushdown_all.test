@@ -1,0 +1,14 @@
+set @old_opt_switch=@@optimizer_switch;
+
+set optimizer_switch='index_condition_pushdown=on,offset_pushdown=on';
+
+
+set @save_storage_engine= @@default_storage_engine;
+set default_storage_engine=InnoDB;
+
+--source include/offset_pushdown_tests.inc
+
+set default_storage_engine= @save_storage_engine;
+set optimizer_switch=default;
+
+set @@optimizer_switch=@old_opt_switch;

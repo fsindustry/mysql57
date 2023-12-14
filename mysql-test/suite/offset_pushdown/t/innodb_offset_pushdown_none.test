@@ -1,0 +1,26 @@
+#
+# Offset Pushdown tests
+# (Turns off offset_pushdown optimizer switches)
+#
+
+set @old_opt_switch=@@optimizer_switch;
+
+set optimizer_switch='index_condition_pushdown=on,offset_pushdown=on';
+
+--disable_query_log
+if (`select locate('offset_pushdown', @@optimizer_switch) > 0`)
+{
+  set optimizer_switch='offset_pushdown=off';
+}
+--enable_query_log
+
+
+set @save_storage_engine= @@default_storage_engine;
+set default_storage_engine=InnoDB;
+
+--source include/offset_pushdown_tests.inc
+
+set default_storage_engine= @save_storage_engine;
+set optimizer_switch=default;
+
+set @@optimizer_switch=@old_opt_switch;
