@@ -2385,7 +2385,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         // started by fzx @20231207 about offset pushdown
         // if query have only one table, try to pushdown offset
         if (!has_multi_tables) {
-          qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
+          qep_tab->push_offset(tab, qep_tab->quick()->index, &trace_refine_table);
         }
         // ended by fzx @20231207 about offset pushdown
       }
