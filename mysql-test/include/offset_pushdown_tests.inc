@@ -47,7 +47,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 SELECT c1 FROM t1 WHERE c1 > 2 AND c1 < 9 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 --echo # QUICK_RANGE_SELECT::ranges->size() > 1
-SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 4) OR (c1 > 6) LIMIT 2, 2;
+SELECT c1 FROM t1 USE INDEX(PRIMARY) WHERE (c1 > 2 AND c1 < 4) OR (c1 > 6) LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -353,7 +353,7 @@ SELECT c2 FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -373,7 +373,7 @@ SELECT c2 FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -383,7 +383,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 SELECT c2 FROM t1 WHERE c2 > 2 ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -485,11 +485,11 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -505,11 +505,11 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -519,7 +519,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 SELECT * FROM t1 WHERE c2 > 2 ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -591,11 +591,11 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -611,11 +611,11 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -625,7 +625,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 SELECT * FROM t1 WHERE c2 > 2 ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -908,7 +908,7 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -937,7 +937,7 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -1047,7 +1047,7 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -1080,7 +1080,7 @@ SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
@@ -1399,7 +1399,7 @@ CREATE TABLE t1 (
 	c7 datetime NOT NULL,
 	c8 datetime DEFAULT NULL,
 	c9 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	c10 timestamp DEFAULT NULL,
+	c10 timestamp DEFAULT CURRENT_TIMESTAMP,
   KEY `idx_c1` (c1),
   KEY `idx_c2` (c2),
   KEY `idx_c3` (c3),
