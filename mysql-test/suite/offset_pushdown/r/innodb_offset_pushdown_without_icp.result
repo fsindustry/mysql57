@@ -61,13 +61,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": true}]
 # QUICK_RANGE_SELECT::ranges->size() > 1
-SELECT c1 FROM t1 WHERE (c1 > 2 AND c1 < 4) OR (c1 > 6) LIMIT 2, 2;
+SELECT c1 FROM t1 USE INDEX(PRIMARY) WHERE (c1 > 2 AND c1 < 4) OR (c1 > 6) LIMIT 2, 2;
 c1
 8
 9
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (PRIMARY)", "pushed_offset": false}]
 #
 # Test 2: SELECT *
 #
@@ -594,13 +594,13 @@ c3
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 c3
-003
-008
+105
+107
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 c3
 104
@@ -641,13 +641,13 @@ c3
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 c3
-003
-001
+104
+106
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 c3
 112
@@ -665,13 +665,13 @@ c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 c3
-003
-008
+105
+107
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 #
 # Test 7: the where condition contains two secondary indexes,
 #         namely can not pushdown offset
@@ -824,13 +824,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
-14	11	114	13
-12	12	112	12
+13	13	013	14
+11	14	011	10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
 6	5	105	1
@@ -838,13 +838,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-9	7	008	9
+6	5	105	1
+8	9	107	8
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
 2	3	104	4
@@ -871,13 +871,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
 14	11	114	13
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
@@ -885,13 +885,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-3	4	001	6
+2	3	104	4
+4	1	106	3
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
@@ -909,13 +909,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-9	7	008	9
+4	1	106	3
+8	9	107	8
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 c1	c2	c3	c4
 1	6	003	5
@@ -1048,13 +1048,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
-14	11	114	13
-12	12	112	12
+13	13	013	14
+11	14	011	10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
 6	5	105	1
@@ -1062,13 +1062,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-9	7	008	9
+6	5	105	1
+8	9	107	8
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4
 2	3	104	4
@@ -1095,13 +1095,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
 14	11	114	13
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
@@ -1109,13 +1109,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-3	4	001	6
+2	3	104	4
+4	1	106	3
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4
 12	12	112	12
@@ -1133,13 +1133,13 @@ c1	c2	c3	c4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false}]
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 c1	c2	c3	c4
-1	6	003	5
-9	7	008	9
+4	1	106	3
+8	9	107	8
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1` USE INDEX (`c3`)", "pushed_offset": false}]
 SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 c1	c2	c3	c4
 1	6	003	5
@@ -1684,13 +1684,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4	c5
-14	11	114	13	13
-12	12	112	12	11
+13	13	013	14	13
+11	14	011	10	12
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4	c5
 6	5	105	1	5
@@ -1755,13 +1755,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4	c5
 12	12	112	12	11
 14	11	114	13	13
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4	c5
 12	12	112	12	11
@@ -2007,13 +2007,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4	c5
-14	11	114	13	13
-12	12	112	12	11
+13	13	013	14	13
+11	14	011	10	12
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
 c1	c2	c3	c4	c5
 6	5	105	1	5
@@ -2092,13 +2092,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 # Index range scan
-SELECT * FROM t1 WHERE c2 > 8 ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4	c5
 12	12	112	12	11
 14	11	114	13	13
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": true}]
+[{"table": "`t1` USE INDEX (`c2`)", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
 c1	c2	c3	c4	c5
 12	12	112	12	11
@@ -2607,7 +2607,7 @@ c6 time DEFAULT NULL,
 c7 datetime NOT NULL,
 c8 datetime DEFAULT NULL,
 c9 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-c10 timestamp DEFAULT NULL,
+c10 timestamp DEFAULT CURRENT_TIMESTAMP,
 KEY `idx_c1` (c1),
 KEY `idx_c2` (c2),
 KEY `idx_c3` (c3),
@@ -3131,6 +3131,8 @@ trace
 # GROUP BY can not be eliminated by the optimizer
 SET @sql_mode_old = @@sql_mode;
 SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t1 WHERE c1 > 3 GROUP BY c2 LIMIT 2, 2;
 c1	c2	c3	c4	c5
 6	5	105	1	6
@@ -3139,6 +3141,8 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 trace
 [{"table": "`t1`", "pushed_offset": false}]
 SET sql_mode= @sql_mode_old;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Test 4.5: HAVING
 #
