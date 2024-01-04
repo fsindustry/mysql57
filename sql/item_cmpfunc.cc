@@ -894,6 +894,29 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   return value;
 }
 
+// started by fzx @20240104 about offset pushdown
+/**
+  A minion of get_mysql_time_from_str, see its description.
+  This version doesn't issue any warnings, leaving that to its parent.
+  This method has one extra argument which resturn warnings.
+
+  @param[in]   thd           Thread handle
+  @param[in]   str           A string to convert
+  @param[out]  l_time        The MYSQL_TIME objects is initialized.
+  @param[in, out] status     Any warnings given are returned here
+  @returns true if error
+*/
+bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
+                                     MYSQL_TIME_STATUS *status) {
+  my_time_flags_t flags = TIME_FUZZY_DATE | TIME_INVALID_DATES;
+
+  if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
+    flags |= TIME_NO_ZERO_IN_DATE;
+  if (thd->variables.sql_mode & MODE_NO_ZERO_DATE) flags |= TIME_NO_ZERO_DATE;
+  return str_to_datetime(str, l_time, flags, status);
+}
+// ended by fzx @20240104 about offset pushdown
+
 
 /**
   @brief Convert date provided in a string

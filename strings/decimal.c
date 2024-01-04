@@ -40,7 +40,7 @@
   integer that determines the number of significant digits in a
   particular radix R, where R is either 2 or 10. S is a non-negative
   integer. Every value of an exact numeric type of scale S is of the
-  form n*10^{-S}, where n is an integer such that ­-R^P <= n <= R^P.
+  form n*10^{-S}, where n is an integer such that ï¿½-R^P <= n <= R^P.
 
   [...]
 
@@ -2644,6 +2644,35 @@ int decimal_mod(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
 {
   return do_div_mod(from1, from2, 0, to, 0);
 }
+
+// started by fzx @20240104 about offset pushdown
+/**
+  Add zeros behind comma to increase precision of decimal.
+
+  @param         new_frac the new fraction
+  @param[in,out] d        the decimal target
+
+  new_frac is exected to be larger or equal than cd->frac and
+  new fraction is expected to fit in d.
+*/
+void widen_fraction(int new_frac, decimal_t *d) {
+  const int frac = d->frac;
+  const int intg = d->intg;
+  const int frac1 = ROUND_UP(frac);
+  const int intg1 = ROUND_UP(intg);
+  int new_frac1 = ROUND_UP(new_frac);
+  decimal_digit_t *buf;
+
+  if (new_frac < frac || intg1 + new_frac1 > d->len) {
+    assert(0);
+    return;
+  }
+
+  buf= d->buf + intg1 + frac1;
+  memset(buf, 0, (new_frac1 - frac1) * sizeof(decimal_digit_t));
+  d->frac = new_frac;
+}
+// started by fzx @20240104 about offset pushdown
 
 #ifdef MAIN
 /*

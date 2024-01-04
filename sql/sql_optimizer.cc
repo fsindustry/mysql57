@@ -49,6 +49,9 @@
 #include "sql_tmp_table.h"       // get_max_key_and_part_length
 #include "opt_hints.h"           // hint_table_state
 #include "item_timefunc.h"
+#include "decimal.h"             // E_DEC_FATAL_ERROR
+#include "sql_time.h"
+#include "tztime.h"
 
 #include <algorithm>
 using std::max;
@@ -11834,6 +11837,552 @@ static int cmp_range_with_temporal_by_type(const enum_field_types type,
   return result;
 }
 
+// ended by fzx @20240104 about offset pushdown
+static bool
+handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+  const bool field_unsigned = item_field->unsigned_flag;
+  my_decimal *d = NULL;
+  my_decimal dec;
+
+  switch ((*const_val)->result_type()) {
+    case INT_RESULT: // have the same result_type, just skip conversion
+      break;
+    case STRING_RESULT: {
+      if ((*const_val)->type() == Item::VARBIN_ITEM) {
+        // 0x digits have STRING_RESULT but are ints in int context.
+        break;
+      }
+    }
+      /* fallthrough */
+    case REAL_RESULT: {
+      /*
+        Try to convert to decimal. If that fails, we know the constant is out of
+        range for integer too. If it can be converted, continue with the decimal
+        logic.
+      */
+      const double v = (*const_val)->val_real();
+      int err = double2decimal(v, &dec);
+
+      if (err & E_DEC_OVERFLOW) {
+        return false;
+      }
+
+      if (err & E_DEC_TRUNCATED) {
+        /*
+          Check for underflow, e.g. 1.7976931348623157E-308 would end up
+          as decimal 0.0, which means that the floating point values was
+          marginally greater than 0.0, so we "simulate" this by adding 0.1.
+          Correspondingly for negative underflow, we subtract 0.1. This is
+          OK, because we round later.
+        */
+        my_decimal n;
+        err = int2my_decimal(E_DEC_FATAL_ERROR, 0, false, &n);
+        assert(err == 0);
+        assert(my_decimal_cmp(&n, &dec) == 0);
+        if (v > 0) {
+          // underflow on the positive side
+          String s("0.1", Item::default_charset());
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
+          assert(err == 0);
+        } else {
+          String s("-0.1", Item::default_charset());
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
+          assert(err == 0);
+        }
+      }
+      d = &dec;
+    }
+      /* fallthrough */
+    case DECIMAL_RESULT: {
+      /*
+        If out of bounds of longlong, return RP_OUTSIDE_LOW or RP_OUTSIDE_HIGH
+        as the case may be. If not, if the decimal has a non-zero fraction,
+        equality cannot be true, so just return an RP_OUTSIDE_*.
+        For >, >=, < and <=, if we have a non-zero fraction, round up or down
+        to closest integer, then proceed with the integer constant logic.
+        For equality and a zero fraction convert to integer and proceed with
+        the integer constant logic.
+      */
+      my_decimal d_buff;
+      if (d == NULL) d = (*const_val)->val_decimal(&d_buff);
+      bool has_overflow = false;
+      longlong i = item_field->field->convert_decimal2longlong(d, field_unsigned, &has_overflow);
+      Item *ni_item = (item_field->unsigned_flag ? new(thd->mem_root) Item_uint(i)
+                                                 : new(thd->mem_root) Item_int(i));
+      if (ni_item == NULL) return true;
+      thd->change_item_tree(const_val, ni_item);
+    }
+      break;
+    default:
+      return false;
+  }
+
+  return false;
+}
+
+static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field, Item **const_val, Item_bool_func::Functype ft) {
+  const Field_new_decimal* fd = down_cast<const Field_new_decimal *>(item_field->field);
+  const int f_frac = fd->dec;
+  const int f_intg = fd->precision - f_frac;
+  bool was_string_or_real = false;
+  int err;
+
+  Item_result ir = (*const_val)->result_type();
+
+  /*
+    If we have a string, it may be anything inside, so assume decimal,
+    which also recognizes real constants, btw. The exception is the
+    0xnnn numbers, which also have STRING result type, but should be treated
+    the same as ints.
+  */
+  if (ir == STRING_RESULT && (*const_val)->type() != Item::VARBIN_ITEM) {
+    was_string_or_real = true;
+    ir = DECIMAL_RESULT;
+  }
+
+  switch (ir) {
+    case STRING_RESULT:
+    case INT_RESULT: {
+      my_decimal tmp;
+      my_decimal *const d = (*const_val)->val_decimal(&tmp);
+      assert(d != NULL);
+      assert(decimal_actual_fraction(d) == 0);
+      const int actual_intg = decimal_intg(d);
+
+      if (actual_intg > f_intg) {  // overflow
+        break;
+      }
+
+      // inside, but convert const to decimal, similar precision as field
+      my_decimal tmp_ext;
+      if (decimal_round(d, &tmp_ext, f_frac, FLOOR)) return true;
+      Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&tmp_ext);
+      if (new_dec == NULL) return true;
+      thd->change_item_tree(const_val, new_dec);
+    } break;
+    case REAL_RESULT: {
+      my_decimal val_dec;
+      double v = (*const_val)->val_real();
+      err = double2decimal(v, &val_dec);
+
+      if (err & E_DEC_OVERFLOW) {
+        return false;
+      }
+
+      if (err & E_DEC_TRUNCATED) {
+        /*
+          Check for underflow, e.g. 1.7976931348623157E-308 would end up
+          as decimal 0.0, which means that the floating point values was
+          marginally greater that 0.0. So, we convert to 0 and compensate
+          in logic for RP_INSIDE_TRUNCATED in fold_condition.
+          Similar logic for negative underflow.
+        */
+        my_decimal tmp;
+        err = longlong2decimal(0, &tmp);
+        assert(err == 0);
+
+        widen_fraction(f_frac, &tmp);
+        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&tmp);
+        if (new_dec == NULL) return true;
+        thd->change_item_tree(const_val, new_dec);
+        return false;
+      }
+      was_string_or_real = true;
+    }
+    /* fallthrough */
+    case DECIMAL_RESULT: {
+      /*
+        Decimal constant can have different range and precision
+      */
+
+      // Dictionary info about decimal field:
+      // Compute actual (minimal) decimal type of the constant
+      my_decimal buff, *d;
+      d = (*const_val)->val_decimal(&buff);
+      const int actual_frac = decimal_actual_fraction(d);
+      const int actual_intg = decimal_intg(d);
+      const bool overflow = actual_intg > f_intg;
+      const bool truncation = actual_frac > f_frac;
+
+      if (truncation) {
+        my_decimal cpy;
+        my_decimal2decimal(d, &cpy);
+
+        if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC ||
+            ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
+          // adjust precision to same as field
+          if (decimal_round(&cpy, &cpy, f_frac, cpy.sign() ? CEILING : FLOOR))
+            return true;
+          Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
+          if (new_dec == NULL) return true;
+          thd->change_item_tree(const_val, new_dec);
+        }
+      } else if (d->frac > f_frac) {
+        // truncate zeros
+        my_decimal cpy;
+        my_decimal2decimal(d, &cpy);
+        if (decimal_round(&cpy, &cpy, f_frac, TRUNCATE)) return true;
+        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
+        if (new_dec == NULL) return true;
+        thd->change_item_tree(const_val, new_dec);
+      } else if (actual_frac < f_frac) {
+        my_decimal cpy;
+        my_decimal2decimal(d, &cpy);
+        widen_fraction(f_frac, &cpy);
+
+        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
+        if (new_dec == NULL) return true;
+        thd->change_item_tree(const_val, new_dec);
+      } else if (was_string_or_real) {
+        // Make a decimal constant instead
+        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(d);
+        if (new_dec == NULL) return true;
+        thd->change_item_tree(const_val, new_dec);
+      }
+    } break;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+bool truncate_real(Field_real* field_real, double *nr, double max_value) {
+  if (std::isnan(*nr)) {
+    *nr = 0;
+    field_real->set_null();
+    field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return true;
+  } else if (field_real->unsigned_flag && *nr < 0) {
+    *nr = 0;
+    field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return true;
+  }
+
+  if (!field_real->not_fixed) {
+    double orig_max_value = max_value;
+    uint order = field_real->field_length - field_real->dec;
+    uint step = array_elements(log_10) - 1;
+    max_value = 1.0;
+    for (; order > step; order -= step) max_value *= log_10[step];
+    max_value *= log_10[order];
+    max_value -= 1.0 / log_10[field_real->dec];
+    max_value = std::min(max_value, orig_max_value);
+
+    /* Check for infinity so we don't get NaN in calculations */
+    if (!std::isinf(*nr)) {
+      double tmp = rint((*nr - floor(*nr)) * log_10[field_real->dec]) / log_10[field_real->dec];
+      *nr = floor(*nr) + tmp;
+    }
+  }
+
+  if (*nr < -max_value) {
+    *nr = -max_value;
+    field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return true;
+  } else if (*nr > max_value) {
+    *nr = max_value;
+    field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+    return true;
+  }
+
+  return false;
+}
+
+static bool handle_real_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+
+  switch ((*const_val)->result_type()) {
+    case REAL_RESULT:
+    case STRING_RESULT:
+    case INT_RESULT:
+    case DECIMAL_RESULT:
+      /*
+        Can all be safely converted to a double value. Although we may lose
+        precision, we won't overflow. Any constants too large for double will
+        have been caught at parsing time.
+      */
+      break;
+    default:
+      assert(false); /* purecov: inspected */
+      break;
+  }
+
+  double v = (*const_val)->val_real();
+  const double orig = v;
+  const bool is_float = item_field->field->type() == MYSQL_TYPE_FLOAT;
+  /*
+    This check/truncation also handles fixed # decimals digits real types, a
+    MySQL extension, e.g. FLOAT(5,2).
+  */
+  Field_real* fd = down_cast<Field_real *>(item_field->field);
+  if (truncate_real(fd, &v, (is_float ? FLT_MAX : DBL_MAX))) {
+    return false;
+  }
+
+  /*
+    Lastly, convert to double representation.
+  */
+  if (v != orig || (*const_val)->type() != Item::REAL_ITEM) {
+    Item_float* new_const = new (thd->mem_root) Item_float(v, DECIMAL_NOT_SPECIFIED);
+    if (new_const == NULL) return true;
+    thd->change_item_tree(const_val, new_const);
+  }
+
+  return false;
+}
+
+static bool handle_year_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+  if ((*const_val)->field_type() == MYSQL_TYPE_YEAR) {
+    /*
+      Decimal, real and string constants have already been converted to int if
+      they allowed year values, and these as well as integer constants that are
+      allowed year values have been typed as MYSQL_TYPE_YEAR, cf.
+      convert_constant_item called during type resolution.
+    */
+    assert((*const_val)->result_type() == INT_RESULT);
+    const longlong year = (*const_val)->val_int();
+    return false;
+  }
+
+  // The constant is outside allowed year values, so fold.
+  const Item_result ir = (*const_val)->result_type();
+  switch (ir) {
+    case STRING_RESULT:
+    case DECIMAL_RESULT:
+    case REAL_RESULT:
+    case INT_RESULT: {
+      const double year = (*const_val)->val_real();
+      // Make sure we have an int constant
+      if (ir != INT_RESULT) {
+        Item_int* i = new (thd->mem_root) Item_int(static_cast<int>(year));
+        if (i == NULL) return true;
+        thd->change_item_tree(const_val, i);
+      }
+    } break;
+    default:
+      assert(false); /* purecov: inspected */
+      break;
+  }
+  return false;
+}
+
+static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+  const Item_result rtype = (*const_val)->result_type();
+  switch (rtype) {
+    case STRING_RESULT:  // This covers both string and TIMESTAMP literals
+    case INT_RESULT: {
+      enum_mysql_timestamp_type type=
+          field_type_to_timestamp_type(item_field->field->type());
+      MYSQL_TIME ltime =
+          my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
+      MYSQL_TIME_STATUS status;
+      if (rtype == STRING_RESULT) {
+        String buf, *res = (*const_val)->val_str(&buf);
+        /*
+          Some wrong values are still compared as DATETIME, e.g. '2018-02-31
+          06:14:07' (illegal day in February), while worse values lead to
+          comparison as strings (e.g. '2018'). Cf. comment on Bug#27692509. Any
+          warnings have already been given earlier, so ignore.
+        */
+        if (get_mysql_time_from_str_no_warn(thd, res, &ltime, &status)) {
+          // Could not fold, so leave untouched.
+          return false;
+        }
+
+        /*
+          A date constant being compared to a timestamp or datetime field is ok,
+          convert it to a datetime literal, using 00:00:00 as the time.
+          If the field type is DATE, we also use a MYSQL_TIMESTAMP_DATETIME
+          constant with zero time part.
+        */
+        if (ltime.time_type == MYSQL_TIMESTAMP_DATE)
+          ltime.time_type = MYSQL_TIMESTAMP_DATETIME;
+
+      } else if (rtype == INT_RESULT) {
+        if ((*const_val)->field_type() == MYSQL_TYPE_TIMESTAMP ||
+            (*const_val)->field_type() == MYSQL_TYPE_DATETIME ||
+            (*const_val)->field_type() == MYSQL_TYPE_DATE) {
+          TIME_from_longlong_datetime_packed(&ltime, (*const_val)->val_int());
+        } else {
+          /*
+            The integral constant could not be interpreted as a datetime value,
+            the operands will be compared using double.
+          */
+          return false;
+        }
+      }
+
+      MYSQL_TIME ltime_utc = ltime;
+      const enum_field_types ft = item_field->field->type();
+
+      if (ft == MYSQL_TYPE_TIMESTAMP) {
+        /*
+          Convert constant to timeval, if it fits. If not, we are out of
+          range for a TIMESTAMP. The timeval is UTC since epoch.
+        */
+        int warnings = 0;
+        struct timeval tm;
+        std::memset(&tm, 0, sizeof(tm));
+        int zeros = 0;
+        zeros += ltime.year == 0;
+        zeros += ltime.month == 0;
+        zeros += ltime.day == 0;
+        if (zeros == 0 || zeros == 3) {  // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
+          datetime_with_no_zero_in_date_to_timeval(thd, &ltime, &tm, &warnings);
+          if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0) {
+            /*
+              For RP_OUTSIDE_HIGH, this check may not catch case where field
+              type has no/fewer fraction digits than the constant. This will
+              be caught below.
+            */
+            return false;
+          }
+        }  // else zero in date => 0 timeval too
+
+        /*
+          Convert timestamp's timeval to UTC ltime and pack it so we can
+          compare with min/max, unless it is 0 or has a zero date part (year,
+          month or day)
+        */
+        if (tm.tv_sec != 0) {
+          /* '2038-01-19 03:14:07.[999999]' */
+          MYSQL_TIME max_timestamp = my_time_set(
+              TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,
+              max_fraction(down_cast<const Field_temporal *>(item_field->field)->decimals()),
+              false, MYSQL_TIMESTAMP_DATETIME);
+
+          /* '1970-01-01 00:00:01.[000000]' */
+          MYSQL_TIME min_timestamp = my_time_set(1970, 1, 1, 0, 0, 1, 0, false,
+                                                 MYSQL_TIMESTAMP_DATETIME);
+
+          // We store in UTC, so use as is
+          const longlong max_t = TIME_to_longlong_datetime_packed(&max_timestamp);
+          const longlong min_t = TIME_to_longlong_datetime_packed(&min_timestamp);
+
+          my_tz_UTC->gmt_sec_to_TIME(&ltime_utc, tm);
+          const longlong cnst = TIME_to_longlong_datetime_packed(&ltime_utc);
+
+          if (cnst > max_t) {
+            return false;
+          }
+
+          if (cnst < min_t) {
+            /*
+              A zero ltime (if error in str_to_datetime) before GMT conversion
+              ends up as 1970-01-01 00:00:00 which get us here.
+            */
+            return false;
+          }
+        }  // else: 0 timevalue
+      }    // else: not TIMESTAMP field
+
+      /*
+        We do not try to truncate the number of decimal digits in the
+        constant if it exceeds the number of allowed decimals in the
+        type of the field. This could be improved. If we want to try that,
+        we could use RP_INSIDE_TRUNCATED. This could lead to folding away of
+        =, <>.
+      */
+      if ((*const_val)->type() != Item::FUNC_ITEM) {
+        Item *i = NULL;
+        /*
+          Make a DATETIME literal, unless the field is a DATE and the constant
+          has zero time, in which case we make a DATE literal
+        */
+        if (ft == MYSQL_TYPE_DATE) {
+          ltime.time_type = MYSQL_TIMESTAMP_DATE;
+          if (ltime.hour == 0 && ltime.minute == 0 && ltime.second == 0 &&
+              ltime.second_part == 0) {
+            /* OK, time part is zero, so trivial type change */
+          } else {
+            /* truncate time part: must adjust operators */
+            ltime.hour = 0;
+            ltime.minute = 0;
+            ltime.second = 0;
+            ltime.second_part = 0;
+          }
+          i = new (thd->mem_root) Item_date_literal(&ltime);
+        } else {
+          i = new (thd->mem_root) Item_datetime_literal(&ltime, actual_decimals(&ltime));
+        }
+        if (i == NULL) return true;
+        thd->change_item_tree(const_val, i);
+      }
+    } break;
+    case REAL_RESULT:
+    case DECIMAL_RESULT:
+      /*
+        The number could not be interpreted as datetime, so
+        compares as double.
+      */
+      break;
+    default:
+      break;
+  }
+
+  return false;
+}
+
+static bool handle_time_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+  if (!((*const_val)->result_type() == INT_RESULT &&
+        (*const_val)->field_type() == MYSQL_TYPE_TIME)) {
+    // Not a TIME constant. Compare as string or double.
+    return false;
+  }
+
+  /*
+    An OK TIME constant, represented as Item_time_with_ref.
+    Note that excessive decimals have already been rounded, so there is no
+    opportunity for folding. This is in contrast to DATETIME/TIMESTAMP
+    btw, which retains any excessive decimals digits when comparing.
+    Cf. Bug#28320529
+  */
+  MYSQL_TIME ltime;
+  TIME_from_longlong_time_packed(&ltime, (*const_val)->val_time_temporal());
+  Item_time_literal* i = new (thd->mem_root) Item_time_literal(&ltime, actual_decimals(&ltime));
+  if (i == NULL) return true;
+  thd->change_item_tree(const_val, i);
+  return false;
+}
+
+
+static bool handle_constant_conversion(const Item_field *item_field, Item **const_val, Item_func *func){
+
+  if ((*const_val)->is_null()) return false;
+
+  THD *thd = current_thd;
+  const Item_bool_func::Functype ft = func->functype();
+  switch (item_field->field_type()) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+      return handle_int_field_constant(thd, item_field, const_val);
+    case MYSQL_TYPE_NEWDECIMAL:
+      return handle_decimal_field_constant(thd, item_field, const_val, ft);
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      return handle_real_field_constant(thd, item_field, const_val);
+    case MYSQL_TYPE_YEAR:
+      return handle_year_field_constant(thd, item_field, const_val);
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_DATE:
+      return handle_timestamp_field_constant(thd, item_field, const_val);
+    case MYSQL_TYPE_TIME:
+      return handle_time_field_constant(thd, item_field, const_val);
+    default:
+      break;
+  }
+  return false;
+}
+// ended by fzx @20240104 about offset pushdown
+
+
+
 /**
   Check whether the WHERE condition matches the QUICK_RANGE_SELECT::ranges.
 
@@ -11867,6 +12416,11 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
 
   const Item_field *item_field = down_cast<const Item_field *>(item_func->arguments()[0]);
   Item *item_value = item_func->arguments()[1];
+
+  // convert item_value to proper type if type not matched with item_file type.
+  if(item_field->field_type() != item_value->field_type() || item_field->result_type() != item_value->result_type()){
+    handle_constant_conversion(item_field, &item_value, item_func);
+  }
 
   DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
       item_field->field->field_name, item_field->field->type(),
@@ -12010,7 +12564,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
     const int max_keypart_flag = range->max_keypart_map & (1<<key_part_idx);
 
     /* If it's in descending order, switch the min_key and max_key. */
-    // todo fzx can't not distingush asc or desc in MySQL5.7
+    // Index can't distingush asc or desc in MySQL5.7
 //    const bool desc = (range->flag & DESC_FLAG);
 //    char *min_key = (char *)(desc ? range->max_key : range->min_key);
 //    char *max_key = (char *)(desc ? range->min_key : range->max_key);

@@ -2423,8 +2423,6 @@ PRIMARY KEY (id),
 KEY `idx_c1` (c1),
 KEY `idx_c2` (c2)
 );
-Warnings:
-Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO td1 VALUES ( 1, '0.0001000000', '0.0000200000');
 INSERT INTO td1 VALUES ( 2, '1.0003000000', '1.0000400000');
 INSERT INTO td1 VALUES ( 3, '2.0006000000', '49.0005000000');
@@ -2619,8 +2617,6 @@ KEY `idx_c8` (c8),
 KEY `idx_c9` (c9),
 KEY `idx_c10` (c10)
 );
-Warnings:
-Warning	1287	'YEAR(4)' is deprecated and will be removed in a future release. Please use YEAR instead
 INSERT INTO t1 VALUES (1, 0, 0, '1990-01-01', '19900101', '18:00:00', '18:00:00.78', '19900101T000000', '19900101T000000', '19900101T000000', '19900101T000000');
 INSERT INTO t1 VALUES (2, 1999, 1999, '1999-01-01', '19990101', '12:12:00', '12:12:00.66', '1999-01-01T12:12:00', '1999-01-01T12:12:00', '1999-01-01T12:12:00', '1999-01-01T12:12:00');
 INSERT INTO t1 VALUES (3, 2010, 2010, '2010-01-01', '20100101', '19:12:00', '19:12:00.66', '2010-1-1T19:12:01', '2010-1-1T19:12:01', '2010-1-1T19:12:01', '2010-1-1T19:12:01');
@@ -2808,48 +2804,6 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "((`t1`.`c6` >= '12:12:01') and (`t1`.`c6` <= '15:15:01'))", "table_condition_attached": null}]
-# need truncate
-SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' LIMIT 2, 2;
-id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
-8	2007	2007	2007-05-01	2007-05-01	14:14:00	14:14:01	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00
-10	0000	0000	1989-02-01	1989-02-01	15:15:00	15:15:01	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00
-Warnings:
-Note	1292	Incorrect time value: '1990-01-01 12:12:00' for column 'c5' at row 1
-Note	1292	Incorrect time value: '2010-12-12 19:12:00' for column 'c5' at row 1
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-trace
-[{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "((`t1`.`c5` >= TIME'12:12:00') and (`t1`.`c5` < TIME'19:12:00'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' LIMIT 2, 2;
-id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
-8	2007	2007	2007-05-01	2007-05-01	14:14:00	14:14:01	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00
-10	0000	0000	1989-02-01	1989-02-01	15:15:00	15:15:01	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00
-Warnings:
-Note	1292	Incorrect time value: '1999-01-01 12:12:01.123456' for column 'c6' at row 1
-Note	1292	Incorrect time value: '2010-12-12 15:15:01.12345678' for column 'c6' at row 1
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-trace
-[{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "((`t1`.`c6` >= TIME'12:12:01') and (`t1`.`c6` <= TIME'15:15:01'))", "table_condition_attached": null}]
-# special cases which would pushdown offset
-SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' AND c5 < '19:12:00.123456' LIMIT 2, 2;
-id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
-8	2007	2007	2007-05-01	2007-05-01	14:14:00	14:14:01	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00
-10	0000	0000	1989-02-01	1989-02-01	15:15:00	15:15:01	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00
-Warnings:
-Note	1292	Incorrect time value: '1990-01-01 12:12:00' for column 'c5' at row 1
-Note	1292	Incorrect time value: '2010-12-12 19:12:00' for column 'c5' at row 1
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-trace
-[{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "((`t1`.`c5` >= '12:12:00') and (`t1`.`c5` < '19:12:00') and (`t1`.`c5` < '19:12:00'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' AND c6 <= '15:15:01' LIMIT 2, 2;
-id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
-8	2007	2007	2007-05-01	2007-05-01	14:14:00	14:14:01	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00	2007-05-01 14:14:00
-10	0000	0000	1989-02-01	1989-02-01	15:15:00	15:15:01	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00	1989-02-01 15:15:00
-Warnings:
-Note	1292	Incorrect time value: '1999-01-01 12:12:01.123456' for column 'c6' at row 1
-Note	1292	Incorrect time value: '2010-12-12 15:15:01.12345678' for column 'c6' at row 1
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-trace
-[{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "((`t1`.`c6` >= '12:12:01') and (`t1`.`c6` <= '15:15:01') and (`t1`.`c6` <= '15:15:01'))", "table_condition_attached": null}]
 #
 # Test 3.4.4: DATETIME
 #
@@ -3070,28 +3024,28 @@ c1	c2	c3	c4	c5
 6	5	105	1	6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`"}, {"table": "`t1`", "pushed_offset": false}, {"table": "``"}]
+[{"table": "`t1`"}, {"table": "`t1`", "pushed_offset": false}, {"table": "``.``"}]
 (SELECT * FROM t1 WHERE c1 > 5) UNION (SELECT * FROM t1 WHERE c1 > 2) LIMIT 2, 2;
 c1	c2	c3	c4	c5
 8	9	107	8	9
 9	7	008	9	8
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`"}, {"table": "`t1`"}, {"table": "``"}]
+[{"table": "`t1`"}, {"table": "`t1`"}, {"table": "``.``"}]
 (SELECT * FROM t1 WHERE c1 > 5 LIMIT 2, 2) UNION (SELECT * FROM t1 WHERE c1 > 2 LIMIT 2, 2) LIMIT 2, 2;
 c1	c2	c3	c4	c5
 5	2	002	7	1
 6	5	105	1	6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`"}, {"table": "`t1`", "pushed_offset": false}, {"table": "``"}]
+[{"table": "`t1`"}, {"table": "`t1`", "pushed_offset": false}, {"table": "``.``"}]
 SELECT * FROM t1 WHERE EXISTS ( SELECT c1 FROM t1 ) LIMIT 2, 2;
 c1	c2	c3	c4	c5
 3	4	001	6	3
 4	1	106	3	2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`"}, {"table": "`t1`"}]
+[{"table": "`t1`"}]
 SELECT * FROM t1 WHERE NOT EXISTS ( SELECT c1 FROM t1 WHERE c1 < 1 ) LIMIT 2, 2;
 c1	c2	c3	c4	c5
 3	4	001	6	3
@@ -3178,8 +3132,6 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE c2 > 2 AND c2 < 10 LIMIT 2,2;
 c1	c2	c3	c4	c5
 6	5	105	1	6
 1	6	003	5	5
-Warnings:
-Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 #
 # Test 4.8: MRR
 #           offset can not be pushed down
@@ -3227,18 +3179,18 @@ Table	Op	Msg_type	Msg_text
 optest.t2	analyze	status	OK
 SELECT * FROM t1, t2 WHERE t1.c1 > 3 LIMIT 2, 2;
 c1	c2	c3	c4	c5	c1	c2	c3	c4	c5
-13	13	013	14	10	1	6	003	5	5
-12	12	112	12	11	1	6	003	5	5
+6	5	105	1	6	1	6	003	5	5
+7	8	009	2	7	1	6	003	5	5
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`"}, {"table": "`t2`"}]
 SELECT * FROM t1, t2 WHERE t1.c1 > 3 AND t2.c3 > 5 LIMIT 2, 2;
 c1	c2	c3	c4	c5	c1	c2	c3	c4	c5
-13	13	013	14	10	2	3	104	4	4
-12	12	112	12	11	2	3	104	4	4
+6	5	105	1	6	2	3	104	4	4
+7	8	009	2	7	2	3	104	4	4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`"}, {"table": "`t2`"}]
+[{"table": "`t1`"}, {"table": "`t2`", "unknown_key_1": {"constant_condition_in_bnl": "(`t2`.`c3` > 5)"}}]
 SELECT A.c2 FROM t1 A, t2 B WHERE A.c2 > B.c2 LIMIT 2, 2;
 c2
 4
@@ -3338,13 +3290,6 @@ c1	c2	c3	c4	c5	sc3	vc3
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "(`t1`.`sc3` > '002')", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE sc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
-c1	c2	c3	c4	c5	sc3	vc3
-7	8	50005	9	9	500	500
-6	5	50005	1	6	500	500
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-trace
-[{"table": "`t1`", "pushed_offset": true, "pushed_index_condition": "(`t1`.`sc3` > '002')", "table_condition_attached": null}]
 SELECT * FROM t1 WHERE vc3 > '002' LIMIT 2, 2;
 c1	c2	c3	c4	c5	sc3	vc3
 4	1	30006	3	2	300	300
@@ -3354,7 +3299,7 @@ trace
 [{"table": "`t1`", "pushed_offset": true}]
 SELECT * FROM t1 WHERE vc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
 c1	c2	c3	c4	c5	sc3	vc3
-7	8	50005	9	9	500	500
+9	9	50005	7	8	500	500
 6	5	50005	1	6	500	500
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace

@@ -1498,17 +1498,20 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 SELECT * FROM t1 WHERE c6 >= '12:12:01' AND c6 <= '15:15:01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
---echo # need truncate
-SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+# start by fzx @20240103 about: test case can't not support truncate '2010-12-12 19:12:00' to time in mysql 5.7
+#--echo # need truncate
+#SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' LIMIT 2, 2;
+#SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+#SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' LIMIT 2, 2;
+#SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
---echo # special cases which would pushdown offset
-SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' AND c5 < '19:12:00.123456' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' AND c6 <= '15:15:01' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+#--echo # special cases which would pushdown offset
+#SELECT * FROM t1 WHERE c5 >= '1990-01-01 12:12:00' AND c5 < '2010-12-12 19:12:00' AND c5 < '19:12:00.123456' LIMIT 2, 2;
+#SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+#SELECT * FROM t1 WHERE c6 >= '1999-01-01 12:12:01.123456' AND c6 <= '2010-12-12 15:15:01.12345678' AND c6 <= '15:15:01' LIMIT 2, 2;
+#SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+# end by fzx @20240103 about: test case can't not support truncate '2010-12-12 19:12:00' to time in mysql 5.7
+
 
 --echo #
 --echo # Test 3.4.4: DATETIME
@@ -1813,8 +1816,12 @@ ANALYZE TABLE t1;
 
 SELECT * FROM t1 WHERE sc3 > '002' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE sc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+
+# start by fzx @20240103 about: test case can't not use ix_sc3 in mysql 5.7
+# SELECT * FROM t1 WHERE sc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
+# SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
+# ended by fzx @20240103 about: test case can't not use ix_sc3 in mysql 5.7
+
 SELECT * FROM t1 WHERE vc3 > '002' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE vc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;

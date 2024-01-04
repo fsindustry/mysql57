@@ -1735,3 +1735,39 @@ double double_from_datetime_packed(enum enum_field_types type,
   return result +
         ((double) MY_PACKED_TIME_GET_FRAC_PART(packed_value)) / 1000000;
 }
+
+// started by fzx @20240104 about offset pushdown
+size_t max_fraction(uint decimals) {
+  size_t res = 0;
+  for (uint i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+    res *= 10;
+    if (i <= decimals) res += 9;
+  }
+  return res;
+}
+
+uint actual_decimals(const MYSQL_TIME *ts) {
+  uint count = DATETIME_MAX_DECIMALS;
+  for (int i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+    if (ts->second_part % log_10_int[i] != 0) break;
+    count--;
+  }
+  return count;
+}
+
+MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
+                              unsigned long ms, bool negative,
+                              enum_mysql_timestamp_type type) {
+  MYSQL_TIME t;
+  t.year = y;
+  t.month = m;
+  t.day = d;
+  t.hour = h;
+  t.minute = mi;
+  t.second = s;
+  t.second_part = ms;
+  t.neg = negative;
+  t.time_type = type;
+  return t;
+}
+// ended by fzx @20240104 about offset pushdown
