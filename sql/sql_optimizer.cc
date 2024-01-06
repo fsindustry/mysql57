@@ -12471,7 +12471,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
   switch(type) {
     case Item::INT_ITEM:{ // int/integer/mediumint/smallint/tinyint, year
       if ((is_integer_type(item_field_type))) {
-        value_integer = ((Item_int *)item_value)->value; // Little-endian
+        value_integer = item_value->val_int(); // Little-endian
       } else if (data_type == MYSQL_TYPE_YEAR) {
         // convert YEAR to short format, the range of YEAR is 1970-2069
         value_integer = atoi(item_value->val_str(&str)->ptr()) - 1900;
@@ -12482,7 +12482,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
     case Item::STRING_ITEM: { // char and varchar
       if (!is_string_type(item_field_type))
         DBUG_RETURN(false);
-      var_str = ((Item_string *)item_value)->val_str(&str);
+      var_str = item_value->val_str(&str);
       if (item_field_type == MYSQL_TYPE_VARCHAR)
         key_part_offset += HA_KEY_BLOB_LENGTH;
       break;
@@ -12490,18 +12490,16 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
     case Item::VARBIN_ITEM: {
       if (!is_string_type(item_field_type))
         DBUG_RETURN(false);
-      var_str = ((Item_hex_string *)item_value)->val_str(&str);
+      var_str = item_value->val_str(&str);
       if (item_field_type == MYSQL_TYPE_VARCHAR)
         key_part_offset += HA_KEY_BLOB_LENGTH;
       break;
     }
     case Item::REAL_ITEM: // float and double
-      value_real = ((Item_float *)item_value)->value;
+      value_real = item_value->val_real();
       break;
     case Item::DECIMAL_ITEM: {
-      Item_decimal *item_decimal = down_cast<Item_decimal *>(item_value);
-      dec = item_decimal->decimals;
-      value_decimal = item_decimal->val_decimal(value_decimal);
+      value_decimal = item_value->val_decimal(value_decimal);
       break;
     }
     case Item::FUNC_ITEM: {
@@ -12512,7 +12510,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         // If the type of item value of where condition is DATETIME and the type
         // of field is TIMESTAMP, need to convert the item value to TIMESTAMP format.
         struct timeval tm;
-        ((Item_datetime_literal *)item_value)->get_timeval(&tm, 0 /* warnings */);
+        item_value->get_timeval(&tm, 0 /* warnings */);
         char buf[MAX_DATE_STRING_REP_LENGTH];
         int buflen = my_timeval_to_str(&tm, buf, dec);
         if (str.copy(buf, buflen, &my_charset_numeric) != 0)
