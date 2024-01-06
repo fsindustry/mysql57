@@ -160,6 +160,10 @@ extern my_bool lower_case_file_system;
 extern ulonglong slave_rows_search_algorithms_options;
 extern my_bool opt_require_secure_transport;
 
+// started by fzx @20231207 about offset pushdown
+extern my_bool opt_enable_offset_pushdown;
+// ended by fzx @20231207 about offset pushdown
+
 #ifdef HAVE_REPLICATION
 extern my_bool opt_slave_preserve_commit_order;
 #endif

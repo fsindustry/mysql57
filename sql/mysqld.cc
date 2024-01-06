@@ -413,6 +413,10 @@ my_bool opt_log_builtin_as_identified_by_password= 0;
 uint   opt_large_page_size= 0;
 uint default_password_lifetime= 0;
 
+// started by fzx @20231207 about offset pushdown
+my_bool opt_enable_offset_pushdown=1;
+// ended by fzx @20231207 about offset pushdown
+
 mysql_mutex_t LOCK_default_password_lifetime;
 
 #if defined(ENABLED_DEBUG_SYNC)

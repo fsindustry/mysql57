@@ -6086,3 +6086,16 @@ static Sys_var_mybool Sys_replication_sender_observe_commit_only(
        NOT_IN_BINLOG,
        ON_CHECK(0),
        ON_UPDATE(handle_sender_observe_commit_change));
+
+// started by fzx @20231207 about offset pushdown
+static Sys_var_mybool Sys_enable_offset_pushdown(
+    "enable_offset_pushdown",
+    "Whether offset pushdown is enabled",
+    GLOBAL_VAR(opt_enable_offset_pushdown),
+    CMD_LINE(OPT_ARG),
+    DEFAULT(TRUE),
+    NO_MUTEX_GUARD,
+    NOT_IN_BINLOG,
+    ON_CHECK(0),
+    ON_UPDATE(0));
+// ended by fzx @20231207 about offset pushdown

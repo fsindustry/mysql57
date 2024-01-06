@@ -2125,6 +2125,11 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
   JOIN *const join = this->join();
   DBUG_ENTER("push_offset");
 
+  // if enable_offset_pushdown=off, just return.
+  if(!opt_enable_offset_pushdown){
+    DBUG_VOID_RETURN;
+  }
+
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
   assert(join_tab == join->best_ref[idx()]);
   assert(join_tab->table_ref);
