@@ -12468,8 +12468,13 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
 
   enum_field_types item_field_type = item_field->field_type();
 
-  switch(type) {
-    case Item::INT_ITEM:{ // int/integer/mediumint/smallint/tinyint, year
+  switch (item_field->field_type()) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR:{
       if ((is_integer_type(item_field_type))) {
         value_integer = item_value->val_int(); // Little-endian
       } else if (data_type == MYSQL_TYPE_YEAR) {
@@ -12479,7 +12484,16 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         DBUG_RETURN(false);
       break;
     }
-    case Item::STRING_ITEM: { // char and varchar
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_JSON: { // char and varchar
       if (!is_string_type(item_field_type))
         DBUG_RETURN(false);
       var_str = item_value->val_str(&str);
@@ -12487,22 +12501,19 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         key_part_offset += HA_KEY_BLOB_LENGTH;
       break;
     }
-    case Item::VARBIN_ITEM: {
-      if (!is_string_type(item_field_type))
-        DBUG_RETURN(false);
-      var_str = item_value->val_str(&str);
-      if (item_field_type == MYSQL_TYPE_VARCHAR)
-        key_part_offset += HA_KEY_BLOB_LENGTH;
-      break;
-    }
-    case Item::REAL_ITEM: // float and double
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
       value_real = item_value->val_real();
       break;
-    case Item::DECIMAL_ITEM: {
+   case MYSQL_TYPE_NEWDECIMAL:{
       value_decimal = item_value->val_decimal(value_decimal);
       break;
     }
-    case Item::FUNC_ITEM: {
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_NEWDATE: {
       if (!is_temporal_type(data_type)) // See also is_temporal_real_type()
         DBUG_RETURN(false);
       if (data_type == MYSQL_TYPE_DATETIME &&
@@ -12571,30 +12582,44 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
 
     int min_value_cmp = -1;
     int max_value_cmp = -1;
-    switch(type) {
-      case Item::INT_ITEM: {
+    switch (item_field->field_type()) {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_YEAR:{
         min_value_cmp = cmp_range_with_integer_by_type(data_type, min_key, range->min_length,
                                                        key_part_offset, value_integer);
         max_value_cmp = cmp_range_with_integer_by_type(data_type, max_key, range->max_length,
                                                        key_part_offset, value_integer);
         break;
       }
-      case Item::STRING_ITEM:
-      case Item::VARBIN_ITEM: {
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_JSON: {
         min_value_cmp = cmp_range_with_string_by_type(data_type, min_key, range->min_length,
                                                       key_part_offset, var_str);
         max_value_cmp = cmp_range_with_string_by_type(data_type, max_key, range->max_length,
                                                       key_part_offset, var_str);
         break;
       }
-      case Item::REAL_ITEM: {
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE: {
         min_value_cmp = cmp_range_with_real_by_type(data_type, min_key, range->min_length,
                                                     key_part_offset, value_real);
         max_value_cmp = cmp_range_with_real_by_type(data_type, max_key, range->max_length,
                                                     key_part_offset, value_real);
         break;
       }
-      case Item::DECIMAL_ITEM: { // DECIMAL(precision, scale)
+      case MYSQL_TYPE_NEWDECIMAL: { // DECIMAL(precision, scale)
         uint precision = item_field->decimal_precision();
         uint scale = precision - item_field->decimal_int_part();
         min_value_cmp = cmp_range_with_decimal_by_type(data_type, min_key, range->min_length,
@@ -12605,7 +12630,11 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
                                                        precision, scale);
         break;
       }
-      case Item::FUNC_ITEM: { // DATE/TIME/DATETIME/TIMESTAMP
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_NEWDATE: { // DATE/TIME/DATETIME/TIMESTAMP
         min_value_cmp = cmp_range_with_temporal_by_type(data_type, min_key, range->min_length,
                                                         key_part_offset, &str, dec);
         max_value_cmp = cmp_range_with_temporal_by_type(data_type, max_key, range->max_length,
