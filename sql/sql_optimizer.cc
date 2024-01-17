@@ -12451,7 +12451,6 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
   const size_t null_bytes = item_field->field->real_maybe_null() ? HA_KEY_NULL_LENGTH : 0;
   key_part_offset += null_bytes;
 
-  Item::Type type = item_value->type();
   enum_field_types data_type = item_value->field_type();
   String str;
   String *var_str = NULL;
