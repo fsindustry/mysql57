@@ -12002,8 +12002,6 @@ static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field
       my_decimal buff, *d;
       d = (*const_val)->val_decimal(&buff);
       const int actual_frac = decimal_actual_fraction(d);
-      const int actual_intg = decimal_intg(d);
-      const bool overflow = actual_intg > f_intg;
       const bool truncation = actual_frac > f_frac;
 
       if (truncation) {
@@ -12050,7 +12048,7 @@ static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field
 }
 
 bool truncate_real(Field_real* field_real, double *nr, double max_value) {
-  if (std::isnan(*nr)) {
+  if (isnan(*nr)) {
     *nr = 0;
     field_real->set_null();
     field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -12072,7 +12070,7 @@ bool truncate_real(Field_real* field_real, double *nr, double max_value) {
     max_value = std::min(max_value, orig_max_value);
 
     /* Check for infinity so we don't get NaN in calculations */
-    if (!std::isinf(*nr)) {
+    if (!isinf(*nr)) {
       double tmp = rint((*nr - floor(*nr)) * log_10[field_real->dec]) / log_10[field_real->dec];
       *nr = floor(*nr) + tmp;
     }
@@ -12142,7 +12140,6 @@ static bool handle_year_field_constant(THD *thd, const Item_field *item_field, I
       convert_constant_item called during type resolution.
     */
     assert((*const_val)->result_type() == INT_RESULT);
-    const longlong year = (*const_val)->val_int();
     return false;
   }
 
@@ -12173,8 +12170,6 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
   switch (rtype) {
     case STRING_RESULT:  // This covers both string and TIMESTAMP literals
     case INT_RESULT: {
-      enum_mysql_timestamp_type type=
-          field_type_to_timestamp_type(item_field->field->type());
       MYSQL_TIME ltime =
           my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
       MYSQL_TIME_STATUS status;
@@ -12468,7 +12463,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
 
   enum_field_types item_field_type = item_field->field_type();
 
-  switch (item_field->field_type()) {
+  switch (item_field_type) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
@@ -12477,7 +12472,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
     case MYSQL_TYPE_YEAR:{
       if ((is_integer_type(item_field_type))) {
         value_integer = item_value->val_int(); // Little-endian
-      } else if (data_type == MYSQL_TYPE_YEAR) {
+      } else if (item_field_type == MYSQL_TYPE_YEAR) {
         // convert YEAR to short format, the range of YEAR is 1970-2069
         value_integer = atoi(item_value->val_str(&str)->ptr()) - 1900;
       } else
@@ -12514,7 +12509,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_NEWDATE: {
-      if (!is_temporal_type(data_type)) // See also is_temporal_real_type()
+      if (!is_temporal_type(item_field_type)) // See also is_temporal_real_type()
         DBUG_RETURN(false);
       if (data_type == MYSQL_TYPE_DATETIME &&
           item_field_type == MYSQL_TYPE_TIMESTAMP) {
@@ -12526,7 +12521,7 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         int buflen = my_timeval_to_str(&tm, buf, dec);
         if (str.copy(buf, buflen, &my_charset_numeric) != 0)
           DBUG_RETURN(false);
-        data_type = MYSQL_TYPE_TIMESTAMP;
+        item_field_type = MYSQL_TYPE_TIMESTAMP;
       } else {
         item_value->val_str(&str);
         // Truncate fractional-seconds
@@ -12589,9 +12584,9 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_LONGLONG:
       case MYSQL_TYPE_YEAR:{
-        min_value_cmp = cmp_range_with_integer_by_type(data_type, min_key, range->min_length,
+        min_value_cmp = cmp_range_with_integer_by_type(item_field_type, min_key, range->min_length,
                                                        key_part_offset, value_integer);
-        max_value_cmp = cmp_range_with_integer_by_type(data_type, max_key, range->max_length,
+        max_value_cmp = cmp_range_with_integer_by_type(item_field_type, max_key, range->max_length,
                                                        key_part_offset, value_integer);
         break;
       }
@@ -12605,27 +12600,27 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
       case MYSQL_TYPE_JSON: {
-        min_value_cmp = cmp_range_with_string_by_type(data_type, min_key, range->min_length,
+        min_value_cmp = cmp_range_with_string_by_type(item_field_type, min_key, range->min_length,
                                                       key_part_offset, var_str);
-        max_value_cmp = cmp_range_with_string_by_type(data_type, max_key, range->max_length,
+        max_value_cmp = cmp_range_with_string_by_type(item_field_type, max_key, range->max_length,
                                                       key_part_offset, var_str);
         break;
       }
       case MYSQL_TYPE_FLOAT:
       case MYSQL_TYPE_DOUBLE: {
-        min_value_cmp = cmp_range_with_real_by_type(data_type, min_key, range->min_length,
+        min_value_cmp = cmp_range_with_real_by_type(item_field_type, min_key, range->min_length,
                                                     key_part_offset, value_real);
-        max_value_cmp = cmp_range_with_real_by_type(data_type, max_key, range->max_length,
+        max_value_cmp = cmp_range_with_real_by_type(item_field_type, max_key, range->max_length,
                                                     key_part_offset, value_real);
         break;
       }
       case MYSQL_TYPE_NEWDECIMAL: { // DECIMAL(precision, scale)
         uint precision = item_field->decimal_precision();
         uint scale = precision - item_field->decimal_int_part();
-        min_value_cmp = cmp_range_with_decimal_by_type(data_type, min_key, range->min_length,
+        min_value_cmp = cmp_range_with_decimal_by_type(item_field_type, min_key, range->min_length,
                                                        key_part_offset, value_decimal,
                                                        precision, scale);
-        max_value_cmp = cmp_range_with_decimal_by_type(data_type, max_key, range->max_length,
+        max_value_cmp = cmp_range_with_decimal_by_type(item_field_type, max_key, range->max_length,
                                                        key_part_offset, value_decimal,
                                                        precision, scale);
         break;
@@ -12635,9 +12630,9 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_NEWDATE: { // DATE/TIME/DATETIME/TIMESTAMP
-        min_value_cmp = cmp_range_with_temporal_by_type(data_type, min_key, range->min_length,
+        min_value_cmp = cmp_range_with_temporal_by_type(item_field_type, min_key, range->min_length,
                                                         key_part_offset, &str, dec);
-        max_value_cmp = cmp_range_with_temporal_by_type(data_type, max_key, range->max_length,
+        max_value_cmp = cmp_range_with_temporal_by_type(item_field_type, max_key, range->max_length,
                                                         key_part_offset, &str, dec);
         break;
       }

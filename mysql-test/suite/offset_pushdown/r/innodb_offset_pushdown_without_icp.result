@@ -2375,14 +2375,14 @@ id	c1	c2	c3	c4	c5	c6
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1`", "pushed_offset": true}]
 SELECT * FROM t1 WHERE c2 >= 2.186 AND c2 <= 7.186 LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 1	1.186	3.186	1.186	1.186	1.186000	7.186000
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
-[{"table": "`t1`", "pushed_offset": false}]
+[{"table": "`t1`", "pushed_offset": true}]
 # DOUBLE
 SELECT * FROM t1 WHERE c3 > 2.186 AND c3 < 8.186 LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
