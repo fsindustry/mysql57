@@ -12377,6 +12377,318 @@ static bool handle_constant_conversion(const Item_field *item_field, Item **cons
 // ended by fzx @20240104 about offset pushdown
 
 
+typedef struct {
+  union {
+    String *str_val;
+    longlong int_val;
+    double real_val;
+    my_decimal *decimal_val;
+  } data_value;
+  String *str;
+  enum_field_types data_type;
+} Cmp_value;
+
+bool init_cmp_value(const Item_field *item_field, Item *item_value, Cmp_value& cmp_value_out) {
+  DBUG_ENTER("pack_cmp_value");
+
+  cmp_value_out.data_type = item_value->field_type();
+  enum_field_types item_field_type = item_field->field_type();
+
+  switch (item_field_type) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR:{
+      if ((is_integer_type(item_field_type))) {
+        cmp_value_out.data_value.int_val = item_value->val_int(); // Little-endian
+      } else if (item_field_type == MYSQL_TYPE_YEAR) {
+        // TODO YEAR convertion startgy can be simplify.
+        // convert YEAR to short format, the range of YEAR is 1969-2038
+        cmp_value_out.data_value.int_val = atoi(item_value->val_str(cmp_value_out.str)->ptr()) - 1900;
+      } else
+        DBUG_RETURN(false);
+      break;
+    }
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_JSON: { // char and varchar
+      cmp_value_out.data_value.str_val = item_value->val_str(cmp_value_out.str);
+      break;
+    }
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      cmp_value_out.data_value.real_val = item_value->val_real();
+      break;
+   case MYSQL_TYPE_NEWDECIMAL:{
+     // todo value_decimal is a null ptr, need to test
+      cmp_value_out.data_value.decimal_val = item_value->val_decimal(cmp_value_out.data_value.decimal_val);
+      break;
+    }
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_NEWDATE: {
+      if (cmp_value_out.data_type == MYSQL_TYPE_DATETIME &&
+          item_field_type == MYSQL_TYPE_TIMESTAMP) {
+        // If the type of item value of where condition is DATETIME and the type
+        // of field is TIMESTAMP, need to convert the item value to TIMESTAMP format.
+        struct timeval tm;
+        item_value->get_timeval(&tm, 0 /* warnings */);
+        char buf[MAX_DATE_STRING_REP_LENGTH];
+        int buflen = my_timeval_to_str(&tm, buf, 0);
+        if (cmp_value_out.str->copy(buf, buflen, &my_charset_numeric) != 0)
+          DBUG_RETURN(false);
+        item_field_type = MYSQL_TYPE_TIMESTAMP;
+      } else {
+        item_value->val_str(cmp_value_out.str);
+        // Truncate fractional-seconds
+        String sep(".", cmp_value_out.str->charset());
+        int len = cmp_value_out.str->strstr(sep, 0);
+        if (len < 0) len = cmp_value_out.str->length();
+        cmp_value_out.str->set(cmp_value_out.str->ptr(), len, cmp_value_out.str->charset());
+      }
+      break;
+    }
+    default:
+      DBUG_RETURN(false);
+  }
+
+  // pack success
+  DBUG_RETURN(true);
+}
+
+bool cmp_value_with_keypart(const Item_field *item_field, Item_func::Functype func_type, Cmp_value& cmp_value, QUICK_RANGE *range, int key_part_idx, int key_part_offset ) {
+
+  DBUG_ENTER("cmp_value_with_key");
+
+  const enum_field_types item_field_type = item_field->field_type();
+
+    /*
+      If range contains item_field->field, the corresponding bit in
+      the keypart_map will be set.
+    */
+    const int min_keypart_flag = range->min_keypart_map & (1<<key_part_idx);
+    const int max_keypart_flag = range->max_keypart_map & (1<<key_part_idx);
+
+  const char *min_key = (char *)(range->min_key);
+  const char *max_key = (char *)(range->max_key);
+
+    int min_value_cmp = -1;
+    int max_value_cmp = -1;
+    switch (item_field_type) {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_YEAR:{
+        min_value_cmp = cmp_range_with_integer_by_type(item_field_type, min_key, range->min_length,
+                                                       key_part_offset, cmp_value.data_value.int_val);
+        max_value_cmp = cmp_range_with_integer_by_type(item_field_type, max_key, range->max_length,
+                                                       key_part_offset, cmp_value.data_value.int_val);
+        break;
+      }
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+      case MYSQL_TYPE_JSON: {
+        min_value_cmp = cmp_range_with_string_by_type(item_field_type, min_key, range->min_length,
+                                                      key_part_offset, cmp_value.data_value.str_val);
+        max_value_cmp = cmp_range_with_string_by_type(item_field_type, max_key, range->max_length,
+                                                      key_part_offset, cmp_value.data_value.str_val);
+        break;
+      }
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE: {
+        min_value_cmp = cmp_range_with_real_by_type(item_field_type, min_key, range->min_length,
+                                                    key_part_offset, cmp_value.data_value.real_val);
+        max_value_cmp = cmp_range_with_real_by_type(item_field_type, max_key, range->max_length,
+                                                    key_part_offset, cmp_value.data_value.real_val);
+        break;
+      }
+      case MYSQL_TYPE_NEWDECIMAL: { // DECIMAL(precision, scale)
+        const uint precision = item_field->decimal_precision();
+        const uint scale = precision - item_field->decimal_int_part();
+        min_value_cmp = cmp_range_with_decimal_by_type(item_field_type, min_key, range->min_length,
+                                                       key_part_offset, cmp_value.data_value.decimal_val,
+                                                       precision, scale);
+        max_value_cmp = cmp_range_with_decimal_by_type(item_field_type, max_key, range->max_length,
+                                                       key_part_offset, cmp_value.data_value.decimal_val,
+                                                       precision, scale);
+        break;
+      }
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_NEWDATE: { // DATE/TIME/DATETIME/TIMESTAMP
+        min_value_cmp = cmp_range_with_temporal_by_type(item_field_type, min_key, range->min_length,
+                                                        key_part_offset, cmp_value.data_value.str_val, 0);
+        max_value_cmp = cmp_range_with_temporal_by_type(item_field_type, max_key, range->max_length,
+                                                        key_part_offset, cmp_value.data_value.str_val, 0);
+        break;
+      }
+      default:
+        break;
+    }
+
+    DBUG_PRINT("info", ("min_keypart_flag: %d, max_keypart_flag: %d, "
+                        "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
+        min_keypart_flag, max_keypart_flag,
+        min_value_cmp, max_value_cmp, range->flag));
+
+    switch (func_type) {
+      case Item_func::EQ_FUNC:
+      case Item_func::EQUAL_FUNC:
+        if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 && max_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+        if (max_keypart_flag && max_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      case Item_func::GE_FUNC:
+      case Item_func::GT_FUNC:
+        if (min_keypart_flag && min_value_cmp == 0)
+          DBUG_RETURN(true);
+        break;
+      default:
+        break;
+    }
+
+  DBUG_RETURN(false);
+}
+
+bool is_cond_match_ranges_between(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck) {
+  DBUG_ENTER("is_cond_match_ranges_between");
+
+  assert(keyno >= 0);
+  assert(qck && (qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE ||
+                 qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
+
+  if (item->type() != Item::FUNC_ITEM)
+    DBUG_RETURN(false);
+
+  Item_func *item_func = (Item_func *)item;
+  assert(item_func->argument_count() == 3);
+
+  const Item_func::Functype func_type = item_func->functype();
+  if (func_type != Item_func::BETWEEN)
+    DBUG_RETURN(false);
+
+  const Item_field *item_field = down_cast<const Item_field *>(item_func->arguments()[0]);
+
+  // convert item_value to proper type if type not matched with item_file type.
+  Item *item_value1 = item_func->arguments()[1];
+  if(item_field->field_type() != item_value1->field_type() || item_field->result_type() != item_value1->result_type()){
+    handle_constant_conversion(item_field, &item_value1, item_func);
+  }
+  Cmp_value cmp_value1;
+  String buf1;
+  cmp_value1.str = &buf1;
+  if(!init_cmp_value(item_field, item_value1, cmp_value1)) {
+    DBUG_RETURN(false);
+  }
+
+  Item *item_value2 = item_func->arguments()[2];
+  if(item_field->field_type() != item_value2->field_type() || item_field->result_type() != item_value2->result_type()){
+    handle_constant_conversion(item_field, &item_value2, item_func);
+  }
+
+  Cmp_value cmp_value2;
+  String buf2;
+  cmp_value2.str = &buf2;
+  if(!init_cmp_value(item_field, item_value2, cmp_value2)) {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
+      item_field->field->field_name, item_field->field->type(),
+      func_type, keyno));
+
+  if (!item_field->field->part_of_key.is_set(keyno) ||
+      item_field->field->type() == MYSQL_TYPE_GEOMETRY ||
+      item_field->field->type() == MYSQL_TYPE_BLOB) {
+    DBUG_RETURN(false);
+  }
+
+  const KEY *key = &tbl->key_info[keyno];
+  int key_part_idx = -1;
+  int key_part_offset = 0;
+
+  /* Find the subscript of the current field in key_part. */
+  for (uint i = 0; i < key->user_defined_key_parts; ++i) {
+    if (key->key_part[i].field == item_field->field) {
+      key_part_idx = i;
+      break;
+    }
+    key_part_offset += key->key_part[i].store_length;
+  }
+
+  if (key_part_idx == -1)
+    DBUG_RETURN(false);
+
+  /*
+    See also:
+    1. The variable str in function get_mm_leaf()
+    2. KEY_PART_INFO::init_from_field()
+  */
+  const size_t null_bytes = item_field->field->real_maybe_null() ? HA_KEY_NULL_LENGTH : 0;
+  key_part_offset += null_bytes;
+  enum_field_types item_field_type = item_field->field_type();
+  if (item_field_type == MYSQL_TYPE_VARCHAR)
+    key_part_offset += HA_KEY_BLOB_LENGTH;
+
+  QUICK_RANGE_SELECT *quick = static_cast<QUICK_RANGE_SELECT *>(qck);
+  Quick_ranges *ranges = quick->get_ranges();
+
+  /*
+    TODO: Currently, multi-ranges doesn't support offset pushdown
+
+    Normally, for each range, InnoDB uses row_search_mvcc() to scan data,
+    the following steps are required for each record:
+    1. Read an index record.
+    2. Read primary key record based on the index record if needed.
+    3. Convert the record format in Step 2 from InnoDB to MySQL.
+    4. Use the record of Step 3 to detect whether the end_range is reached.
+    The purpose of pushing the offset down to the engine layer is to skip
+    steps 2, 3, 4, this makes it impossible to judge whether the end_range
+    is reached.
+  */
+  DBUG_PRINT("info", ("ranges->size(): %lu", ranges->size()));
+  if (ranges->size() > 1)
+    DBUG_RETURN(false);
+
+  for (Bounds_checked_array<QUICK_RANGE *>::iterator it = ranges->begin();
+       it != ranges->end(); ++it) {
+    QUICK_RANGE *range = *it;
+
+    if(cmp_value_with_keypart(item_field,func_type,cmp_value1,range,key_part_idx,key_part_offset) &&
+      cmp_value_with_keypart(item_field,func_type,cmp_value2,range,key_part_idx,key_part_offset)) {
+      DBUG_RETURN(true);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /**
   Check whether the WHERE condition matches the QUICK_RANGE_SELECT::ranges.
@@ -12720,8 +13032,11 @@ bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno,
       if (func_type == Item_func::TRIG_COND_FUNC ) // Restriction a.
         return false;
 
-      if (item_func->argument_count() == 2)
+      if (item_func->argument_count() == 2) {
         return is_cond_match_ranges(item, tbl, keyno, qck); // Restriction e.
+      } else if(func_type == Item_func::BETWEEN && item_func->argument_count() == 3) {
+        return is_cond_match_ranges_between(item, tbl, keyno, qck);
+      }
       return false;
     }
     case Item::COND_ITEM: {
