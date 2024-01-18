@@ -11830,9 +11830,15 @@ static int cmp_range_with_temporal_by_type(const enum_field_types type,
 
   DBUG_PRINT("info", ("value_str: %s, str_len: %lu", value_str->ptr(), value_str->length()));
   if (convert_temporal_to_str(type, ptr, dec, &range_str))
-    result = strncmp(range_str.ptr(), value_str->ptr(),
-                     std::max(range_str.length(), value_str->length()));
-  DBUG_PRINT("info", ("range_str: %s, range_str_len: %lu", range_str.ptr(), range_str.length()));
+  {
+    DBUG_PRINT("info", ("range_str: %s, range_str_len: %lu", range_str.ptr(), range_str.length()));
+    // if date format is different, just return not equal
+    if(range_str.length() != value_str->length())
+    {
+      return result;
+    }
+    result = strncmp(range_str.ptr(), value_str->ptr(),range_str.length());
+  }
 
   return result;
 }
