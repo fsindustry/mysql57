@@ -4803,9 +4803,9 @@ row_search_mvcc(
 		prebuilt->fetch_cache_first = 0;
 		prebuilt->m_end_range = false;
 
-    // started by fzx @20231207 about offset pushdown
-    prebuilt->n_offset_rows = 0;
-    // ended by fzx @20231207 about offset pushdown
+		// started by fzx @20231207 about offset pushdown
+		prebuilt->n_offset_rows = 0;
+		// ended by fzx @20231207 about offset pushdown
 
     if (prebuilt->sel_graph == NULL) {
 			/* Build a dummy select query graph */
@@ -4830,9 +4830,9 @@ row_search_mvcc(
 			prebuilt->n_rows_fetched = 0;
 			prebuilt->n_fetch_cached = 0;
 			prebuilt->fetch_cache_first = 0;
-      // started by fzx @20231207 about offset pushdown
-      prebuilt->n_offset_rows = 0;
-      // ended by fzx @20231207 about offset pushdown
+			// started by fzx @20231207 about offset pushdown
+			prebuilt->n_offset_rows = 0;
+			// ended by fzx @20231207 about offset pushdown
 
     } else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
 			row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
@@ -5844,24 +5844,28 @@ locks_ok:
 		break;
 	}
 
-  // started by fzx @20231207 about offset pushdown
-  /*
-    If the server layer pushed down offset, the number of rows specified in the
-    offset clause needs to be skipped here.
-  */
-  if (prebuilt->m_mysql_handler && prebuilt->m_mysql_handler->offset_limit_cnt > 0)
-  {
-    if (prebuilt->n_offset_rows < prebuilt->m_mysql_handler->offset_limit_cnt) {
-      prebuilt->n_offset_rows++;
-      if (did_semi_consistent_read) {
-        row_unlock_for_mysql(prebuilt, TRUE);
-      }
-      goto next_rec;
-    } else {
-      prebuilt->m_mysql_handler->offset_limit_cnt = 0;
-    }
-  }
-  // ended by fzx @20231207 about offset pushdown
+	// started by fzx @20231207 about offset pushdown
+	/*
+	  If the server layer pushed down offset, the number of rows specified in the
+	  offset clause needs to be skipped here.
+	*/
+	if (prebuilt->m_mysql_handler && prebuilt->m_mysql_handler->offset_limit_cnt > 0)
+	{
+		if (prebuilt->n_offset_rows < prebuilt->m_mysql_handler->offset_limit_cnt)
+		{
+			prebuilt->n_offset_rows++;
+			if (did_semi_consistent_read)
+			{
+				row_unlock_for_mysql(prebuilt, TRUE);
+			}
+			goto next_rec;
+		}
+		else
+		{
+			prebuilt->m_mysql_handler->offset_limit_cnt = 0;
+		}
+	}
+	// ended by fzx @20231207 about offset pushdown
 
   /* Get the clustered index record if needed, if we did not do the
   search using the clustered index. */

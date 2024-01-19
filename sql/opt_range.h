@@ -505,7 +505,7 @@ public:
   int get_type() const { return QS_TYPE_RANGE; }
 
   // started by fzx @20231207 about offset pushdown
-  Quick_ranges *get_ranges() { return &ranges; }
+  Quick_ranges* get_ranges() { return &ranges; }
   // ended by fzx @20231207 about offset pushdown
 
   virtual bool is_loose_index_scan() const { return false; }

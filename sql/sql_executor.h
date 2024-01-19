@@ -489,7 +489,7 @@ public:
    * @param keyno index used to scan data
    * @param trace_obj trace object where information is to be added
    */
-  void push_offset(const JOIN_TAB *join_tab, int keyno, Opt_trace_object *trace_obj);
+  void push_offset(const JOIN_TAB* join_tab, int keyno, Opt_trace_object* trace_obj);
   // ended by fzx @20231207 about offset pushdown
 
   /// @return the index used for a table in a QEP

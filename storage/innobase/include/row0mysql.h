@@ -867,9 +867,9 @@ struct row_prebuilt_t {
 	ulint		n_fetch_cached;	/*!< number of not yet fetched rows
 					in fetch_cache */
 
-  // started by fzx @20231207 about offset pushdown
-  ha_rows n_offset_rows;
-  // ended by fzx @20231207 about offset pushdown
+	// started by fzx @20231207 about offset pushdown
+	ha_rows n_offset_rows;
+	// ended by fzx @20231207 about offset pushdown
 
   mem_heap_t*	blob_heap;	/*!< in SELECTS BLOB fields are copied
 					to this heap */

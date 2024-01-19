@@ -906,8 +906,9 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   @param[in, out] status     Any warnings given are returned here
   @returns true if error
 */
-bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
-                                     MYSQL_TIME_STATUS *status) {
+bool get_mysql_time_from_str_no_warn(THD* thd, String* str, MYSQL_TIME* l_time,
+                                     MYSQL_TIME_STATUS* status)
+{
   my_time_flags_t flags = TIME_FUZZY_DATE | TIME_INVALID_DATES;
 
   if (thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)

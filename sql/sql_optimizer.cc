@@ -10876,15 +10876,19 @@ bool JOIN::fts_index_access(JOIN_TAB *tab)
 }
 
 // started by fzx @20231207 about offset pushdown
-bool JOIN::has_multi_tables() {
+bool JOIN::has_multi_tables()
+{
   // walk through all primary tables, and check the table count
-  for (uint i = const_tables; i < primary_tables; i++) {
-    QEP_TAB *const cur_tab = &this->qep_tab[i];
-    if (!cur_tab) {
+  for (uint i = const_tables; i < primary_tables; i++)
+  {
+    QEP_TAB* const cur_tab = &this->qep_tab[i];
+    if (!cur_tab)
+    {
       continue;
     }
-    TABLE_LIST *const table_ref = cur_tab->table_ref;
-    if (table_ref && (table_ref->next_global || table_ref->next_local)) {
+    TABLE_LIST* const table_ref = cur_tab->table_ref;
+    if (table_ref && (table_ref->next_global || table_ref->next_local))
+    {
       return true; // return ture whenever query contains more than one table;
     }
   }
@@ -11448,16 +11452,18 @@ static uint32 get_key_length_tmp_table(Item *item)
 
    @returns true if integer type, false otherwise
  */
-inline bool is_integer_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-      return true;
-    default:
-      return false;
+inline bool is_integer_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+    return true;
+  default:
+    return false;
   }
 }
 
@@ -11468,21 +11474,23 @@ inline bool is_integer_type(enum_field_types type) {
 
   @returns true if string type, false otherwise
 */
-inline bool is_string_type(enum_field_types type) {
-  switch (type) {
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_JSON:
-      return true;
-    default:
-      return false;
+inline bool is_string_type(enum_field_types type)
+{
+  switch (type)
+  {
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_JSON:
+    return true;
+  default:
+    return false;
   }
 }
 
@@ -11494,18 +11502,21 @@ inline bool is_string_type(enum_field_types type) {
   @retval 0 if val1 is almost equal to val2,
   @retval 1 if val1 is greater than val2
 */
-template<typename T>
-int almost_equals(T val1, T val2) {
+template <typename T>
+int almost_equals(T val1, T val2)
+{
   return val1 < val2 ? -1 : (val1 == val2 ? 0 : 1);
 }
 
-template<>
-inline int almost_equals(float val1, float val2) {
+template <>
+inline int almost_equals(float val1, float val2)
+{
   return fabs(val1 - val2) < FLT_EPSILON ? 0 : (val1 > val2 ? 1 : -1);
 }
 
-template<>
-inline int almost_equals(double val1, double val2) {
+template <>
+inline int almost_equals(double val1, double val2)
+{
   return fabs(val1 - val2) < DBL_EPSILON ? 0 : (val1 > val2 ? 1 : -1);
 }
 
@@ -11527,7 +11538,8 @@ inline int almost_equals(double val1, double val2) {
   @return The pointer of the result string
 */
 
-static String *convert_temporal_to_str(const enum_field_types type, const char *value_ptr, uint8 dec, String *str) {
+static String* convert_temporal_to_str(const enum_field_types type, const char* value_ptr, uint8 dec, String* str)
+{
   if (!value_ptr || !str)
     return NULL;
 
@@ -11536,52 +11548,57 @@ static String *convert_temporal_to_str(const enum_field_types type, const char *
   MYSQL_TIME ltime;
   struct timeval tm;
 
-  switch(type) {
-    case MYSQL_TYPE_DATE: {
+  switch (type)
+  {
+  case MYSQL_TYPE_DATE:
+    {
       uint32 tmp = uint3korr(value_ptr);
       int part;
-      char *pos = buf + 10;
+      char* pos = buf + 10;
       buflen = 10;
 
       /* Open coded to get more speed */
-      *pos-- = 0;  // End NULL
-      part = (int) (tmp & 31);
-      *pos-- = (char) ('0' + part % 10);
-      *pos-- = (char) ('0' + part / 10);
+      *pos-- = 0; // End NULL
+      part = (int)(tmp & 31);
+      *pos-- = (char)('0' + part % 10);
+      *pos-- = (char)('0' + part / 10);
       *pos-- = '-';
-      part = (int) (tmp >> 5 & 15);
-      *pos-- = (char) ('0' + part % 10);
-      *pos-- = (char) ('0' + part / 10);
+      part = (int)(tmp >> 5 & 15);
+      *pos-- = (char)('0' + part % 10);
+      *pos-- = (char)('0' + part / 10);
       *pos-- = '-';
-      part = (int) (tmp >> 9);
-      *pos-- = (char) ('0' + part % 10);
+      part = (int)(tmp >> 9);
+      *pos-- = (char)('0' + part % 10);
       part /= 10;
-      *pos-- = (char) ('0' + part % 10);
+      *pos-- = (char)('0' + part % 10);
       part /= 10;
-      *pos-- = (char) ('0' + part % 10);
+      *pos-- = (char)('0' + part % 10);
       part /= 10;
-      *pos = (char) ('0' + part);
+      *pos = (char)('0' + part);
       break;
     }
-    case MYSQL_TYPE_TIME: {
-      longlong packed = my_time_packed_from_binary((const unsigned char *)value_ptr, dec);
+  case MYSQL_TYPE_TIME:
+    {
+      longlong packed = my_time_packed_from_binary((const unsigned char*)value_ptr, dec);
       TIME_from_longlong_time_packed(&ltime, packed);
       buflen = my_time_to_str(&ltime, buf, dec);
       break;
     }
-    case MYSQL_TYPE_DATETIME: {
-      longlong packed = my_datetime_packed_from_binary((const unsigned char *)value_ptr, dec);
+  case MYSQL_TYPE_DATETIME:
+    {
+      longlong packed = my_datetime_packed_from_binary((const unsigned char*)value_ptr, dec);
       TIME_from_longlong_datetime_packed(&ltime, packed);
       buflen = my_datetime_to_str(&ltime, buf, dec);
       break;
     }
-    case MYSQL_TYPE_TIMESTAMP: {
-      my_timestamp_from_binary(&tm, (const unsigned char *)value_ptr, dec);
+  case MYSQL_TYPE_TIMESTAMP:
+    {
+      my_timestamp_from_binary(&tm, (const unsigned char*)value_ptr, dec);
       buflen = my_timeval_to_str(&tm, buf, dec);
       break;
     }
-    default:
-      return NULL;
+  default:
+    return NULL;
   }
 
   if (str->copy(buf, buflen, &my_charset_numeric) != 0)
@@ -11608,46 +11625,54 @@ static String *convert_temporal_to_str(const enum_field_types type, const char *
 */
 
 static int cmp_range_with_integer_by_type(const enum_field_types type,
-                                          const char *range_ptr,
+                                          const char* range_ptr,
                                           uint16 range_length,
                                           int offset,
-                                          longlong value_integer) {
+                                          longlong value_integer)
+{
   if (offset >= range_length)
     return -1;
 
   int result = -1;
-  const char *ptr = range_ptr + offset;
+  const char* ptr = range_ptr + offset;
   if (type == MYSQL_TYPE_YEAR)
     result = *ptr - value_integer;
-  else if (is_integer_type(type)) {
-    switch (range_length - offset) {
-      case 1: {
+  else if (is_integer_type(type))
+  {
+    switch (range_length - offset)
+    {
+    case 1:
+      {
         int32 si = (int)(signed char)*ptr;
         result = si - value_integer;
         break;
       }
-      case 2: {
+    case 2:
+      {
         int32 si = (int32)sint2korr(ptr);
         result = si - value_integer;
         break;
       }
-      case 3: {
+    case 3:
+      {
         int32 si = sint3korr(ptr);
         result = si - value_integer;
         break;
       }
-      case 4: {
+    case 4:
+      {
         int32 si = sint4korr(ptr);
         result = si - value_integer;
         break;
       }
-      case 8: {
+    case 8:
+      {
         longlong si = sint8korr(ptr);
         result = si - value_integer;
         break;
       }
-      default:
-        break;
+    default:
+      break;
     }
   }
 
@@ -11672,26 +11697,28 @@ static int cmp_range_with_integer_by_type(const enum_field_types type,
 */
 
 static int cmp_range_with_string_by_type(const enum_field_types type,
-                                         const char *range_ptr,
+                                         const char* range_ptr,
                                          uint16 range_length,
                                          int offset,
-                                         String *value_str) {
+                                         String* value_str)
+{
   if (offset >= range_length)
     return -1;
 
   int result = -1;
-  switch(type) {
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-      /*
-        The @range_ptr buffer has some useless padding bytes, so use the length
-        of @value_str when comparing.
-      */
-      result = strncmp(value_str->ptr(), range_ptr + offset, value_str->length());
-      break;
-    default:
-      break;
+  switch (type)
+  {
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+    /*
+      The @range_ptr buffer has some useless padding bytes, so use the length
+      of @value_str when comparing.
+    */
+    result = strncmp(value_str->ptr(), range_ptr + offset, value_str->length());
+    break;
+  default:
+    break;
   }
 
   return result;
@@ -11715,30 +11742,34 @@ static int cmp_range_with_string_by_type(const enum_field_types type,
 */
 
 static int cmp_range_with_real_by_type(const enum_field_types type,
-                                       const char *range_ptr,
+                                       const char* range_ptr,
                                        uint16 range_length,
                                        int offset,
-                                       double value_real) {
+                                       double value_real)
+{
   if (offset >= range_length)
     return -1;
 
   int result = -1;
-  const char *ptr = range_ptr + offset;
-  switch(type) {
-    case MYSQL_TYPE_FLOAT: {
+  const char* ptr = range_ptr + offset;
+  switch (type)
+  {
+  case MYSQL_TYPE_FLOAT:
+    {
       float value = 0;
-      float4get(&value,(const uchar *)ptr);
+      float4get(&value, (const uchar*)ptr);
       result = almost_equals((float)value_real, value);
       break;
     }
-    case MYSQL_TYPE_DOUBLE: {
+  case MYSQL_TYPE_DOUBLE:
+    {
       double value = 0;
-      float8get(&value, (const uchar *)ptr);
+      float8get(&value, (const uchar*)ptr);
       result = almost_equals(value_real, value);
       break;
     }
-    default:
-      break;
+  default:
+    break;
   }
 
   return result;
@@ -11764,19 +11795,21 @@ static int cmp_range_with_real_by_type(const enum_field_types type,
 */
 
 static int cmp_range_with_decimal_by_type(const enum_field_types type,
-                                          const char *range_ptr,
+                                          const char* range_ptr,
                                           uint16 range_length,
                                           int offset,
-                                          my_decimal *value_decimal,
+                                          my_decimal* value_decimal,
                                           uint precision,
-                                          uint scale) {
+                                          uint scale)
+{
   if (offset >= range_length)
     return -1;
 
   int result = -1;
-  const uchar *ptr = pointer_cast<const uchar *>(range_ptr + offset);
+  const uchar* ptr = pointer_cast<const uchar*>(range_ptr + offset);
   DBUG_EXECUTE("info", print_decimal((const my_decimal *)value_decimal););
-  if (type == MYSQL_TYPE_DECIMAL || type == MYSQL_TYPE_NEWDECIMAL) {
+  if (type == MYSQL_TYPE_DECIMAL || type == MYSQL_TYPE_NEWDECIMAL)
+  {
     my_decimal my_dec;
     binary2my_decimal(E_DEC_FATAL_ERROR, ptr, &my_dec, precision, scale);
     result = my_decimal_cmp(value_decimal, &my_dec);
@@ -11805,11 +11838,12 @@ static int cmp_range_with_decimal_by_type(const enum_field_types type,
 */
 
 static int cmp_range_with_temporal_by_type(const enum_field_types type,
-                                           const char *range_ptr,
+                                           const char* range_ptr,
                                            uint16 range_length,
                                            int offset,
-                                           String *value_str,
-                                           uint dec) {
+                                           String* value_str,
+                                           uint dec)
+{
   if (offset >= range_length)
     return -1;
 
@@ -11818,7 +11852,7 @@ static int cmp_range_with_temporal_by_type(const enum_field_types type,
     return -1;
 
   int result = -1;
-  const char *ptr = range_ptr + offset;
+  const char* ptr = range_ptr + offset;
   String range_str;
 
   /*
@@ -11833,34 +11867,38 @@ static int cmp_range_with_temporal_by_type(const enum_field_types type,
   {
     DBUG_PRINT("info", ("range_str: %s, range_str_len: %lu", range_str.ptr(), range_str.length()));
     // if date format is different, just return not equal
-    if(range_str.length() != value_str->length())
+    if (range_str.length() != value_str->length())
     {
       return result;
     }
-    result = strncmp(range_str.ptr(), value_str->ptr(),range_str.length());
+    result = strncmp(range_str.ptr(), value_str->ptr(), range_str.length());
   }
 
   return result;
 }
 
-// ended by fzx @20240104 about offset pushdown
 static bool
-handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+handle_int_field_constant(THD* thd, const Item_field* item_field, Item** const_val)
+{
   const bool field_unsigned = item_field->unsigned_flag;
-  my_decimal *d = NULL;
+  my_decimal* d = NULL;
   my_decimal dec;
 
-  switch ((*const_val)->result_type()) {
-    case INT_RESULT: // have the same result_type, just skip conversion
-      break;
-    case STRING_RESULT: {
-      if ((*const_val)->type() == Item::VARBIN_ITEM) {
+  switch ((*const_val)->result_type())
+  {
+  case INT_RESULT: // have the same result_type, just skip conversion
+    break;
+  case STRING_RESULT:
+    {
+      if ((*const_val)->type() == Item::VARBIN_ITEM)
+      {
         // 0x digits have STRING_RESULT but are ints in int context.
         break;
       }
     }
-      /* fallthrough */
-    case REAL_RESULT: {
+  /* fallthrough */
+  case REAL_RESULT:
+    {
       /*
         Try to convert to decimal. If that fails, we know the constant is out of
         range for integer too. If it can be converted, continue with the decimal
@@ -11869,11 +11907,13 @@ handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_v
       const double v = (*const_val)->val_real();
       int err = double2decimal(v, &dec);
 
-      if (err & E_DEC_OVERFLOW) {
+      if (err & E_DEC_OVERFLOW)
+      {
         return false;
       }
 
-      if (err & E_DEC_TRUNCATED) {
+      if (err & E_DEC_TRUNCATED)
+      {
         /*
           Check for underflow, e.g. 1.7976931348623157E-308 would end up
           as decimal 0.0, which means that the floating point values was
@@ -11885,13 +11925,16 @@ handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_v
         err = int2my_decimal(E_DEC_FATAL_ERROR, 0, false, &n);
         assert(err == 0);
         assert(my_decimal_cmp(&n, &dec) == 0);
-        if (v > 0) {
+        if (v > 0)
+        {
           // underflow on the positive side
           String s("0.1", Item::default_charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
           assert(err == 0);
-        } else {
+        }
+        else
+        {
           String s("-0.1", Item::default_charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
@@ -11900,8 +11943,9 @@ handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_v
       }
       d = &dec;
     }
-      /* fallthrough */
-    case DECIMAL_RESULT: {
+  /* fallthrough */
+  case DECIMAL_RESULT:
+    {
       /*
         If out of bounds of longlong, return RP_OUTSIDE_LOW or RP_OUTSIDE_HIGH
         as the case may be. If not, if the decimal has a non-zero fraction,
@@ -11915,21 +11959,24 @@ handle_int_field_constant(THD *thd, const Item_field *item_field, Item **const_v
       if (d == NULL) d = (*const_val)->val_decimal(&d_buff);
       bool has_overflow = false;
       longlong i = item_field->field->convert_decimal2longlong(d, field_unsigned, &has_overflow);
-      Item *ni_item = (item_field->unsigned_flag ? new(thd->mem_root) Item_uint(i)
-                                                 : new(thd->mem_root) Item_int(i));
+      Item* ni_item = (item_field->unsigned_flag
+                         ? new(thd->mem_root) Item_uint(i)
+                         : new(thd->mem_root) Item_int(i));
       if (ni_item == NULL) return true;
       thd->change_item_tree(const_val, ni_item);
     }
-      break;
-    default:
-      return false;
+    break;
+  default:
+    return false;
   }
 
   return false;
 }
 
-static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field, Item **const_val, Item_bool_func::Functype ft) {
-  const Field_new_decimal* fd = down_cast<const Field_new_decimal *>(item_field->field);
+static bool handle_decimal_field_constant(THD* thd, const Item_field* item_field, Item** const_val,
+                                          Item_bool_func::Functype ft)
+{
+  const Field_new_decimal* fd = down_cast<const Field_new_decimal*>(item_field->field);
   const int f_frac = fd->dec;
   const int f_intg = fd->precision - f_frac;
   bool was_string_or_real = false;
@@ -11943,41 +11990,50 @@ static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field
     0xnnn numbers, which also have STRING result type, but should be treated
     the same as ints.
   */
-  if (ir == STRING_RESULT && (*const_val)->type() != Item::VARBIN_ITEM) {
+  if (ir == STRING_RESULT && (*const_val)->type() != Item::VARBIN_ITEM)
+  {
     was_string_or_real = true;
     ir = DECIMAL_RESULT;
   }
 
-  switch (ir) {
-    case STRING_RESULT:
-    case INT_RESULT: {
+  switch (ir)
+  {
+  case STRING_RESULT:
+  case INT_RESULT:
+    {
       my_decimal tmp;
-      my_decimal *const d = (*const_val)->val_decimal(&tmp);
+      my_decimal* const d = (*const_val)->val_decimal(&tmp);
       assert(d != NULL);
       assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 
-      if (actual_intg > f_intg) {  // overflow
+      if (actual_intg > f_intg)
+      {
+        // overflow
         break;
       }
 
       // inside, but convert const to decimal, similar precision as field
       my_decimal tmp_ext;
       if (decimal_round(d, &tmp_ext, f_frac, FLOOR)) return true;
-      Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&tmp_ext);
+      Item_decimal* new_dec = new(thd->mem_root) Item_decimal(&tmp_ext);
       if (new_dec == NULL) return true;
       thd->change_item_tree(const_val, new_dec);
-    } break;
-    case REAL_RESULT: {
+    }
+    break;
+  case REAL_RESULT:
+    {
       my_decimal val_dec;
       double v = (*const_val)->val_real();
       err = double2decimal(v, &val_dec);
 
-      if (err & E_DEC_OVERFLOW) {
+      if (err & E_DEC_OVERFLOW)
+      {
         return false;
       }
 
-      if (err & E_DEC_TRUNCATED) {
+      if (err & E_DEC_TRUNCATED)
+      {
         /*
           Check for underflow, e.g. 1.7976931348623157E-308 would end up
           as decimal 0.0, which means that the floating point values was
@@ -11990,15 +12046,16 @@ static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field
         assert(err == 0);
 
         widen_fraction(f_frac, &tmp);
-        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&tmp);
+        Item_decimal* new_dec = new(thd->mem_root) Item_decimal(&tmp);
         if (new_dec == NULL) return true;
         thd->change_item_tree(const_val, new_dec);
         return false;
       }
       was_string_or_real = true;
     }
-    /* fallthrough */
-    case DECIMAL_RESULT: {
+  /* fallthrough */
+  case DECIMAL_RESULT:
+    {
       /*
         Decimal constant can have different range and precision
       */
@@ -12010,62 +12067,76 @@ static bool handle_decimal_field_constant(THD *thd, const Item_field *item_field
       const int actual_frac = decimal_actual_fraction(d);
       const bool truncation = actual_frac > f_frac;
 
-      if (truncation) {
+      if (truncation)
+      {
         my_decimal cpy;
         my_decimal2decimal(d, &cpy);
 
         if (ft == Item_func::GT_FUNC || ft == Item_func::GE_FUNC ||
-            ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC) {
+          ft == Item_func::LT_FUNC || ft == Item_func::LE_FUNC)
+        {
           // adjust precision to same as field
           if (decimal_round(&cpy, &cpy, f_frac, cpy.sign() ? CEILING : FLOOR))
             return true;
-          Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
+          Item_decimal* new_dec = new(thd->mem_root) Item_decimal(&cpy);
           if (new_dec == NULL) return true;
           thd->change_item_tree(const_val, new_dec);
         }
-      } else if (d->frac > f_frac) {
+      }
+      else if (d->frac > f_frac)
+      {
         // truncate zeros
         my_decimal cpy;
         my_decimal2decimal(d, &cpy);
         if (decimal_round(&cpy, &cpy, f_frac, TRUNCATE)) return true;
-        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
+        Item_decimal* new_dec = new(thd->mem_root) Item_decimal(&cpy);
         if (new_dec == NULL) return true;
         thd->change_item_tree(const_val, new_dec);
-      } else if (actual_frac < f_frac) {
+      }
+      else if (actual_frac < f_frac)
+      {
         my_decimal cpy;
         my_decimal2decimal(d, &cpy);
         widen_fraction(f_frac, &cpy);
 
-        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(&cpy);
-        if (new_dec == NULL) return true;
-        thd->change_item_tree(const_val, new_dec);
-      } else if (was_string_or_real) {
-        // Make a decimal constant instead
-        Item_decimal* new_dec = new (thd->mem_root) Item_decimal(d);
+        Item_decimal* new_dec = new(thd->mem_root) Item_decimal(&cpy);
         if (new_dec == NULL) return true;
         thd->change_item_tree(const_val, new_dec);
       }
-    } break;
-    default:
-      break;
+      else if (was_string_or_real)
+      {
+        // Make a decimal constant instead
+        Item_decimal* new_dec = new(thd->mem_root) Item_decimal(d);
+        if (new_dec == NULL) return true;
+        thd->change_item_tree(const_val, new_dec);
+      }
+    }
+    break;
+  default:
+    break;
   }
 
   return false;
 }
 
-bool truncate_real(Field_real* field_real, double *nr, double max_value) {
-  if (isnan(*nr)) {
+bool truncate_real(Field_real* field_real, double* nr, double max_value)
+{
+  if (isnan(*nr))
+  {
     *nr = 0;
     field_real->set_null();
     field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return true;
-  } else if (field_real->unsigned_flag && *nr < 0) {
+  }
+  else if (field_real->unsigned_flag && *nr < 0)
+  {
     *nr = 0;
     field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return true;
   }
 
-  if (!field_real->not_fixed) {
+  if (!field_real->not_fixed)
+  {
     double orig_max_value = max_value;
     uint order = field_real->field_length - field_real->dec;
     uint step = array_elements(log_10) - 1;
@@ -12076,17 +12147,21 @@ bool truncate_real(Field_real* field_real, double *nr, double max_value) {
     max_value = std::min(max_value, orig_max_value);
 
     /* Check for infinity so we don't get NaN in calculations */
-    if (!isinf(*nr)) {
+    if (!isinf(*nr))
+    {
       double tmp = rint((*nr - floor(*nr)) * log_10[field_real->dec]) / log_10[field_real->dec];
       *nr = floor(*nr) + tmp;
     }
   }
 
-  if (*nr < -max_value) {
+  if (*nr < -max_value)
+  {
     *nr = -max_value;
     field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return true;
-  } else if (*nr > max_value) {
+  }
+  else if (*nr > max_value)
+  {
     *nr = max_value;
     field_real->set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return true;
@@ -12095,22 +12170,23 @@ bool truncate_real(Field_real* field_real, double *nr, double max_value) {
   return false;
 }
 
-static bool handle_real_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
-
-  switch ((*const_val)->result_type()) {
-    case REAL_RESULT:
-    case STRING_RESULT:
-    case INT_RESULT:
-    case DECIMAL_RESULT:
-      /*
-        Can all be safely converted to a double value. Although we may lose
-        precision, we won't overflow. Any constants too large for double will
-        have been caught at parsing time.
-      */
-      break;
-    default:
-      assert(false); /* purecov: inspected */
-      break;
+static bool handle_real_field_constant(THD* thd, const Item_field* item_field, Item** const_val)
+{
+  switch ((*const_val)->result_type())
+  {
+  case REAL_RESULT:
+  case STRING_RESULT:
+  case INT_RESULT:
+  case DECIMAL_RESULT:
+    /*
+      Can all be safely converted to a double value. Although we may lose
+      precision, we won't overflow. Any constants too large for double will
+      have been caught at parsing time.
+    */
+    break;
+  default:
+    assert(false); /* purecov: inspected */
+    break;
   }
 
   double v = (*const_val)->val_real();
@@ -12120,16 +12196,18 @@ static bool handle_real_field_constant(THD *thd, const Item_field *item_field, I
     This check/truncation also handles fixed # decimals digits real types, a
     MySQL extension, e.g. FLOAT(5,2).
   */
-  Field_real* fd = down_cast<Field_real *>(item_field->field);
-  if (truncate_real(fd, &v, (is_float ? FLT_MAX : DBL_MAX))) {
+  Field_real* fd = down_cast<Field_real*>(item_field->field);
+  if (truncate_real(fd, &v, (is_float ? FLT_MAX : DBL_MAX)))
+  {
     return false;
   }
 
   /*
     Lastly, convert to double representation.
   */
-  if (v != orig || (*const_val)->type() != Item::REAL_ITEM) {
-    Item_float* new_const = new (thd->mem_root) Item_float(v, DECIMAL_NOT_SPECIFIED);
+  if (v != orig || (*const_val)->type() != Item::REAL_ITEM)
+  {
+    Item_float* new_const = new(thd->mem_root) Item_float(v, DECIMAL_NOT_SPECIFIED);
     if (new_const == NULL) return true;
     thd->change_item_tree(const_val, new_const);
   }
@@ -12137,8 +12215,10 @@ static bool handle_real_field_constant(THD *thd, const Item_field *item_field, I
   return false;
 }
 
-static bool handle_year_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
-  if ((*const_val)->field_type() == MYSQL_TYPE_YEAR) {
+static bool handle_year_field_constant(THD* thd, const Item_field* item_field, Item** const_val)
+{
+  if ((*const_val)->field_type() == MYSQL_TYPE_YEAR)
+  {
     /*
       Decimal, real and string constants have already been converted to int if
       they allowed year values, and these as well as integer constants that are
@@ -12151,35 +12231,43 @@ static bool handle_year_field_constant(THD *thd, const Item_field *item_field, I
 
   // The constant is outside allowed year values, so fold.
   const Item_result ir = (*const_val)->result_type();
-  switch (ir) {
-    case STRING_RESULT:
-    case DECIMAL_RESULT:
-    case REAL_RESULT:
-    case INT_RESULT: {
+  switch (ir)
+  {
+  case STRING_RESULT:
+  case DECIMAL_RESULT:
+  case REAL_RESULT:
+  case INT_RESULT:
+    {
       const double year = (*const_val)->val_real();
       // Make sure we have an int constant
-      if (ir != INT_RESULT) {
-        Item_int* i = new (thd->mem_root) Item_int(static_cast<int>(year));
+      if (ir != INT_RESULT)
+      {
+        Item_int* i = new(thd->mem_root) Item_int(static_cast<int>(year));
         if (i == NULL) return true;
         thd->change_item_tree(const_val, i);
       }
-    } break;
-    default:
-      assert(false); /* purecov: inspected */
-      break;
+    }
+    break;
+  default:
+    assert(false); /* purecov: inspected */
+    break;
   }
   return false;
 }
 
-static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+static bool handle_timestamp_field_constant(THD* thd, const Item_field* item_field, Item** const_val)
+{
   const Item_result rtype = (*const_val)->result_type();
-  switch (rtype) {
-    case STRING_RESULT:  // This covers both string and TIMESTAMP literals
-    case INT_RESULT: {
+  switch (rtype)
+  {
+  case STRING_RESULT: // This covers both string and TIMESTAMP literals
+  case INT_RESULT:
+    {
       MYSQL_TIME ltime =
-          my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
+        my_time_set(0, 0, 0, 0, 0, 0, 0, false, MYSQL_TIMESTAMP_DATETIME);
       MYSQL_TIME_STATUS status;
-      if (rtype == STRING_RESULT) {
+      if (rtype == STRING_RESULT)
+      {
         String buf, *res = (*const_val)->val_str(&buf);
         /*
           Some wrong values are still compared as DATETIME, e.g. '2018-02-31
@@ -12187,7 +12275,8 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
           comparison as strings (e.g. '2018'). Cf. comment on Bug#27692509. Any
           warnings have already been given earlier, so ignore.
         */
-        if (get_mysql_time_from_str_no_warn(thd, res, &ltime, &status)) {
+        if (get_mysql_time_from_str_no_warn(thd, res, &ltime, &status))
+        {
           // Could not fold, so leave untouched.
           return false;
         }
@@ -12200,13 +12289,17 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
         */
         if (ltime.time_type == MYSQL_TIMESTAMP_DATE)
           ltime.time_type = MYSQL_TIMESTAMP_DATETIME;
-
-      } else if (rtype == INT_RESULT) {
+      }
+      else if (rtype == INT_RESULT)
+      {
         if ((*const_val)->field_type() == MYSQL_TYPE_TIMESTAMP ||
-            (*const_val)->field_type() == MYSQL_TYPE_DATETIME ||
-            (*const_val)->field_type() == MYSQL_TYPE_DATE) {
+          (*const_val)->field_type() == MYSQL_TYPE_DATETIME ||
+          (*const_val)->field_type() == MYSQL_TYPE_DATE)
+        {
           TIME_from_longlong_datetime_packed(&ltime, (*const_val)->val_int());
-        } else {
+        }
+        else
+        {
           /*
             The integral constant could not be interpreted as a datetime value,
             the operands will be compared using double.
@@ -12218,7 +12311,8 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
       MYSQL_TIME ltime_utc = ltime;
       const enum_field_types ft = item_field->field->type();
 
-      if (ft == MYSQL_TYPE_TIMESTAMP) {
+      if (ft == MYSQL_TYPE_TIMESTAMP)
+      {
         /*
           Convert constant to timeval, if it fits. If not, we are out of
           range for a TIMESTAMP. The timeval is UTC since epoch.
@@ -12230,9 +12324,12 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
         zeros += ltime.year == 0;
         zeros += ltime.month == 0;
         zeros += ltime.day == 0;
-        if (zeros == 0 || zeros == 3) {  // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
+        if (zeros == 0 || zeros == 3)
+        {
+          // Cf. NO_ZERO_DATE, NO_ZERO_IN_DATE
           datetime_with_no_zero_in_date_to_timeval(thd, &ltime, &tm, &warnings);
-          if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0) {
+          if ((warnings & MYSQL_TIME_WARN_OUT_OF_RANGE) != 0)
+          {
             /*
               For RP_OUTSIDE_HIGH, this check may not catch case where field
               type has no/fewer fraction digits than the constant. This will
@@ -12240,19 +12337,20 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
             */
             return false;
           }
-        }  // else zero in date => 0 timeval too
+        } // else zero in date => 0 timeval too
 
         /*
           Convert timestamp's timeval to UTC ltime and pack it so we can
           compare with min/max, unless it is 0 or has a zero date part (year,
           month or day)
         */
-        if (tm.tv_sec != 0) {
+        if (tm.tv_sec != 0)
+        {
           /* '2038-01-19 03:14:07.[999999]' */
           MYSQL_TIME max_timestamp = my_time_set(
-              TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,
-              max_fraction(down_cast<const Field_temporal *>(item_field->field)->decimals()),
-              false, MYSQL_TIMESTAMP_DATETIME);
+            TIMESTAMP_MAX_YEAR, 1, 19, 3, 14, 7,
+            max_fraction(down_cast<const Field_temporal*>(item_field->field)->decimals()),
+            false, MYSQL_TIMESTAMP_DATETIME);
 
           /* '1970-01-01 00:00:01.[000000]' */
           MYSQL_TIME min_timestamp = my_time_set(1970, 1, 1, 0, 0, 1, 0, false,
@@ -12265,19 +12363,21 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
           my_tz_UTC->gmt_sec_to_TIME(&ltime_utc, tm);
           const longlong cnst = TIME_to_longlong_datetime_packed(&ltime_utc);
 
-          if (cnst > max_t) {
+          if (cnst > max_t)
+          {
             return false;
           }
 
-          if (cnst < min_t) {
+          if (cnst < min_t)
+          {
             /*
               A zero ltime (if error in str_to_datetime) before GMT conversion
               ends up as 1970-01-01 00:00:00 which get us here.
             */
             return false;
           }
-        }  // else: 0 timevalue
-      }    // else: not TIMESTAMP field
+        } // else: 0 timevalue
+      } // else: not TIMESTAMP field
 
       /*
         We do not try to truncate the number of decimal digits in the
@@ -12286,49 +12386,59 @@ static bool handle_timestamp_field_constant(THD *thd, const Item_field *item_fie
         we could use RP_INSIDE_TRUNCATED. This could lead to folding away of
         =, <>.
       */
-      if ((*const_val)->type() != Item::FUNC_ITEM) {
-        Item *i = NULL;
+      if ((*const_val)->type() != Item::FUNC_ITEM)
+      {
+        Item* i = NULL;
         /*
           Make a DATETIME literal, unless the field is a DATE and the constant
           has zero time, in which case we make a DATE literal
         */
-        if (ft == MYSQL_TYPE_DATE) {
+        if (ft == MYSQL_TYPE_DATE)
+        {
           ltime.time_type = MYSQL_TIMESTAMP_DATE;
           if (ltime.hour == 0 && ltime.minute == 0 && ltime.second == 0 &&
-              ltime.second_part == 0) {
+            ltime.second_part == 0)
+          {
             /* OK, time part is zero, so trivial type change */
-          } else {
+          }
+          else
+          {
             /* truncate time part: must adjust operators */
             ltime.hour = 0;
             ltime.minute = 0;
             ltime.second = 0;
             ltime.second_part = 0;
           }
-          i = new (thd->mem_root) Item_date_literal(&ltime);
-        } else {
-          i = new (thd->mem_root) Item_datetime_literal(&ltime, actual_decimals(&ltime));
+          i = new(thd->mem_root) Item_date_literal(&ltime);
+        }
+        else
+        {
+          i = new(thd->mem_root) Item_datetime_literal(&ltime, actual_decimals(&ltime));
         }
         if (i == NULL) return true;
         thd->change_item_tree(const_val, i);
       }
-    } break;
-    case REAL_RESULT:
-    case DECIMAL_RESULT:
-      /*
-        The number could not be interpreted as datetime, so
-        compares as double.
-      */
-      break;
-    default:
-      break;
+    }
+    break;
+  case REAL_RESULT:
+  case DECIMAL_RESULT:
+    /*
+      The number could not be interpreted as datetime, so
+      compares as double.
+    */
+    break;
+  default:
+    break;
   }
 
   return false;
 }
 
-static bool handle_time_field_constant(THD *thd, const Item_field *item_field, Item **const_val) {
+static bool handle_time_field_constant(THD* thd, const Item_field* item_field, Item** const_val)
+{
   if (!((*const_val)->result_type() == INT_RESULT &&
-        (*const_val)->field_type() == MYSQL_TYPE_TIME)) {
+    (*const_val)->field_type() == MYSQL_TYPE_TIME))
+  {
     // Not a TIME constant. Compare as string or double.
     return false;
   }
@@ -12342,306 +12452,345 @@ static bool handle_time_field_constant(THD *thd, const Item_field *item_field, I
   */
   MYSQL_TIME ltime;
   TIME_from_longlong_time_packed(&ltime, (*const_val)->val_time_temporal());
-  Item_time_literal* i = new (thd->mem_root) Item_time_literal(&ltime, actual_decimals(&ltime));
+  Item_time_literal* i = new(thd->mem_root) Item_time_literal(&ltime, actual_decimals(&ltime));
   if (i == NULL) return true;
   thd->change_item_tree(const_val, i);
   return false;
 }
 
 
-static bool handle_constant_conversion(const Item_field *item_field, Item **const_val, Item_func *func){
-
+static bool handle_constant_conversion(const Item_field* item_field, Item** const_val, Item_func* func)
+{
   if ((*const_val)->is_null()) return false;
 
-  THD *thd = current_thd;
+  THD* thd = current_thd;
   const Item_bool_func::Functype ft = func->functype();
-  switch (item_field->field_type()) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-      return handle_int_field_constant(thd, item_field, const_val);
-    case MYSQL_TYPE_NEWDECIMAL:
-      return handle_decimal_field_constant(thd, item_field, const_val, ft);
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      return handle_real_field_constant(thd, item_field, const_val);
-    case MYSQL_TYPE_YEAR:
-      return handle_year_field_constant(thd, item_field, const_val);
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_DATE:
-      return handle_timestamp_field_constant(thd, item_field, const_val);
-    case MYSQL_TYPE_TIME:
-      return handle_time_field_constant(thd, item_field, const_val);
-    default:
-      break;
+  switch (item_field->field_type())
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+    return handle_int_field_constant(thd, item_field, const_val);
+  case MYSQL_TYPE_NEWDECIMAL:
+    return handle_decimal_field_constant(thd, item_field, const_val, ft);
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    return handle_real_field_constant(thd, item_field, const_val);
+  case MYSQL_TYPE_YEAR:
+    return handle_year_field_constant(thd, item_field, const_val);
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+    return handle_timestamp_field_constant(thd, item_field, const_val);
+  case MYSQL_TYPE_TIME:
+    return handle_time_field_constant(thd, item_field, const_val);
+  default:
+    break;
   }
   return false;
 }
-// ended by fzx @20240104 about offset pushdown
 
-
-typedef struct {
-  union {
-    String *str_val;
+typedef struct
+{
+  union
+  {
+    String* str_val;
     longlong int_val;
     double real_val;
-    my_decimal *decimal_val;
+    my_decimal* decimal_val;
   } data_value;
-  String *str;
+
+  String* str_buf;
   enum_field_types data_type;
 } Cmp_value;
 
-bool init_cmp_value(const Item_field *item_field, Item *item_value, Cmp_value& cmp_value_out) {
+bool init_cmp_value(const Item_field* item_field, Item* item_value, Cmp_value& cmp_value_out)
+{
   DBUG_ENTER("pack_cmp_value");
 
   cmp_value_out.data_type = item_value->field_type();
   enum_field_types item_field_type = item_field->field_type();
 
-  switch (item_field_type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_YEAR:{
-      if ((is_integer_type(item_field_type))) {
+  switch (item_field_type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_YEAR:
+    {
+      if ((is_integer_type(item_field_type)))
+      {
         cmp_value_out.data_value.int_val = item_value->val_int(); // Little-endian
-      } else if (item_field_type == MYSQL_TYPE_YEAR) {
+      }
+      else if (item_field_type == MYSQL_TYPE_YEAR)
+      {
         // TODO YEAR convertion startgy can be simplify.
         // convert YEAR to short format, the range of YEAR is 1969-2038
-        cmp_value_out.data_value.int_val = atoi(item_value->val_str(cmp_value_out.str)->ptr()) - 1900;
-      } else
+        cmp_value_out.data_value.int_val = atoi(item_value->val_str(cmp_value_out.str_buf)->ptr()) - 1900;
+      }
+      else
         DBUG_RETURN(false);
       break;
     }
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_JSON: { // char and varchar
-      cmp_value_out.data_value.str_val = item_value->val_str(cmp_value_out.str);
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_JSON:
+    {
+      // char and varchar
+      cmp_value_out.data_value.str_val = item_value->val_str(cmp_value_out.str_buf);
       break;
     }
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      cmp_value_out.data_value.real_val = item_value->val_real();
-      break;
-   case MYSQL_TYPE_NEWDECIMAL:{
-     // todo value_decimal is a null ptr, need to test
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    cmp_value_out.data_value.real_val = item_value->val_real();
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      // todo value_decimal is a null ptr, need to test
       cmp_value_out.data_value.decimal_val = item_value->val_decimal(cmp_value_out.data_value.decimal_val);
       break;
     }
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_NEWDATE: {
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_NEWDATE:
+    {
       if (cmp_value_out.data_type == MYSQL_TYPE_DATETIME &&
-          item_field_type == MYSQL_TYPE_TIMESTAMP) {
+        item_field_type == MYSQL_TYPE_TIMESTAMP)
+      {
         // If the type of item value of where condition is DATETIME and the type
         // of field is TIMESTAMP, need to convert the item value to TIMESTAMP format.
         struct timeval tm;
         item_value->get_timeval(&tm, 0 /* warnings */);
         char buf[MAX_DATE_STRING_REP_LENGTH];
         int buflen = my_timeval_to_str(&tm, buf, 0);
-        if (cmp_value_out.str->copy(buf, buflen, &my_charset_numeric) != 0)
+        if (cmp_value_out.str_buf->copy(buf, buflen, &my_charset_numeric) != 0)
           DBUG_RETURN(false);
         item_field_type = MYSQL_TYPE_TIMESTAMP;
-      } else {
-        item_value->val_str(cmp_value_out.str);
+      }
+      else
+      {
+        item_value->val_str(cmp_value_out.str_buf);
         // Truncate fractional-seconds
-        String sep(".", cmp_value_out.str->charset());
-        int len = cmp_value_out.str->strstr(sep, 0);
-        if (len < 0) len = cmp_value_out.str->length();
-        cmp_value_out.str->set(cmp_value_out.str->ptr(), len, cmp_value_out.str->charset());
+        String sep(".", cmp_value_out.str_buf->charset());
+        int len = cmp_value_out.str_buf->strstr(sep, 0);
+        if (len < 0) len = cmp_value_out.str_buf->length();
+        cmp_value_out.str_buf->set(cmp_value_out.str_buf->ptr(), len, cmp_value_out.str_buf->charset());
       }
       break;
     }
-    default:
-      DBUG_RETURN(false);
+  default:
+    DBUG_RETURN(false);
   }
 
   // pack success
   DBUG_RETURN(true);
 }
 
-bool cmp_value_with_keypart(const Item_field *item_field, Item_func::Functype func_type, Cmp_value& cmp_value, QUICK_RANGE *range, int key_part_idx, int key_part_offset ) {
-
+bool cmp_value_with_keypart(const Item_field* item_field, Item_func::Functype func_type, Cmp_value& cmp_value,
+                            QUICK_RANGE* range, int key_part_idx, int key_part_offset)
+{
   DBUG_ENTER("cmp_value_with_key");
 
   const enum_field_types item_field_type = item_field->field_type();
 
-    /*
-      If range contains item_field->field, the corresponding bit in
-      the keypart_map will be set.
-    */
-    const int min_keypart_flag = range->min_keypart_map & (1<<key_part_idx);
-    const int max_keypart_flag = range->max_keypart_map & (1<<key_part_idx);
+  /*
+    If range contains item_field->field, the corresponding bit in
+    the keypart_map will be set.
+  */
+  const int min_keypart_flag = range->min_keypart_map & (1 << key_part_idx);
+  const int max_keypart_flag = range->max_keypart_map & (1 << key_part_idx);
 
-  const char *min_key = (char *)(range->min_key);
-  const char *max_key = (char *)(range->max_key);
+  const char* min_key = (char*)(range->min_key);
+  const char* max_key = (char*)(range->max_key);
 
-    int min_value_cmp = -1;
-    int max_value_cmp = -1;
-    switch (item_field_type) {
-      case MYSQL_TYPE_TINY:
-      case MYSQL_TYPE_SHORT:
-      case MYSQL_TYPE_INT24:
-      case MYSQL_TYPE_LONG:
-      case MYSQL_TYPE_LONGLONG:
-      case MYSQL_TYPE_YEAR:{
-        min_value_cmp = cmp_range_with_integer_by_type(item_field_type, min_key, range->min_length,
-                                                       key_part_offset, cmp_value.data_value.int_val);
-        max_value_cmp = cmp_range_with_integer_by_type(item_field_type, max_key, range->max_length,
-                                                       key_part_offset, cmp_value.data_value.int_val);
-        break;
-      }
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_ENUM:
-      case MYSQL_TYPE_SET:
-      case MYSQL_TYPE_JSON: {
-        min_value_cmp = cmp_range_with_string_by_type(item_field_type, min_key, range->min_length,
-                                                      key_part_offset, cmp_value.data_value.str_val);
-        max_value_cmp = cmp_range_with_string_by_type(item_field_type, max_key, range->max_length,
-                                                      key_part_offset, cmp_value.data_value.str_val);
-        break;
-      }
-      case MYSQL_TYPE_FLOAT:
-      case MYSQL_TYPE_DOUBLE: {
-        min_value_cmp = cmp_range_with_real_by_type(item_field_type, min_key, range->min_length,
-                                                    key_part_offset, cmp_value.data_value.real_val);
-        max_value_cmp = cmp_range_with_real_by_type(item_field_type, max_key, range->max_length,
-                                                    key_part_offset, cmp_value.data_value.real_val);
-        break;
-      }
-      case MYSQL_TYPE_NEWDECIMAL: { // DECIMAL(precision, scale)
-        const uint precision = item_field->decimal_precision();
-        const uint scale = precision - item_field->decimal_int_part();
-        min_value_cmp = cmp_range_with_decimal_by_type(item_field_type, min_key, range->min_length,
-                                                       key_part_offset, cmp_value.data_value.decimal_val,
-                                                       precision, scale);
-        max_value_cmp = cmp_range_with_decimal_by_type(item_field_type, max_key, range->max_length,
-                                                       key_part_offset, cmp_value.data_value.decimal_val,
-                                                       precision, scale);
-        break;
-      }
-      case MYSQL_TYPE_TIMESTAMP:
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_TIME:
-      case MYSQL_TYPE_NEWDATE: { // DATE/TIME/DATETIME/TIMESTAMP
-        min_value_cmp = cmp_range_with_temporal_by_type(item_field_type, min_key, range->min_length,
-                                                        key_part_offset, cmp_value.data_value.str_val, 0);
-        max_value_cmp = cmp_range_with_temporal_by_type(item_field_type, max_key, range->max_length,
-                                                        key_part_offset, cmp_value.data_value.str_val, 0);
-        break;
-      }
-      default:
-        break;
+  int min_value_cmp = -1;
+  int max_value_cmp = -1;
+  switch (item_field_type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_YEAR:
+    {
+      min_value_cmp = cmp_range_with_integer_by_type(item_field_type, min_key, range->min_length,
+                                                     key_part_offset, cmp_value.data_value.int_val);
+      max_value_cmp = cmp_range_with_integer_by_type(item_field_type, max_key, range->max_length,
+                                                     key_part_offset, cmp_value.data_value.int_val);
+      break;
     }
-
-    DBUG_PRINT("info", ("min_keypart_flag: %d, max_keypart_flag: %d, "
-                        "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
-        min_keypart_flag, max_keypart_flag,
-        min_value_cmp, max_value_cmp, range->flag));
-
-    switch (func_type) {
-      case Item_func::EQ_FUNC:
-      case Item_func::EQUAL_FUNC:
-        if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 && max_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      case Item_func::LT_FUNC:
-      case Item_func::LE_FUNC:
-        if (max_keypart_flag && max_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      case Item_func::GE_FUNC:
-      case Item_func::GT_FUNC:
-        if (min_keypart_flag && min_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      default:
-        break;
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_JSON:
+    {
+      min_value_cmp = cmp_range_with_string_by_type(item_field_type, min_key, range->min_length,
+                                                    key_part_offset, cmp_value.data_value.str_val);
+      max_value_cmp = cmp_range_with_string_by_type(item_field_type, max_key, range->max_length,
+                                                    key_part_offset, cmp_value.data_value.str_val);
+      break;
     }
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    {
+      min_value_cmp = cmp_range_with_real_by_type(item_field_type, min_key, range->min_length,
+                                                  key_part_offset, cmp_value.data_value.real_val);
+      max_value_cmp = cmp_range_with_real_by_type(item_field_type, max_key, range->max_length,
+                                                  key_part_offset, cmp_value.data_value.real_val);
+      break;
+    }
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      // DECIMAL(precision, scale)
+      const uint precision = item_field->decimal_precision();
+      const uint scale = precision - item_field->decimal_int_part();
+      min_value_cmp = cmp_range_with_decimal_by_type(item_field_type, min_key, range->min_length,
+                                                     key_part_offset, cmp_value.data_value.decimal_val,
+                                                     precision, scale);
+      max_value_cmp = cmp_range_with_decimal_by_type(item_field_type, max_key, range->max_length,
+                                                     key_part_offset, cmp_value.data_value.decimal_val,
+                                                     precision, scale);
+      break;
+    }
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_NEWDATE:
+    {
+      // DATE/TIME/DATETIME/TIMESTAMP
+      min_value_cmp = cmp_range_with_temporal_by_type(item_field_type, min_key, range->min_length,
+                                                      key_part_offset, cmp_value.data_value.str_val, 0);
+      max_value_cmp = cmp_range_with_temporal_by_type(item_field_type, max_key, range->max_length,
+                                                      key_part_offset, cmp_value.data_value.str_val, 0);
+      break;
+    }
+  default:
+    break;
+  }
+
+  DBUG_PRINT("info", ("min_keypart_flag: %d, max_keypart_flag: %d, "
+               "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
+               min_keypart_flag, max_keypart_flag,
+               min_value_cmp, max_value_cmp, range->flag));
+
+  switch (func_type)
+  {
+  case Item_func::EQ_FUNC:
+  case Item_func::EQUAL_FUNC:
+    if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 && max_value_cmp == 0)
+      DBUG_RETURN(true);
+    break;
+  case Item_func::LT_FUNC:
+  case Item_func::LE_FUNC:
+    if (max_keypart_flag && max_value_cmp == 0)
+      DBUG_RETURN(true);
+    break;
+  case Item_func::GE_FUNC:
+  case Item_func::GT_FUNC:
+    if (min_keypart_flag && min_value_cmp == 0)
+      DBUG_RETURN(true);
+    break;
+  case Item_func::BETWEEN:
+    if ((min_keypart_flag && min_value_cmp == 0) || (max_keypart_flag && max_value_cmp == 0))
+      DBUG_RETURN(true);
+    break;
+  default:
+    break;
+  }
 
   DBUG_RETURN(false);
 }
 
-bool is_cond_match_ranges_between(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck) {
+bool is_cond_match_ranges_between(Item* item, TABLE* tbl, int keyno, QUICK_SELECT_I* qck)
+{
   DBUG_ENTER("is_cond_match_ranges_between");
 
   assert(keyno >= 0);
   assert(qck && (qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE ||
-                 qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
+    qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
 
   if (item->type() != Item::FUNC_ITEM)
     DBUG_RETURN(false);
 
-  Item_func *item_func = (Item_func *)item;
+  Item_func* item_func = (Item_func*)item;
   assert(item_func->argument_count() == 3);
 
   const Item_func::Functype func_type = item_func->functype();
   if (func_type != Item_func::BETWEEN)
     DBUG_RETURN(false);
 
-  const Item_field *item_field = down_cast<const Item_field *>(item_func->arguments()[0]);
+  const Item_field* item_field = down_cast<const Item_field*>(item_func->arguments()[0]);
+  enum_field_types item_field_type = item_field->field_type();
+
+  if (!item_field->field->part_of_key.is_set(keyno) ||
+    item_field_type == MYSQL_TYPE_GEOMETRY ||
+    item_field_type == MYSQL_TYPE_BLOB)
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
+               item_field->field->field_name, item_field->field_type(),
+               func_type, keyno));
 
   // convert item_value to proper type if type not matched with item_file type.
-  Item *item_value1 = item_func->arguments()[1];
-  if(item_field->field_type() != item_value1->field_type() || item_field->result_type() != item_value1->result_type()){
+  Item* item_value1 = item_func->arguments()[1];
+  if (item_field_type != item_value1->field_type() || item_field->result_type() != item_value1->result_type())
+  {
     handle_constant_conversion(item_field, &item_value1, item_func);
   }
   Cmp_value cmp_value1;
   String buf1;
-  cmp_value1.str = &buf1;
-  if(!init_cmp_value(item_field, item_value1, cmp_value1)) {
+  cmp_value1.str_buf = &buf1;
+  if (!init_cmp_value(item_field, item_value1, cmp_value1))
+  {
     DBUG_RETURN(false);
   }
 
-  Item *item_value2 = item_func->arguments()[2];
-  if(item_field->field_type() != item_value2->field_type() || item_field->result_type() != item_value2->result_type()){
+  Item* item_value2 = item_func->arguments()[2];
+  if (item_field_type != item_value2->field_type() || item_field->result_type() != item_value2->result_type())
+  {
     handle_constant_conversion(item_field, &item_value2, item_func);
   }
 
   Cmp_value cmp_value2;
   String buf2;
-  cmp_value2.str = &buf2;
-  if(!init_cmp_value(item_field, item_value2, cmp_value2)) {
+  cmp_value2.str_buf = &buf2;
+  if (!init_cmp_value(item_field, item_value2, cmp_value2))
+  {
     DBUG_RETURN(false);
   }
 
-  DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
-      item_field->field->field_name, item_field->field->type(),
-      func_type, keyno));
-
-  if (!item_field->field->part_of_key.is_set(keyno) ||
-      item_field->field->type() == MYSQL_TYPE_GEOMETRY ||
-      item_field->field->type() == MYSQL_TYPE_BLOB) {
-    DBUG_RETURN(false);
-  }
-
-  const KEY *key = &tbl->key_info[keyno];
+  const KEY* key = &tbl->key_info[keyno];
   int key_part_idx = -1;
   int key_part_offset = 0;
 
   /* Find the subscript of the current field in key_part. */
-  for (uint i = 0; i < key->user_defined_key_parts; ++i) {
-    if (key->key_part[i].field == item_field->field) {
+  for (uint i = 0; i < key->user_defined_key_parts; ++i)
+  {
+    if (key->key_part[i].field == item_field->field)
+    {
       key_part_idx = i;
       break;
     }
@@ -12658,12 +12807,11 @@ bool is_cond_match_ranges_between(Item *item, TABLE *tbl, int keyno, QUICK_SELEC
   */
   const size_t null_bytes = item_field->field->real_maybe_null() ? HA_KEY_NULL_LENGTH : 0;
   key_part_offset += null_bytes;
-  enum_field_types item_field_type = item_field->field_type();
   if (item_field_type == MYSQL_TYPE_VARCHAR)
     key_part_offset += HA_KEY_BLOB_LENGTH;
 
-  QUICK_RANGE_SELECT *quick = static_cast<QUICK_RANGE_SELECT *>(qck);
-  Quick_ranges *ranges = quick->get_ranges();
+  QUICK_RANGE_SELECT* quick = static_cast<QUICK_RANGE_SELECT*>(qck);
+  Quick_ranges* ranges = quick->get_ranges();
 
   /*
     TODO: Currently, multi-ranges doesn't support offset pushdown
@@ -12682,12 +12830,14 @@ bool is_cond_match_ranges_between(Item *item, TABLE *tbl, int keyno, QUICK_SELEC
   if (ranges->size() > 1)
     DBUG_RETURN(false);
 
-  for (Bounds_checked_array<QUICK_RANGE *>::iterator it = ranges->begin();
-       it != ranges->end(); ++it) {
-    QUICK_RANGE *range = *it;
+  for (Bounds_checked_array<QUICK_RANGE*>::iterator it = ranges->begin();
+       it != ranges->end(); ++it)
+  {
+    QUICK_RANGE* range = *it;
 
-    if(cmp_value_with_keypart(item_field,func_type,cmp_value1,range,key_part_idx,key_part_offset) &&
-      cmp_value_with_keypart(item_field,func_type,cmp_value2,range,key_part_idx,key_part_offset)) {
+    if (cmp_value_with_keypart(item_field, func_type, cmp_value1, range, key_part_idx, key_part_offset) &&
+      cmp_value_with_keypart(item_field, func_type, cmp_value2, range, key_part_idx, key_part_offset))
+    {
       DBUG_RETURN(true);
     }
   }
@@ -12707,51 +12857,56 @@ bool is_cond_match_ranges_between(Item *item, TABLE *tbl, int keyno, QUICK_SELEC
   @returns true if success, false if failure
 */
 
-bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
-                          QUICK_SELECT_I *qck) {
+bool is_cond_match_ranges(Item* item, TABLE* tbl, int keyno,
+                          QUICK_SELECT_I* qck)
+{
   DBUG_ENTER("is_cond_match_ranges");
 
   assert(keyno >= 0);
   assert(qck && (qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE ||
-                 qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
+    qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC));
 
   if (item->type() != Item::FUNC_ITEM)
     DBUG_RETURN(false);
 
-  Item_func *item_func = (Item_func *)item;
+  Item_func* item_func = (Item_func*)item;
   assert(item_func->argument_count() == 2);
 
   const Item_func::Functype func_type = item_func->functype();
   if (func_type != Item_func::EQ_FUNC && func_type != Item_func::EQUAL_FUNC &&
-      func_type != Item_func::LT_FUNC && func_type != Item_func::LE_FUNC &&
-      func_type != Item_func::GE_FUNC && func_type != Item_func::GT_FUNC)
+    func_type != Item_func::LT_FUNC && func_type != Item_func::LE_FUNC &&
+    func_type != Item_func::GE_FUNC && func_type != Item_func::GT_FUNC)
     DBUG_RETURN(false);
 
-  const Item_field *item_field = down_cast<const Item_field *>(item_func->arguments()[0]);
-  Item *item_value = item_func->arguments()[1];
+  const Item_field* item_field = down_cast<const Item_field*>(item_func->arguments()[0]);
+  Item* item_value = item_func->arguments()[1];
 
   // convert item_value to proper type if type not matched with item_file type.
-  if(item_field->field_type() != item_value->field_type() || item_field->result_type() != item_value->result_type()){
+  if (item_field->field_type() != item_value->field_type() || item_field->result_type() != item_value->result_type())
+  {
     handle_constant_conversion(item_field, &item_value, item_func);
   }
 
   DBUG_PRINT("info", ("field: %s, field_type: %d, func_type: %d, keyno: %d",
-      item_field->field->field_name, item_field->field->type(),
-      func_type, keyno));
+               item_field->field->field_name, item_field->field->type(),
+               func_type, keyno));
 
   if (!item_field->field->part_of_key.is_set(keyno) ||
-      item_field->field->type() == MYSQL_TYPE_GEOMETRY ||
-      item_field->field->type() == MYSQL_TYPE_BLOB) {
+    item_field->field->type() == MYSQL_TYPE_GEOMETRY ||
+    item_field->field->type() == MYSQL_TYPE_BLOB)
+  {
     DBUG_RETURN(false);
   }
 
-  const KEY *key = &tbl->key_info[keyno];
+  const KEY* key = &tbl->key_info[keyno];
   int key_part_idx = -1;
   int key_part_offset = 0;
 
   /* Find the subscript of the current field in key_part. */
-  for (uint i = 0; i < key->user_defined_key_parts; ++i) {
-    if (key->key_part[i].field == item_field->field) {
+  for (uint i = 0; i < key->user_defined_key_parts; ++i)
+  {
+    if (key->key_part[i].field == item_field->field)
+    {
       key_part_idx = i;
       break;
     }
@@ -12771,41 +12926,49 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
 
   enum_field_types data_type = item_value->field_type();
   String str;
-  String *var_str = NULL;
+  String* var_str = NULL;
   longlong value_integer = 0;
   double value_real = 0;
   uint dec = 0;
-  my_decimal *value_decimal = NULL;
-//  uint16 value_length = key->key_part[key_part_idx].length;
+  my_decimal* value_decimal = NULL;
+  //  uint16 value_length = key->key_part[key_part_idx].length;
 
   enum_field_types item_field_type = item_field->field_type();
 
-  switch (item_field_type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_YEAR:{
-      if ((is_integer_type(item_field_type))) {
+  switch (item_field_type)
+  {
+  case MYSQL_TYPE_TINY:
+  case MYSQL_TYPE_SHORT:
+  case MYSQL_TYPE_INT24:
+  case MYSQL_TYPE_LONG:
+  case MYSQL_TYPE_LONGLONG:
+  case MYSQL_TYPE_YEAR:
+    {
+      if ((is_integer_type(item_field_type)))
+      {
         value_integer = item_value->val_int(); // Little-endian
-      } else if (item_field_type == MYSQL_TYPE_YEAR) {
+      }
+      else if (item_field_type == MYSQL_TYPE_YEAR)
+      {
         // convert YEAR to short format, the range of YEAR is 1970-2069
         value_integer = atoi(item_value->val_str(&str)->ptr()) - 1900;
-      } else
+      }
+      else
         DBUG_RETURN(false);
       break;
     }
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_JSON: { // char and varchar
+  case MYSQL_TYPE_VARCHAR:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_ENUM:
+  case MYSQL_TYPE_SET:
+  case MYSQL_TYPE_JSON:
+    {
+      // char and varchar
       if (!is_string_type(item_field_type))
         DBUG_RETURN(false);
       var_str = item_value->val_str(&str);
@@ -12813,23 +12976,26 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         key_part_offset += HA_KEY_BLOB_LENGTH;
       break;
     }
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      value_real = item_value->val_real();
-      break;
-   case MYSQL_TYPE_NEWDECIMAL:{
+  case MYSQL_TYPE_FLOAT:
+  case MYSQL_TYPE_DOUBLE:
+    value_real = item_value->val_real();
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
       value_decimal = item_value->val_decimal(value_decimal);
       break;
     }
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_NEWDATE: {
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATE:
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_NEWDATE:
+    {
       if (!is_temporal_type(item_field_type)) // See also is_temporal_real_type()
         DBUG_RETURN(false);
       if (data_type == MYSQL_TYPE_DATETIME &&
-          item_field_type == MYSQL_TYPE_TIMESTAMP) {
+        item_field_type == MYSQL_TYPE_TIMESTAMP)
+      {
         // If the type of item value of where condition is DATETIME and the type
         // of field is TIMESTAMP, need to convert the item value to TIMESTAMP format.
         struct timeval tm;
@@ -12839,7 +13005,9 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
         if (str.copy(buf, buflen, &my_charset_numeric) != 0)
           DBUG_RETURN(false);
         item_field_type = MYSQL_TYPE_TIMESTAMP;
-      } else {
+      }
+      else
+      {
         item_value->val_str(&str);
         // Truncate fractional-seconds
         String sep(".", str.charset());
@@ -12849,12 +13017,12 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
       }
       break;
     }
-    default:
-      DBUG_RETURN(false);
+  default:
+    DBUG_RETURN(false);
   }
 
-  QUICK_RANGE_SELECT *quick = static_cast<QUICK_RANGE_SELECT *>(qck);
-  Quick_ranges *ranges = quick->get_ranges();
+  QUICK_RANGE_SELECT* quick = static_cast<QUICK_RANGE_SELECT*>(qck);
+  Quick_ranges* ranges = quick->get_ranges();
 
   /*
     TODO: Currently, multi-ranges doesn't support offset pushdown
@@ -12873,65 +13041,72 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
   if (ranges->size() > 1)
     DBUG_RETURN(false);
 
-  for (Bounds_checked_array<QUICK_RANGE *>::iterator it = ranges->begin();
-       it != ranges->end(); ++it) {
-    QUICK_RANGE *range = *it;
+  for (Bounds_checked_array<QUICK_RANGE*>::iterator it = ranges->begin();
+       it != ranges->end(); ++it)
+  {
+    QUICK_RANGE* range = *it;
 
     /*
       If range contains item_field->field, the corresponding bit in
       the keypart_map will be set.
     */
-    const int min_keypart_flag = range->min_keypart_map & (1<<key_part_idx);
-    const int max_keypart_flag = range->max_keypart_map & (1<<key_part_idx);
+    const int min_keypart_flag = range->min_keypart_map & (1 << key_part_idx);
+    const int max_keypart_flag = range->max_keypart_map & (1 << key_part_idx);
 
     /* If it's in descending order, switch the min_key and max_key. */
     // Index can't distingush asc or desc in MySQL5.7
-//    const bool desc = (range->flag & DESC_FLAG);
-//    char *min_key = (char *)(desc ? range->max_key : range->min_key);
-//    char *max_key = (char *)(desc ? range->min_key : range->max_key);
-    char *min_key = (char *)(range->min_key);
-    char *max_key = (char *)(range->max_key);
+    //    const bool desc = (range->flag & DESC_FLAG);
+    //    char *min_key = (char *)(desc ? range->max_key : range->min_key);
+    //    char *max_key = (char *)(desc ? range->min_key : range->max_key);
+    char* min_key = (char*)(range->min_key);
+    char* max_key = (char*)(range->max_key);
 
     int min_value_cmp = -1;
     int max_value_cmp = -1;
-    switch (item_field->field_type()) {
-      case MYSQL_TYPE_TINY:
-      case MYSQL_TYPE_SHORT:
-      case MYSQL_TYPE_INT24:
-      case MYSQL_TYPE_LONG:
-      case MYSQL_TYPE_LONGLONG:
-      case MYSQL_TYPE_YEAR:{
+    switch (item_field->field_type())
+    {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_YEAR:
+      {
         min_value_cmp = cmp_range_with_integer_by_type(item_field_type, min_key, range->min_length,
                                                        key_part_offset, value_integer);
         max_value_cmp = cmp_range_with_integer_by_type(item_field_type, max_key, range->max_length,
                                                        key_part_offset, value_integer);
         break;
       }
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_ENUM:
-      case MYSQL_TYPE_SET:
-      case MYSQL_TYPE_JSON: {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_JSON:
+      {
         min_value_cmp = cmp_range_with_string_by_type(item_field_type, min_key, range->min_length,
                                                       key_part_offset, var_str);
         max_value_cmp = cmp_range_with_string_by_type(item_field_type, max_key, range->max_length,
                                                       key_part_offset, var_str);
         break;
       }
-      case MYSQL_TYPE_FLOAT:
-      case MYSQL_TYPE_DOUBLE: {
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE:
+      {
         min_value_cmp = cmp_range_with_real_by_type(item_field_type, min_key, range->min_length,
                                                     key_part_offset, value_real);
         max_value_cmp = cmp_range_with_real_by_type(item_field_type, max_key, range->max_length,
                                                     key_part_offset, value_real);
         break;
       }
-      case MYSQL_TYPE_NEWDECIMAL: { // DECIMAL(precision, scale)
+    case MYSQL_TYPE_NEWDECIMAL:
+      {
+        // DECIMAL(precision, scale)
         uint precision = item_field->decimal_precision();
         uint scale = precision - item_field->decimal_int_part();
         min_value_cmp = cmp_range_with_decimal_by_type(item_field_type, min_key, range->min_length,
@@ -12942,45 +13117,48 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
                                                        precision, scale);
         break;
       }
-      case MYSQL_TYPE_TIMESTAMP:
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_TIME:
-      case MYSQL_TYPE_NEWDATE: { // DATE/TIME/DATETIME/TIMESTAMP
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_NEWDATE:
+      {
+        // DATE/TIME/DATETIME/TIMESTAMP
         min_value_cmp = cmp_range_with_temporal_by_type(item_field_type, min_key, range->min_length,
                                                         key_part_offset, &str, dec);
         max_value_cmp = cmp_range_with_temporal_by_type(item_field_type, max_key, range->max_length,
                                                         key_part_offset, &str, dec);
         break;
       }
-      default:
-        break;
+    default:
+      break;
     }
 
     DBUG_PRINT("info", ("min_keypart_flag: %d, max_keypart_flag: %d, "
-                        "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
-        min_keypart_flag, max_keypart_flag,
-        min_value_cmp, max_value_cmp, range->flag));
+                 "min_value_cmp: %d, max_value_cmp: %d, flag: 0x%0x",
+                 min_keypart_flag, max_keypart_flag,
+                 min_value_cmp, max_value_cmp, range->flag));
 
-    switch (func_type) {
-      case Item_func::EQ_FUNC:
-      case Item_func::EQUAL_FUNC:
-        if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 &&
-            max_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      case Item_func::LT_FUNC:
-      case Item_func::LE_FUNC:
-        if (max_keypart_flag && max_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      case Item_func::GE_FUNC:
-      case Item_func::GT_FUNC:
-        if (min_keypart_flag && min_value_cmp == 0)
-          DBUG_RETURN(true);
-        break;
-      default:
-        break;
+    switch (func_type)
+    {
+    case Item_func::EQ_FUNC:
+    case Item_func::EQUAL_FUNC:
+      if (min_keypart_flag && max_keypart_flag && min_value_cmp == 0 &&
+        max_value_cmp == 0)
+        DBUG_RETURN(true);
+      break;
+    case Item_func::LT_FUNC:
+    case Item_func::LE_FUNC:
+      if (max_keypart_flag && max_value_cmp == 0)
+        DBUG_RETURN(true);
+      break;
+    case Item_func::GE_FUNC:
+    case Item_func::GT_FUNC:
+      if (min_keypart_flag && min_value_cmp == 0)
+        DBUG_RETURN(true);
+      break;
+    default:
+      break;
     }
   }
 
@@ -13015,8 +13193,9 @@ bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno,
   @returns true if success, false if failure
 */
 
-bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno,
-                          QUICK_SELECT_I *qck) {
+bool no_extra_where_conds(Item* item, TABLE* tbl, int keyno,
+                          QUICK_SELECT_I* qck)
+{
   // Restrictions b and c.
   if (item->has_stored_program() || item->has_subquery()) return false;
 
@@ -13030,36 +13209,43 @@ bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno,
 
   const Item::Type item_type = item->type();
 
-  switch (item_type) {
-    case Item::FUNC_ITEM: {
-      Item_func *item_func = (Item_func *)item;
+  switch (item_type)
+  {
+  case Item::FUNC_ITEM:
+    {
+      Item_func* item_func = (Item_func*)item;
       const Item_func::Functype func_type = item_func->functype();
 
-      if (func_type == Item_func::TRIG_COND_FUNC ) // Restriction a.
+      if (func_type == Item_func::TRIG_COND_FUNC) // Restriction a.
         return false;
 
-      if (item_func->argument_count() == 2) {
+      if (item_func->argument_count() == 2)
+      {
         return is_cond_match_ranges(item, tbl, keyno, qck); // Restriction e.
-      } else if(func_type == Item_func::BETWEEN && item_func->argument_count() == 3) {
+      }
+      else if (func_type == Item_func::BETWEEN && item_func->argument_count() == 3)
+      {
         return is_cond_match_ranges_between(item, tbl, keyno, qck);
       }
       return false;
     }
-    case Item::COND_ITEM: {
+  case Item::COND_ITEM:
+    {
       /* This is a AND/OR condition. */
-      List_iterator<Item> li(*((Item_cond *)item)->argument_list());
-      Item *cond_item;
-      while ((cond_item = li++)) {
+      List_iterator<Item> li(*((Item_cond*)item)->argument_list());
+      Item* cond_item;
+      while ((cond_item = li++))
+      {
         if (!no_extra_where_conds(cond_item, tbl, keyno, qck))
           return false;
       }
       return true;
     }
-    case Item::REF_ITEM:
-      return no_extra_where_conds(item->real_item(), tbl, keyno, qck);
-    default:
-      /* Play it safe, don't push offset if there are unknown non-const items */
-      return false;
+  case Item::REF_ITEM:
+    return no_extra_where_conds(item->real_item(), tbl, keyno, qck);
+  default:
+    /* Play it safe, don't push offset if there are unknown non-const items */
+    return false;
   }
 }
 

@@ -2329,8 +2329,8 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
 
 // started by fzx @20240104 about offset pushdown
-bool get_mysql_time_from_str_no_warn(THD *thd, String *str, MYSQL_TIME *l_time,
-                                     MYSQL_TIME_STATUS *status);
+bool get_mysql_time_from_str_no_warn(THD* thd, String* str, MYSQL_TIME* l_time,
+                                     MYSQL_TIME_STATUS* status);
 // ended by fzx @20240104 about offset pushdown
 
 

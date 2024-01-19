@@ -2120,13 +2120,15 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab)
 
 
 // started by fzx @20231207 about offset pushdown
-void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
-                          Opt_trace_object *trace_obj) {
-  JOIN *const join = this->join();
+void QEP_TAB::push_offset(const JOIN_TAB* join_tab, int keyno,
+                          Opt_trace_object* trace_obj)
+{
+  JOIN* const join = this->join();
   DBUG_ENTER("push_offset");
 
   // if enable_offset_pushdown=off, just return.
-  if(!opt_enable_offset_pushdown){
+  if (!opt_enable_offset_pushdown)
+  {
     DBUG_VOID_RETURN;
   }
 
@@ -2134,15 +2136,16 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
   assert(join_tab == join->best_ref[idx()]);
   assert(join_tab->table_ref);
 
-  TABLE *const tbl = table();
+  TABLE* const tbl = table();
 
   // Only InnoDB supports offset pushdown
   if (tbl->s->db_type() != innodb_hton)
     DBUG_VOID_RETURN;
 
-  LEX *const lex = join->thd->lex;
+  LEX* const lex = join->thd->lex;
 
-  if (lex->unit->offset_limit_cnt <= 0) {
+  if (lex->unit->offset_limit_cnt <= 0)
+  {
     tbl->file->offset_limit_cnt = 0;
     DBUG_VOID_RETURN;
   }
@@ -2153,8 +2156,9 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
   // 3) statement can be optimized by mrr.
   QUICK_SELECT_I* qck = join_tab->quick();
   if (qck && hint_key_state(join->thd, tbl, keyno, MRR_HINT_ENUM, OPTIMIZER_SWITCH_MRR) &&
-      (qck->get_type() ==  QUICK_SELECT_I::QS_TYPE_RANGE || qck->get_type() ==  QUICK_SELECT_I::QS_TYPE_RANGE_DESC) &&
-      !(((QUICK_RANGE_SELECT *)qck)->mrr_flags & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED))) {
+    (qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE || qck->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE_DESC) &&
+    !(((QUICK_RANGE_SELECT*)qck)->mrr_flags & (HA_MRR_USE_DEFAULT_IMPL | HA_MRR_SORTED)))
+  {
     trace_obj->add("not_pushed_offset_due_to_MRR", true);
     DBUG_VOID_RETURN;
   }
@@ -2164,9 +2168,9 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
     If QEP_TAB::type() is JT_ALL or JT_INDEX_SCAN, @keyno may be less than 0.
   */
   bool no_extra_cond = (!condition() ||
-                        ((join->where_cond->type() == Item::COND_ITEM ||
-                          join->where_cond->type() == Item::FUNC_ITEM) && keyno >= 0 &&
-                         (!qck || no_extra_where_conds(condition(), tbl, keyno, qck))));
+    ((join->where_cond->type() == Item::COND_ITEM ||
+        join->where_cond->type() == Item::FUNC_ITEM) && keyno >= 0 &&
+      (!qck || no_extra_where_conds(condition(), tbl, keyno, qck))));
 
   /*
     We will only attempt to push down the offset condition when the following
@@ -2193,21 +2197,24 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
 
   if (hint_key_state(join->thd, tbl, keyno, OFFSET_PUSHDOWN_HINT_ENUM,
                      OPTIMIZER_SWITCH_OFFSET_PUSHDOWN) &&
-      lex->sql_command == SQLCOM_SELECT && !join->having_cond &&
-      (join->group_list == NULL ||
-       join->ordered_index_usage == JOIN::ordered_index_group_by) &&
-      !join->select_distinct && no_extra_cond &&
-      !has_guarded_conds() && lex->is_single_level_stmt() &&
-      !lex->select_lex->agg_func_used() &&
-      (join->order == NULL ||
-       join->ordered_index_usage == JOIN::ordered_index_order_by)) {
+    lex->sql_command == SQLCOM_SELECT && !join->having_cond &&
+    (join->group_list == NULL ||
+      join->ordered_index_usage == JOIN::ordered_index_group_by) &&
+    !join->select_distinct && no_extra_cond &&
+    !has_guarded_conds() && lex->is_single_level_stmt() &&
+    !lex->select_lex->agg_func_used() &&
+    (join->order == NULL ||
+      join->ordered_index_usage == JOIN::ordered_index_order_by))
+  {
     tbl->file->offset_limit_cnt = lex->unit->offset_limit_cnt;
     join->pushed_offset = true;
     trace_obj->add("pushed_offset", true);
 
     /* Increment the offset_pushdown counter, only when offset is pushed down. */
     join->thd->status_var.offset_pushdown_count++;
-  } else {
+  }
+  else
+  {
     tbl->file->offset_limit_cnt = 0;
     trace_obj->add("pushed_offset", false);
   }
@@ -2215,6 +2222,7 @@ void QEP_TAB::push_offset(const JOIN_TAB *join_tab, int keyno,
   DBUG_PRINT("info", ("join->pushed_offset: %d", join->pushed_offset));
   DBUG_VOID_RETURN;
 }
+
 // ended by fzx @20231207 about offset pushdown
 
 
@@ -2309,7 +2317,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
       // started by fzx @20231207 about offset pushdown
       // if query have only one table, try to pushdown offset
-      if (!has_multi_tables){
+      if (!has_multi_tables)
+      {
         qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
       }
       // ended by fzx @20231207 about offset pushdown
@@ -2362,7 +2371,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
       // started by fzx @20231207 about offset pushdown
       // if query have only one table, try to pushdown offset
-      if (!has_multi_tables) {
+      if (!has_multi_tables)
+      {
         qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
       }
       // ended by fzx @20231207 about offset pushdown
@@ -2389,7 +2399,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
         // started by fzx @20231207 about offset pushdown
         // if query have only one table, try to pushdown offset
-        if (!has_multi_tables) {
+        if (!has_multi_tables)
+        {
           qep_tab->push_offset(tab, qep_tab->quick()->index, &trace_refine_table);
         }
         // ended by fzx @20231207 about offset pushdown

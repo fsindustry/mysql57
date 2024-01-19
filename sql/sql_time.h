@@ -300,7 +300,7 @@ double double_from_datetime_packed(enum enum_field_types type,
   @param ts the time value for which we wnat the number of decmals
   @return the number of decimals
 */
-uint actual_decimals(const MYSQL_TIME *ts);
+uint actual_decimals(const MYSQL_TIME* ts);
 
 /**
   For a time fraction with a given number of decimals, return maximum fraction,

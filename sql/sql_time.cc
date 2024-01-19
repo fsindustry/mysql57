@@ -1737,18 +1737,22 @@ double double_from_datetime_packed(enum enum_field_types type,
 }
 
 // started by fzx @20240104 about offset pushdown
-size_t max_fraction(uint decimals) {
+size_t max_fraction(uint decimals)
+{
   size_t res = 0;
-  for (uint i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+  for (uint i = 1; i <= DATETIME_MAX_DECIMALS; i++)
+  {
     res *= 10;
     if (i <= decimals) res += 9;
   }
   return res;
 }
 
-uint actual_decimals(const MYSQL_TIME *ts) {
+uint actual_decimals(const MYSQL_TIME* ts)
+{
   uint count = DATETIME_MAX_DECIMALS;
-  for (int i = 1; i <= DATETIME_MAX_DECIMALS; i++) {
+  for (int i = 1; i <= DATETIME_MAX_DECIMALS; i++)
+  {
     if (ts->second_part % log_10_int[i] != 0) break;
     count--;
   }
@@ -1756,8 +1760,9 @@ uint actual_decimals(const MYSQL_TIME *ts) {
 }
 
 MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
-                              unsigned long ms, bool negative,
-                              enum_mysql_timestamp_type type) {
+                       unsigned long ms, bool negative,
+                       enum_mysql_timestamp_type type)
+{
   MYSQL_TIME t;
   t.year = y;
   t.month = m;
@@ -1770,4 +1775,5 @@ MYSQL_TIME my_time_set(uint y, uint m, uint d, uint h, uint mi, uint s,
   t.time_type = type;
   return t;
 }
+
 // ended by fzx @20240104 about offset pushdown

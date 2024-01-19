@@ -134,7 +134,8 @@ JOIN::exec()
   Query_result *const query_result= select_lex->query_result();
 
   // started by fzx @20231207 about offset pushdown
-  if(pushed_offset && unit->select_limit_cnt > 0 && unit->offset_limit_cnt > 0){
+  if (pushed_offset && unit->select_limit_cnt > 0 && unit->offset_limit_cnt > 0)
+  {
     unit->select_limit_cnt -= unit->offset_limit_cnt;
     unit->offset_limit_cnt = 0;
   }

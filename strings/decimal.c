@@ -2655,20 +2655,22 @@ int decimal_mod(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   new_frac is exected to be larger or equal than cd->frac and
   new fraction is expected to fit in d.
 */
-void widen_fraction(int new_frac, decimal_t *d) {
+void widen_fraction(int new_frac, decimal_t* d)
+{
   const int frac = d->frac;
   const int intg = d->intg;
   const int frac1 = ROUND_UP(frac);
   const int intg1 = ROUND_UP(intg);
   int new_frac1 = ROUND_UP(new_frac);
-  decimal_digit_t *buf;
+  decimal_digit_t* buf;
 
-  if (new_frac < frac || intg1 + new_frac1 > d->len) {
+  if (new_frac < frac || intg1 + new_frac1 > d->len)
+  {
     assert(0);
     return;
   }
 
-  buf= d->buf + intg1 + frac1;
+  buf = d->buf + intg1 + frac1;
   memset(buf, 0, (new_frac1 - frac1) * sizeof(decimal_digit_t));
   d->frac = new_frac;
 }

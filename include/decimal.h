@@ -46,7 +46,7 @@ typedef struct st_decimal_t {
 #ifndef MYSQL_ABI_CHECK
 
 // started by fzx @20240104 about offset pushdown
-void widen_fraction(int new_frac, decimal_t *d);
+void widen_fraction(int new_frac, decimal_t* d);
 // ended by fzx @20240104 about offset pushdown
 
 int internal_str2dec(const char *from, decimal_t *to, char **end,

@@ -891,8 +891,8 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok);
 
 // started by fzx @20231207 about offset pushdown
-bool is_cond_match_ranges(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck);
-bool no_extra_where_conds(Item *item, TABLE *tbl, int keyno, QUICK_SELECT_I *qck);
+bool is_cond_match_ranges(Item* item, TABLE* tbl, int keyno, QUICK_SELECT_I* qck);
+bool no_extra_where_conds(Item* item, TABLE* tbl, int keyno, QUICK_SELECT_I* qck);
 // ended by fzx @20231207 about offset pushdown
 
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
