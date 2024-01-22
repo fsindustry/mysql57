@@ -8,6 +8,8 @@ set default_storage_engine=InnoDB;
 
 --source include/offset_pushdown_tests.inc
 
+--source include/offset_pushdown_tests_between.inc
+
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
 

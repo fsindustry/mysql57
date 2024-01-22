@@ -476,33 +476,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 4: order by multiple-column indexes
 --echo #
 
---echo # Covering index scan
-SELECT c2 FROM t1 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3 FROM t1 ORDER BY c2, c3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 ORDER BY c2, c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Covering index range scan
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT c2, c3, c4 FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 LIMIT 2, 2;
@@ -516,36 +490,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 5: order by multiple-column indexes desc
 --echo #
 
---echo # Covering index scan
-SELECT c2 FROM t1 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo # Index range scan
---echo # the plan contains the sort operator
-SELECT c2, c3 FROM t1 ORDER BY c2, c3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 ORDER BY c2, c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Covering index range scan
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT c2, c3, c4 FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT c2, c3, c4 FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 DESC LIMIT 2, 2;
@@ -558,15 +503,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 --echo # Test 6: order by another index, namely can not pushdown offset
 --echo #
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c3 > '005' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c5 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -574,13 +510,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 7: the where condition contains two secondary indexes,
 --echo #         namely can not pushdown offset
 --echo #
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT c2, c3, c4 FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) AND c5 < 13 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -627,26 +556,12 @@ ANALYZE TABLE t1;
 --echo #
 --echo # Test 1.1: offset is greater than the total number of rows
 --echo #
-SELECT * FROM t1 WHERE c2 > 5 LIMIT 10, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 > '008' LIMIT 10, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 LIKE '00%' AND c4 > 2 LIMIT 9, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 5 AND ( c3 BETWEEN '000' AND '009' ) AND c4 > 2 LIMIT 9, 3;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
 --echo # Test 1.2: limit + offset is greater than the total number of rows
 --echo #
-SELECT * FROM t1 WHERE c2 > 5 LIMIT 8, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 > '005' LIMIT 6, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1 AND c3 LIKE '00%' LIMIT 3, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 1 AND ( c3 BETWEEN '000' AND '009' ) LIMIT 3, 3;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -654,28 +569,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 1.3: normal select
 --echo #
 
---echo # Table scan
-SELECT * FROM t1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # If ICP is disabled, these statements will use Table scan, otherwise Index range scan
-SELECT * FROM t1 WHERE c3 > '005' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) LIMIT 2, 2;
@@ -689,31 +583,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 1.4: order by multiple-column indexes
 --echo #
 
---echo # Table scan
-SELECT * FROM t1 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Index range scan
-SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 LIMIT 2, 2;
@@ -726,32 +596,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 --echo # Test 1.5: order by multiple-column indexes desc
 --echo #
-
---echo # Table scan
-SELECT * FROM t1 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Index range scan
-SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 DESC LIMIT 2, 2;
@@ -764,15 +609,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 --echo # Test 1.6: order by another index, namely can not pushdown offset
 --echo #
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c5 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -780,13 +616,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 1.7: the where condition contains two secondary indexes,
 --echo #         namely can not pushdown offset
 --echo #
-SELECT * FROM t1 WHERE c2 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) AND c5 < 13 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -800,26 +629,12 @@ ANALYZE TABLE t1;
 --echo #
 --echo # Test 2.1: offset is greater than the total number of rows
 --echo #
-SELECT * FROM t1 WHERE c2 > 5 LIMIT 10, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 > '008' LIMIT 10, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 LIKE '00%' AND c4 > 2 LIMIT 9, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 5 AND ( c3 BETWEEN '000' AND '009' ) AND c4 > 2 LIMIT 9, 3;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
 --echo # Test 2.2: limit + offset is greater than the total number of rows
 --echo #
-SELECT * FROM t1 WHERE c2 > 5 LIMIT 8, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 5 AND c3 > '005' LIMIT 6, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1 AND c3 LIKE '00%' LIMIT 3, 3;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 1 AND ( c3 BETWEEN '000' AND '009' ) LIMIT 3, 3;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -827,28 +642,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 2.3: normal select
 --echo #
 
---echo # Table scan
-SELECT * FROM t1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo # Index range scan
-SELECT * FROM t1 WHERE c2 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # If ICP is disabled, these statements will use Table scan, otherwise Index range scan
-SELECT * FROM t1 WHERE c3 > '005' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) LIMIT 2, 2;
@@ -862,36 +656,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 2.4: order by multiple-column indexes
 --echo #
 
---echo # Table scan
---echo # the plan contains the sort operator
-SELECT * FROM t1 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 ORDER BY c2, c3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 ORDER BY c2, c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Index range scan
-SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 LIMIT 2, 2;
@@ -904,36 +669,7 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 --echo # Test 2.5: order by multiple-column indexes desc
 --echo #
-
---echo # Table scan
-SELECT * FROM t1 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 ORDER BY c2, c3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 ORDER BY c2, c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 --echo # Index range scan
-SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' ORDER BY c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c2, c3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c4 > 1 ORDER BY c2, c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # the plan contains the sort operator
-SELECT * FROM t1 WHERE c3 LIKE '00%' AND c4 > 2 ORDER BY c3, c4 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN '000' AND '009' ORDER BY c4 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c2, c3 DESC LIMIT 2, 2;
@@ -946,15 +682,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 --echo # Test 2.6: order by another index, namely can not pushdown offset
 --echo #
-SELECT * FROM t1 WHERE c2 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 ORDER BY c5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) ORDER BY c5 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -962,13 +689,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Test 2.7: the where condition contains two secondary indexes,
 --echo #         namely can not pushdown offset
 --echo #
-SELECT * FROM t1 WHERE c2 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 LIKE '00%' AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c3 > '003' AND c4 > 2 AND c5 < 13 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c2 > 2 AND ( c3 BETWEEN '000' AND '009' ) AND c5 < 13 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
@@ -1024,27 +744,6 @@ INSERT INTO t1 VALUES (10, 10, 10, 8294967295, 8294967295, 10, 10, 10, 10, 10, 1
 ANALYZE TABLE t1;
 
 --echo # INT/INTEGER
-SELECT * FROM t1 WHERE c1 >= 2 AND c1 < 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 >= '2' AND c1 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 >= 2.3 AND c1 < 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 >= 2 AND c1 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 >= 2.3 AND c1 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c2 <= 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > '2' AND c2 <= '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2.3 AND c2 <= 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2 AND c2 <= '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 2.3 AND c2 <= '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c1 BETWEEN 2 AND 9 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c1 BETWEEN '2' AND '9' LIMIT 2, 2;
@@ -1059,19 +758,6 @@ SELECT * FROM t1 WHERE c2 BETWEEN 2.3 AND 9.400011 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # BIGINT
-SELECT * FROM t1 WHERE c3 > 5294967294 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '5294967294' LIMIT 2, 2; # Truncated to INT
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 5294967294.3 LIMIT 2, 2; # Truncated to INT
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 <= 8294967295 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 <= '8294967295' LIMIT 2, 2; # Truncated to INT
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 <= 8294967295.400011 LIMIT 2, 2; # Truncated to INT
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN 5294967294 AND 8294967295 LIMIT 2, 2; # Truncated to INT
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 BETWEEN 5294967294.3 AND 8294967295.400011 LIMIT 2, 2; # Truncated to INT
@@ -1086,27 +772,6 @@ SELECT * FROM t1 WHERE c4 BETWEEN '5294967294.3' AND '8294967295.400011' LIMIT 2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # MEDIUMINT
-SELECT * FROM t1 WHERE c5 > 3 AND c5 < 8 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > '3' AND c5 < '8' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 3.186 AND c5 < 8.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 3 AND c5 < '8' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 3.186 AND c5 < '8' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 <= 7 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '2' AND c6 < '7' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 < 7.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 < '7' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 < '7' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c5 BETWEEN 3 AND 8 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c5 BETWEEN '3' AND '8' LIMIT 2, 2;
@@ -1121,27 +786,6 @@ SELECT * FROM t1 WHERE c6 BETWEEN 2.186 AND 7.400011 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # SMALLINT
-SELECT * FROM t1 WHERE c7 >= 2 AND c7 < 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 >= '2' AND c7 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 >= 2.186 AND c7 < 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 >= 2 AND c7 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 >= 2.186 AND c7 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > 2 AND c8 <= 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '2' AND c8 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= 2.186 AND c8 < 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= 2 AND c8 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= 2.186 AND c8 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c7 BETWEEN 2 AND 9 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c7 BETWEEN '2' AND '9' LIMIT 2, 2;
@@ -1156,27 +800,6 @@ SELECT * FROM t1 WHERE c8 BETWEEN 2.186 AND 9.400011 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # TINYINT
-SELECT * FROM t1 WHERE c9 >= 2 AND c9 < 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 >= '2' AND c9 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 >= 2.186 AND c9 < 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 >= 2 AND c9 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 >= 2.186 AND c9 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > 2 AND c10 <= 9 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '2' AND c10 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= 2.186 AND c10 < 9.400011 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= 2 AND c10 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= 2.186 AND c10 < '9' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c9 BETWEEN 2 AND 9 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c9 BETWEEN '2' AND '9' LIMIT 2, 2;
@@ -1226,31 +849,6 @@ INSERT INTO t1 VALUES (9, 5.186, 4.186, 4.186, 3.186, 4.186, 8.186);
 ANALYZE TABLE t1;
 
 --echo # FLOAT
-SELECT * FROM t1 WHERE c1 > 3 AND c1 < 8 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > '3.186' AND c1 < '8.1186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 3.186 AND c1 < 8.1186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 3 AND c1 < 8.1186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 3 AND c1 < '8.1186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 3.186 AND c1 < '8.1186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= 2 AND c2 <= 7 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= '2.186' AND c2 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= 2.186 AND c2 <= 7.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= 2 AND c2 <= 7.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= 2 AND c2 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 >= 2.186 AND c2 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c1 BETWEEN 3 AND 8 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c1 BETWEEN '3.186' AND '8.1186' LIMIT 2, 2;
@@ -1265,31 +863,6 @@ SELECT * FROM t1 WHERE c2 BETWEEN 2.186 AND 7.186 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # DOUBLE
-SELECT * FROM t1 WHERE c3 > 2 AND c3 < 8 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '2.186' AND c3 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 2.186 AND c3 < 8.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 2 AND c3 < 8.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 2 AND c3 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 2.186 AND c3 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= 2 AND c4 <= 7 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= '2.186' AND c4 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= 2.186 AND c4 <= 7.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= 2 AND c4 <= 7.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= 2 AND c4 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 >= 2.186 AND c4 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN 2 AND c3 < 8 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c3 BETWEEN '2.186' AND '8.186' LIMIT 2, 2;
@@ -1304,27 +877,6 @@ SELECT * FROM t1 WHERE c4 BETWEEN 2.186 AND 7.186 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # DECIMAL
-SELECT * FROM t1 WHERE c5 > 2 AND c5 < 8 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > '2.186' AND c5 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 2.186 AND c5 < 8.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 2 AND c5 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 > 2.186 AND c5 < '8.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 <= 7 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '2.186' AND c6 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 <= 7.186 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 <= '7.186' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c5 BETWEEN 2 AND 8 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c5 BETWEEN '2.186' AND '8.186' LIMIT 2, 2;
@@ -1375,27 +927,6 @@ INSERT INTO td1 VALUES ( 20, '135.0000006000', '135.0000800000');
 ANALYZE TABLE td1;
 
 --echo # include the boundary
-SELECT * FROM td1 WHERE c1 <= 2 AND c1 >= 1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= '2.0009' AND c1 >= '1.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= 2.0009 AND c1 >= 1.0003 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= 2 AND c1 >= '1.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= 2.0009 AND c1 >= '1.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 3 AND c2 >= 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= '3.0006' AND c2 >= '2.00009' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 3.0006 AND c2 >= 2.00009 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 3 AND c2 >= '2.00009' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 3.0006 AND c2 >= '2.00009' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM td1 WHERE c1 BETWEEN 1 AND 2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM td1 WHERE c1 BETWEEN '1.0003' AND '2.0009' LIMIT 2, 2;
@@ -1407,42 +938,6 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 SELECT * FROM td1 WHERE c2 BETWEEN '2.00009' AND '3.0006' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM td1 WHERE c2 BETWEEN 2.00009 AND 3.0006 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo # not include the boundary
-SELECT * FROM td1 WHERE c1 < 4 AND c1 >= 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 < '4.0009' AND c1 >= '2.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 < 4.0009 AND c1 >= 2.0003 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 < 4 AND c1 >= '2.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 < 4.0009 AND c1 >= '2.0003' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26 AND c2 > 3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= '26.00006' AND c2 > '3.00002' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26.00006 AND c2 > 3.00002 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26 AND c2 > '3.00002' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26.00006 AND c2 > '3.00002' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo # not pushdown offset
-SELECT * FROM td1 WHERE c1 <= 2 AND c1 >= 1 AND c1 > 1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= '2.0009' AND c1 >= '1.0003' AND c1 > '1.000' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c1 <= 2.0009 AND c1 >= 1.0003 AND c1 > 1.000 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26 AND c2 > 3 AND c2 < 26 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= '26.00006' AND c2 > '3.00002' AND c2 < '26.000' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM td1 WHERE c2 <= 26.00006 AND c2 > 3.00002 AND c2 < 26.000 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 DROP TABLE td1;
@@ -1485,44 +980,24 @@ INSERT INTO t1 VALUES (9, '008', '008', '007', '009', '008', '007', '005', '005'
 ANALYZE TABLE t1;
 
 --echo # CHAR
-SELECT * FROM t1 WHERE c1 >= 0x303032 AND c1 < '008' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > '001' AND c2 <= 0x303038 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c1 BETWEEN 0x303032 AND '008' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c2 BETWEEN '001' AND 0x303038 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # VARCHAR
-SELECT * FROM t1 WHERE c3 >= 0x303032 AND c3 < '008' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '001' AND c4 <= 0x303038 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c3 BETWEEN 0x303032 AND '008' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c4 BETWEEN '001' AND 0x303038 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # BINARY
-SELECT * FROM t1 WHERE c5 >= 0x303032 AND c5 < '008' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 > '001' AND c6 <= 0x303038 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c5 BETWEEN 0x303032 AND '008' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c6 BETWEEN '001' AND 0x303038 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # VARBINARY
-SELECT * FROM t1 WHERE c7 >= 0x303032 AND c7 < '008' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '001' AND c8 <= 0x303038 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
 SELECT * FROM t1 WHERE c7 BETWEEN 0x303032 AND '008' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 SELECT * FROM t1 WHERE c8 BETWEEN '001' AND 0x303038 LIMIT 2, 2;
@@ -1617,29 +1092,21 @@ SELECT * FROM t1 WHERE c2 BETWEEN 1999 AND 2010.001 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # need truncate
-SELECT * FROM t1 WHERE c1 > '1990-01' AND c1 < '2010-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 BETWEEN '1990-01' AND '2010-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > '1999-01' AND c2 < '2010-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 BETWEEN '1999-01' AND '2010-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 1990-01 AND c1 < 2010-01 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 BETWEEN 1990-01 AND 2010-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1999-01 AND c2 < 2010-01 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 BETWEEN 1999-01 AND 2010-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 1990-01 AND c1 < '2010-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 BETWEEN '1990-01-01' AND '2010-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1999-01 AND c2 < '2010-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 BETWEEN '1999-01-01' AND '2010-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > '1990-01-01' AND c1 < '2010-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 BETWEEN 1990-01-01 AND 2010-01-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > '1999-01-01' AND c2 < '2010-01-01' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 1990-01-01 AND c1 < 2010-01-01 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1999-01-01 AND c2 < 2010-01-01 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 1990-01-01 AND c1 < '2010-01-01' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c2 > 1999-01-01 AND c2 < '2010-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 BETWEEN 1999-01-01 AND 2010-01-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -1647,53 +1114,41 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 
 --echo # normal
-SELECT * FROM t1 WHERE c3 > '19900101' AND c3 < '20101212' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN '19900101' AND c3 < '20101212' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '19990101' AND c4 < '20101212' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN '19990101' AND c4 < '20101212' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101 AND c3 < 20101212 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN 19900101 AND c3 < 20101212 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > 19990101 AND c4 < 20101212 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN 19990101 AND c4 < 20101212 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101.0123 AND c3 < 20101212.0123 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN 19900101.0123 AND c3 < 20101212.0123 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > 19990101.0123 AND c4 < 20101212.0123 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN 19990101.0123 AND c4 < 20101212.0123 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101 AND c3 < 20101212.0123 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN '1990-01-01' AND c3 < '2010-12-12' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > 19990101 AND c4 < 20101212.0123 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101 AND c3 < '20101212' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > 19990101 AND c4 < '20101212' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101.0123 AND c3 < '20101212' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > 19990101.0123 AND c4 < '20101212' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '1990-01-01' AND c3 < '2010-12-12' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '1999-01-01' AND c4 < '2010-12-12' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN '1999-01-01' AND c4 < '2010-12-12' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # need truncate
-SELECT * FROM t1 WHERE c3 > '1990-01-01 01:02:03' AND c3 < '2010-12-12 13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN '1990-01-01 01:02:03' AND '2010-12-12 13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '1999-01-01 01:02:03.123456' AND c4 < '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN '1999-01-01 01:02:03.123456' AND '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # special cases which would pushdown offset
-SELECT * FROM t1 WHERE c3 > '90-01-01 01:02:03' AND c3 < '10-12-12 13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN '90-01-01 01:02:03' AND '10-12-12 13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '99-01-01 01:02:03.123456' AND c4 < '10-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN '99-01-01 01:02:03.123456' AND '10-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '19900101.010203' AND c3 < '20101212.131415' AND c3 > '1990-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN '19900101.010203' AND '20101212.131415' AND c3 > '1990-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c4 > '19990101.010203.123456' AND c4 < '20101212.131415.12345678' AND c4 < '2010-12-12' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 BETWEEN '19990101.010203.123456' AND '20101212.131415.12345678' AND c4 < '2010-12-12' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101.010203 AND c3 < 20101212.131415 AND c3 > 1990-01-01 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN 19900101.010203 AND 20101212.131415 AND c3 > 1990-01-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > 19900101.010203 AND c3 < 20101212.131415 AND c3 > '1990-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 BETWEEN 19900101.010203 AND 20101212.131415 AND c3 > '1990-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -1701,13 +1156,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 
 --echo # normal
-SELECT * FROM t1 WHERE c5 >= '12:12:00' AND c5 < '19:12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 BETWEEN '12:12:00' AND '19:12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '12:12:01' AND c6 <= '15:15:01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 BETWEEN '12:12:01' AND '15:15:01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c5 >= '12:12:00.0123' AND c5 < '19:12:00.0123' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 BETWEEN '12:12:00.0123' AND '19:12:00.0123' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c6 >= '12:12:01.0123' AND c6 <= '15:15:01.0123' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 BETWEEN '12:12:01.0123' AND '15:15:01.0123' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 # start by fzx @20240103 about: test case can't not support truncate '2010-12-12 19:12:00' to time in mysql 5.7
@@ -1730,69 +1185,69 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 
 --echo # normal
-SELECT * FROM t1 WHERE c7 > '2005-01-01 01:02:03' AND c7 <= '2008-03-11 15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01 01:02:03' AND '2008-03-11 15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01 13:13:00.123456' AND c8 < '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01 13:13:00.123456' AND '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '2005-01-01T01:02:03' AND c7 <= '2008-03-11T15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01T01:02:03' AND '2008-03-11T15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01T13:13:00.123456' AND c8 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01T13:13:00.123456' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '2005-01-01 01:02:03' AND c7 <= '2008-03-11T15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01 01:02:03' AND '2008-03-11T15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01 13:13:00.123456' AND c8 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01 13:13:00.123456' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # the unspecified time is all zeros
-SELECT * FROM t1 WHERE c7 > '2005-01-01 01' AND c7 <= '2008-03-11 15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01 01' AND '2008-03-11 15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01 13:13' AND c8 < '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01 13:13' AND '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '2005-01-01T01' AND c7 <= '2008-03-11T15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01T01' AND '2008-03-11T15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01T13:13' AND c8 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01T13:13' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '2005-01-01 01' AND c7 <= '2008-03-11T15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '2005-01-01 01' AND '2008-03-11T15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 >= '1999-12-01 13:13' AND c8 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-12-01 13:13' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '1990-01-01 01' AND c7 < '2010-12-12 12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '1990-01-01 01' AND '2010-12-12 12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '1999-01-01 01:13' AND c8 < '2010-12-12 12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-01-01 01:13' AND '2010-12-12 12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '1990-01-01T01' AND c7 < '2010-12-12T12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '1990-01-01T01' AND '2010-12-12T12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '1999-01-01T01:13' AND c8 < '2010-12-12T12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-01-01T01:13' AND '2010-12-12T12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '1990-01-01 01' AND c7 < '2010-12-12T12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '1990-01-01 01' AND '2010-12-12T12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '1999-01-01 01:13' AND c8 < '2010-12-12T12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '1999-01-01 01:13' AND '2010-12-12T12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # special cases which would pushdown offset
-SELECT * FROM t1 WHERE c7 > '90-01-01 01:02:03' AND c7 < '10-12-12 13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '90-01-01 01:02:03' AND '10-12-12 13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '99-01-01 01:02:03.123456' AND c8 < '10-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '99-01-01 01:02:03.123456' AND '10-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '90-01-01T01:02:03' AND c7 < '10-12-12T13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '90-01-01T01:02:03' AND '10-12-12T13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '99-01-01T01:02:03.123456' AND c8 < '10-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '99-01-01T01:02:03.123456' AND '10-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '90-01-01 01:02:03' AND c7 < '10-12-12T13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '90-01-01 01:02:03' AND '10-12-12T13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '99-01-01 01:02:03.123456' AND c8 < '10-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '99-01-01 01:02:03.123456' AND '10-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '19900101.010203' AND c7 < '20101212.131415' AND c7 > '1990-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '19900101.010203' AND '20101212.131415' AND c7 > '1990-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '19990101.010203.123456' AND c8 < '20101212.131415.12345678' AND c8 < '2010-12-12' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '19990101.010203.123456' AND '20101212.131415.12345678' AND c8 < '2010-12-12' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > 19900101.010203 AND c7 < 20101212.131415 AND c7 > 1990-01-01 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN 19900101.010203 AND 20101212.131415 AND c7 > 1990-01-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > 19900101.010203 AND c7 < 20101212.131415 AND c7 > '1990-01-01' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN 19900101.010203 AND 20101212.131415 AND c7 > '1990-01-01' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c7 > '19900101.010203' AND c7 < '20101212.131415' AND c7 > 1990-01-01 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 BETWEEN '19900101.010203' AND '20101212.131415' AND c7 > 1990-01-01 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c8 > '19990101.010203.123456' AND c8 < '20101212.131415.12345678' AND c8 < 2010-12-12 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 BETWEEN '19990101.010203.123456' AND '20101212.131415.12345678' AND c8 < 2010-12-12 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -1800,347 +1255,66 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 
 --echo # normal
-SELECT * FROM t1 WHERE c9 > '2005-01-01 01:02:03' AND c9 <= '2008-03-11 15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01 01:02:03' AND '2008-03-11 15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01 13:13:00.123456' AND c10 < '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01 13:13:00.123456' AND '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '2005-01-01T01:02:03' AND c9 <= '2008-03-11T15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01T01:02:03' AND '2008-03-11T15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01T13:13:00.123456' AND c10 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01T13:13:00.123456' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '2005-01-01 01:02:03' AND c9 <= '2008-03-11T15:15:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01 01:02:03' AND '2008-03-11T15:15:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01 13:13:00.123456' AND c10 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01 13:13:00.123456' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # the unspecified time is all zeros
-SELECT * FROM t1 WHERE c9 > '2005-01-01 01' AND c9 <= '2008-03-11 15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01 01' AND '2008-03-11 15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01 13:13' AND c10 < '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01 13:13' AND '2010-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '2005-01-01T01' AND c9 <= '2008-03-11T15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01T01' AND '2008-03-11T15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01T13:13' AND c10 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01T13:13' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '2005-01-01 01' AND c9 <= '2008-03-11T15:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '2005-01-01 01' AND '2008-03-11T15:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 >= '1999-12-01 13:13' AND c10 < '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-12-01 13:13' AND '2010-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '1990-01-01 01' AND c9 < '2010-12-12 12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '1990-01-01 01' AND '2010-12-12 12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '1999-01-01 01:13' AND c10 < '2010-12-12 12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-01-01 01:13' AND '2010-12-12 12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '1990-01-01T01' AND c9 < '2010-12-12T12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '1990-01-01T01' AND '2010-12-12T12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '1999-01-01T01:13' AND c10 < '2010-12-12T12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-01-01T01:13' AND '2010-12-12T12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '1990-01-01 01' AND c9 < '2010-12-12T12:13' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '1990-01-01 01' AND '2010-12-12T12:13' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '1999-01-01 01:13' AND c10 < '2010-12-12T12:00' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '1999-01-01 01:13' AND '2010-12-12T12:00' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # special cases which would pushdown offset
-SELECT * FROM t1 WHERE c9 > '90-01-01 01:02:03' AND c9 < '10-12-12 13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '90-01-01 01:02:03' AND '10-12-12 13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '99-01-01 01:02:03.123456' AND c10 < '10-12-12 13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '99-01-01 01:02:03.123456' AND '10-12-12 13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '90-01-01T01:02:03' AND c9 < '10-12-12T13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '90-01-01T01:02:03' AND '10-12-12T13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '99-01-01T01:02:03.123456' AND c10 < '10-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '99-01-01T01:02:03.123456' AND '10-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c9 > '90-01-01 01:02:03' AND c9 < '10-12-12T13:14:15' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN '90-01-01 01:02:03' AND '10-12-12T13:14:15' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > '99-01-01 01:02:03.123456' AND c10 < '10-12-12T13:14:15.12345678' LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN '99-01-01 01:02:03.123456' AND '10-12-12T13:14:15.12345678' LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo # special cases which would not pushdown offset
-SELECT * FROM t1 WHERE c9 > from_unixtime('631126923') AND c9 < from_unixtime('1292127194') LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 BETWEEN from_unixtime('631126923') AND from_unixtime('1292127194') LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c10 > from_unixtime('944025180') AND c10 < from_unixtime('1292127194') LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-DROP TABLE t1;
-
---echo #
---echo # Test 4: Other restrictions
---echo #
-
-CREATE TABLE t1 (
-        c1 int,
-        c2 int,
-        c3 char(10),
-        c4 int,
-        c5 int,
-        PRIMARY KEY (c1),
-        KEY(c2, c3, c4),
-        KEY(c5)
-);
-
-INSERT INTO t1 VALUES (1, 6, '003', 5, 5);
-INSERT INTO t1 VALUES (2, 3, '104', 4, 4);
-INSERT INTO t1 VALUES (3, 4, '001', 6, 3);
-INSERT INTO t1 VALUES (4, 1, '106', 3, 2);
-INSERT INTO t1 VALUES (5, 2, '002', 7, 1);
-INSERT INTO t1 VALUES (6, 5, '105', 1, 6);
-INSERT INTO t1 VALUES (7, 8, '009', 2, 7);
-INSERT INTO t1 VALUES (8, 9, '107', 8, 9);
-INSERT INTO t1 VALUES (9, 7, '008', 9, 8);
-INSERT INTO t1 VALUES (10, 10, '110', 11, 12);
-INSERT INTO t1 VALUES (11, 14, '011', 10, 13);
-INSERT INTO t1 VALUES (12, 12, '112', 12, 11);
-INSERT INTO t1 VALUES (13, 13, '013', 14, 10);
-INSERT INTO t1 VALUES (14, 12, '114', 13, 14);
-INSERT INTO t1 VALUES (15, 13, '015', 15, 15);
-
-ANALYZE TABLE t1;
-
---echo #
---echo # Test 4.1: no LIMIT/OFFSET
---echo #           offset can not be pushed down
---echo #
-SELECT * FROM t1 WHERE c1 > 8;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c1 > 8 LIMIT 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo #
---echo # Test 4.2: UNION and subquery
---echo #           offset can not be pushed down
---echo #
-(SELECT * FROM t1 WHERE c1 > 5 LIMIT 2, 2) UNION (SELECT * FROM t1 WHERE c1 > 2 LIMIT 2, 2);
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-(SELECT * FROM t1 WHERE c1 > 5) UNION (SELECT * FROM t1 WHERE c1 > 2) LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-(SELECT * FROM t1 WHERE c1 > 5 LIMIT 2, 2) UNION (SELECT * FROM t1 WHERE c1 > 2 LIMIT 2, 2) LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE EXISTS ( SELECT c1 FROM t1 ) LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE NOT EXISTS ( SELECT c1 FROM t1 WHERE c1 < 1 ) LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo #
---echo # Test 4.3: DISTINCT
---echo #
---echo # DISTINCT can be eliminated by the optimizer
-SELECT DISTINCT * FROM t1 WHERE c1 > 5 LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # DISTINCT can not be eliminated by the optimizer
-SELECT DISTINCT c2 FROM t1 WHERE c2 > 10 LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo #
---echo # Test 4.4: GROUP BY
---echo #
---echo # GROUP BY can be eliminated by the optimizer
-SELECT * FROM t1 WHERE c1 > 3 GROUP BY c1 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # GROUP BY can not be eliminated by the optimizer
-SET @sql_mode_old = @@sql_mode;
-SET sql_mode='';
-SELECT * FROM t1 WHERE c1 > 3 GROUP BY c2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SET sql_mode= @sql_mode_old;
-
---echo #
---echo # Test 4.5: HAVING
---echo #
---echo # HAVING can be eliminated by the optimizer
-SELECT * FROM t1 WHERE c2 > 2 HAVING c1 < 10 LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
---echo # HAVING can not be eliminated by the optimizer
-SELECT * FROM t1 WHERE c2 > 2 HAVING TRUE LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
---echo #
---echo # Test 4.6: aggregation function
---echo #           offset can not be pushed down
---echo #
-SELECT AVG(c2) FROM t1 WHERE c2 > 2 AND c2 < 10 LIMIT 2,2;
-SELECT COUNT(*) FROM t1 WHERE c2 > 2 AND c2 < 10 LIMIT 2,2;
-
---echo #
---echo # Test 4.7: SQL_CALC_FOUND_ROWS
---echo #           offset can not be pushed down
---echo #
-SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE c2 > 2 AND c2 < 10 LIMIT 2,2;
-
---echo #
---echo # Test 4.8: MRR
---echo #           offset can not be pushed down
---echo #
-SET @save_optimizer_switch_old = @@optimizer_switch;
-SET optimizer_switch=`mrr=on,mrr_cost_based=off`;
-SELECT * FROM t1 WHERE c2 > 2 LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SET optimizer_switch = @save_optimizer_switch_old;
-
---echo #
---echo # Test 4.9: multiple tables
---echo #           offset can not be pushed down
---echo #
-CREATE TABLE t2 (
-        c1 int,
-        c2 int,
-        c3 char(10),
-        c4 int,
-        c5 int,
-        PRIMARY KEY (c1),
-        KEY(c2, c3, c4),
-        KEY(c5)
-);
-
-INSERT INTO t2 VALUES (1, 6, '003', 5, 5);
-INSERT INTO t2 VALUES (2, 3, '104', 4, 4);
-INSERT INTO t2 VALUES (3, 4, '001', 6, 3);
-INSERT INTO t2 VALUES (4, 1, '106', 3, 2);
-INSERT INTO t2 VALUES (5, 2, '002', 7, 1);
-INSERT INTO t2 VALUES (6, 5, '105', 1, 6);
-INSERT INTO t2 VALUES (7, 8, '009', 2, 7);
-INSERT INTO t2 VALUES (8, 9, '107', 8, 9);
-INSERT INTO t2 VALUES (9, 7, '008', 9, 8);
-INSERT INTO t2 VALUES (10, 10, '110', 11, 12);
-INSERT INTO t2 VALUES (11, 14, '011', 10, 13);
-INSERT INTO t2 VALUES (12, 12, '112', 12, 11);
-INSERT INTO t2 VALUES (13, 13, '013', 14, 15);
-INSERT INTO t2 VALUES (14, 11, '114', 13, 14);
-
-ANALYZE TABLE t2;
-
-SELECT * FROM t1, t2 WHERE t1.c1 > 3 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1, t2 WHERE t1.c1 > 3 AND t2.c3 > 5 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT A.c2 FROM t1 A, t2 B WHERE A.c2 > B.c2 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 BETWEEN from_unixtime('944025180') AND from_unixtime('1292127194') LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 DROP TABLE t1;
-DROP TABLE t2;
-
---echo #
---echo # Test 4.10: MyISAM engine
---echo #            offset can not be pushed down
---echo #
-CREATE TABLE t1 (
-        c1 int,
-        c2 int,
-        c3 char(10),
-        c4 int,
-        c5 int,
-        PRIMARY KEY (c1),
-        KEY(c2, c3, c4),
-        KEY(c5)
-) ENGINE=MyISAM;
-
-INSERT INTO t1 VALUES (1, 6, '003', 5, 5);
-INSERT INTO t1 VALUES (2, 3, '104', 4, 4);
-INSERT INTO t1 VALUES (3, 4, '001', 6, 3);
-INSERT INTO t1 VALUES (4, 1, '106', 3, 2);
-INSERT INTO t1 VALUES (5, 2, '002', 7, 1);
-INSERT INTO t1 VALUES (6, 5, '105', 1, 6);
-
-ANALYZE TABLE t1;
-
-SELECT * FROM t1 WHERE c2 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-DROP TABLE t1;
-
---echo #
---echo # Test 4.11: FULLTEXT INDEX
---echo #            offset can not be pushed down
---echo #
-CREATE TABLE t1(fld1 VARCHAR(10) COLLATE 'latin1_bin', FULLTEXT INDEX (fld1)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES ('abCDDDD'),('ABCDDDD');
-INSERT INTO t1 VALUES ('abCDEEE'),('ABCDEEE');
-INSERT INTO t1 VALUES ('abCDFFF'),('ABCDFFF');
-INSERT INTO t1 VALUES ('abCDGGG'),('ABCDGGG');
-SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE) LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE) LIMIT 2,2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-# TODO: add cases for trigger and procedure
-
-DROP TABLE t1;
-
---echo #
---echo # Test 5: other cases that support offset push down
---echo #
-
---echo #
---echo # Test 5.1: virtual generated column
---echo #
-CREATE TABLE t1 (
-        c1 int,
-        c2 int,
-        c3 char(10),
-        c4 int,
-        c5 int,
-        PRIMARY KEY (c1),
-        KEY(c3),
-        KEY(c5)
-);
-
-INSERT INTO t1 VALUES (1, 6, '00003', 5, 5);
-INSERT INTO t1 VALUES (2, 3, '10004', 4, 4);
-INSERT INTO t1 VALUES (3, 4, '20001', 6, 3);
-INSERT INTO t1 VALUES (4, 1, '30006', 3, 2);
-INSERT INTO t1 VALUES (5, 2, '40002', 7, 1);
-INSERT INTO t1 VALUES (6, 5, '50005', 1, 6);
-INSERT INTO t1 VALUES (7, 8, '50005', 9, 9);
-INSERT INTO t1 VALUES (8, 7, '50005', 8, 7);
-INSERT INTO t1 VALUES (9, 9, '50005', 7, 8);
-
-ALTER TABLE t1 ADD COLUMN sc3 varchar(3) GENERATED ALWAYS AS (substring(c3, 1, 3)) STORED;
-ALTER TABLE t1 ADD INDEX ix_sc3 (`sc3`);
-ALTER TABLE t1 ADD COLUMN vc3 varchar(3) GENERATED ALWAYS AS (substring(c3, 1, 3)) VIRTUAL;
-ALTER TABLE t1 ADD INDEX ix_vc3 (`vc3`);
-
-ANALYZE TABLE t1;
-
-SELECT * FROM t1 WHERE sc3 > '002' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-# start by fzx @20240103 about: test case can't not use ix_sc3 in mysql 5.7
-# SELECT * FROM t1 WHERE sc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
-# SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-# ended by fzx @20240103 about: test case can't not use ix_sc3 in mysql 5.7
-
-SELECT * FROM t1 WHERE vc3 > '002' LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE vc3 > '002' ORDER BY sc3 DESC LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-DROP TABLE t1;
-
---echo #
---echo # Test 5.2: TEMPORARY TABLE
---echo #
-CREATE TEMPORARY TABLE t1 (
-        c1 int,
-        c2 int,
-        c3 char(10),
-        c4 int,
-        c5 int,
-        PRIMARY KEY (c1),
-        KEY(c2, c3, c4),
-        KEY(c5)
-);
-
-INSERT INTO t1 VALUES (1, 6, '003', 5, 5);
-INSERT INTO t1 VALUES (2, 3, '104', 4, 4);
-INSERT INTO t1 VALUES (3, 4, '001', 6, 3);
-INSERT INTO t1 VALUES (4, 1, '106', 3, 2);
-INSERT INTO t1 VALUES (5, 2, '002', 7, 1);
-INSERT INTO t1 VALUES (6, 5, '105', 1, 6);
-
-ANALYZE TABLE t1;
-
-SELECT * FROM t1 WHERE c2 > 2 LIMIT 2, 2;
-SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-
-DROP TABLE t1;
-
 DROP DATABASE optest;
 
 SET optimizer_trace="enabled=off";
