@@ -351,11 +351,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Covering index range scan
 SELECT c2 FROM t1 WHERE c2 > 2 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
+SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -371,11 +373,13 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Covering index range scan
 SELECT c2 FROM t1 WHERE c2 > 2 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT c3 FROM t1 WHERE c3 > '005' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT c3 FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT c3 FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -487,11 +491,12 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Index range scan
 SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 > '106' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -507,11 +512,12 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Index range scan
 SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > '106' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -519,9 +525,9 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 SELECT * FROM t1 WHERE c2 > 2 ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -593,11 +599,12 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Index range scan
 SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > '106' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -613,11 +620,12 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo # Index range scan
 SELECT * FROM t1 USE INDEX(c2) WHERE c2 > 10 ORDER BY c2 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 > '005' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > '106' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 DESC LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 DESC LIMIT 2, 2;
+# todo can be optimized to support offset pushdown.
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 DESC LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
@@ -625,9 +633,9 @@ SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]
 --echo #
 SELECT * FROM t1 WHERE c2 > 2 ORDER BY c3 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 USE INDEX(c3) WHERE c3 LIKE '10%' ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
-SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c3 LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 LIKE '00%' OR (c3 > '005' AND c3 < '120') ORDER BY c2 LIMIT 2, 2;
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 
 --echo #
