@@ -4721,8 +4721,9 @@ row_search_mvcc(
 	byte*		next_buf			= 0;
 	bool		spatial_search			= false;
 	ulint		end_loop			= 0;
+    ibool       is_sec_idx_invisible  = FALSE;
 
-	rec_offs_init(offsets_);
+    rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
 	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
@@ -5777,7 +5778,8 @@ no_gap_lock:
 					err = DB_RECORD_NOT_FOUND;
 					goto idx_cond_failed;
 				case ICP_MATCH:
-					goto requires_clust_rec;
+                    is_sec_idx_invisible = TRUE;
+                    goto requires_clust_rec;
 				}
 
 				ut_error;
@@ -5948,6 +5950,26 @@ requires_clust_rec:
 
 		result_rec = clust_rec;
 		ut_ad(rec_offs_validate(result_rec, clust_index, offsets));
+
+        // started by fzx @20231207 about offset pushdown
+        /*
+          If the server layer pushed down offset, the number of rows specified in the
+          offset clause needs to be skipped here.
+        */
+        if (prebuilt->m_mysql_handler && prebuilt->m_mysql_handler->offset_limit_cnt > 0) {
+            if (prebuilt->n_offset_rows < prebuilt->m_mysql_handler->offset_limit_cnt && is_sec_idx_invisible) {
+                prebuilt->n_offset_rows++;
+                if (did_semi_consistent_read) {
+                    row_unlock_for_mysql(prebuilt, TRUE);
+                }
+                is_sec_idx_invisible = FALSE;
+                goto next_rec;
+            } else {
+                prebuilt->m_mysql_handler->offset_limit_cnt = 0;
+            }
+        }
+        // ended by fzx @20231207 about offset pushdown
+
 
 		if (prebuilt->idx_cond) {
 			/* Convert the record to MySQL format. We were
