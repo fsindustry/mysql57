@@ -2255,7 +2255,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` >= 2) and (`t1`.`c1` < 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 >= "2" AND c1 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 >= '2' AND c1 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 4	4	7	8	8	3	2	7	3	4	8
 9	5	9	2	5	9	6	3	9	2	5
@@ -2269,14 +2269,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` >= 2.3) and (`t1`.`c1` < 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 >= 2 AND c1 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 >= 2 AND c1 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 4	4	7	8	8	3	2	7	3	4	8
 9	5	9	2	5	9	6	3	9	2	5
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` >= 2) and (`t1`.`c1` < '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 >= 2.3 AND c1 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 >= 2.3 AND c1 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 9	5	9	2	5	9	6	3	9	2	5
 8	6	4	9	6	7	9	9	6	4	4
@@ -2290,7 +2290,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 2) and (`t1`.`c2` <= 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > "2" AND c2 <= "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > '2' AND c2 <= '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 6	8	6	6	7	2	5	5	2	9	9
@@ -2304,14 +2304,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 2.3) and (`t1`.`c2` <= 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 2 AND c2 <= "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 2 AND c2 <= '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 6	8	6	6	7	2	5	5	2	9	9
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 2) and (`t1`.`c2` <= '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 2.3 AND c2 <= "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 2.3 AND c2 <= '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 6	8	6	6	7	2	5	5	2	9	9
@@ -2326,7 +2326,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "(`t1`.`c3` > 5294967294)", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > "5294967294" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > '5294967294' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 13	13	13	7294967295	7294967295	13	13	13	13	13	13
 10	10	10	8294967295	8294967295	10	10	10	10	10	10
@@ -2347,7 +2347,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "(`t1`.`c4` <= 8294967295)", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 <= "8294967295" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 <= '8294967295' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 2	9	2	3	3	5	1	1	7	3	1
 7	3	5	7	4	1	4	6	5	5	2
@@ -2369,7 +2369,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 3) and (`t1`.`c5` < 8))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > "3" AND c5 < "8" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > '3' AND c5 < '8' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 5	7	8	5	1	6	3	8	8	6	7
 8	6	4	9	6	7	9	9	6	4	4
@@ -2383,14 +2383,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 3.186) and (`t1`.`c5` < 8.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > 3 AND c5 < "8" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > 3 AND c5 < '8' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 5	7	8	5	1	6	3	8	8	6	7
 8	6	4	9	6	7	9	9	6	4	4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 3) and (`t1`.`c5` < '8'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > 3.186 AND c5 < "8" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > 3.186 AND c5 < '8' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 5	7	8	5	1	6	3	8	8	6	7
 8	6	4	9	6	7	9	9	6	4	4
@@ -2404,7 +2404,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2) and (`t1`.`c6` <= 7))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= "2" AND c6 < "7" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= '2' AND c6 < '7' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 6	8	6	6	7	2	5	5	2	9	9
@@ -2418,14 +2418,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2.186) and (`t1`.`c6` < 7.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 < "7" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= 2 AND c6 < '7' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 6	8	6	6	7	2	5	5	2	9	9
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2) and (`t1`.`c6` < '7'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 < "7" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 < '7' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 6	8	6	6	7	2	5	5	2	9	9
 9	5	9	2	5	9	6	3	9	2	5
@@ -2440,7 +2440,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c7` >= 2) and (`t1`.`c7` < 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c7 >= "2" AND c7 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 >= '2' AND c7 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 3	2	1	4	2	8	8	4	4	1	3
 6	8	6	6	7	2	5	5	2	9	9
@@ -2454,14 +2454,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c7` >= 2.186) and (`t1`.`c7` < 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c7 >= 2 AND c7 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 >= 2 AND c7 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 3	2	1	4	2	8	8	4	4	1	3
 6	8	6	6	7	2	5	5	2	9	9
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c7` >= 2) and (`t1`.`c7` < '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c7 >= 2.186 AND c7 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c7 >= 2.186 AND c7 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 6	8	6	6	7	2	5	5	2	9	9
 7	3	5	7	4	1	4	6	5	5	2
@@ -2475,7 +2475,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c8` > 2) and (`t1`.`c8` <= 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c8 >= "2" AND c8 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 >= '2' AND c8 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 3	2	1	4	2	8	8	4	4	1	3
 7	3	5	7	4	1	4	6	5	5	2
@@ -2489,14 +2489,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c8` >= 2.186) and (`t1`.`c8` < 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c8 >= 2 AND c8 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 >= 2 AND c8 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 3	2	1	4	2	8	8	4	4	1	3
 7	3	5	7	4	1	4	6	5	5	2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c8` >= 2) and (`t1`.`c8` < '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c8 >= 2.186 AND c8 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c8 >= 2.186 AND c8 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 7	3	5	7	4	1	4	6	5	5	2
 8	6	4	9	6	7	9	9	6	4	4
@@ -2511,7 +2511,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c9` >= 2) and (`t1`.`c9` < 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c9 >= "2" AND c9 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 >= '2' AND c9 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 4	4	7	8	8	3	2	7	3	4	8
 8	6	4	9	6	7	9	9	6	4	4
@@ -2525,14 +2525,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c9` >= 2.186) and (`t1`.`c9` < 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c9 >= 2 AND c9 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 >= 2 AND c9 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 4	4	7	8	8	3	2	7	3	4	8
 8	6	4	9	6	7	9	9	6	4	4
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c9` >= 2) and (`t1`.`c9` < '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c9 >= 2.186 AND c9 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c9 >= 2.186 AND c9 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 8	6	4	9	6	7	9	9	6	4	4
 7	3	5	7	4	1	4	6	5	5	2
@@ -2546,7 +2546,7 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c10` > 2) and (`t1`.`c10` <= 9))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c10 >= "2" AND c10 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 >= '2' AND c10 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 8	6	4	9	6	7	9	9	6	4	4
 9	5	9	2	5	9	6	3	9	2	5
@@ -2560,14 +2560,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c10` >= 2.186) and (`t1`.`c10` < 9.400011))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c10 >= 2 AND c10 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 >= 2 AND c10 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 8	6	4	9	6	7	9	9	6	4	4
 9	5	9	2	5	9	6	3	9	2	5
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c10` >= 2) and (`t1`.`c10` < '9'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c10 >= 2.186 AND c10 < "9" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c10 >= 2.186 AND c10 < '9' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 9	5	9	2	5	9	6	3	9	2	5
 1	1	3	1	9	4	7	2	1	7	6
@@ -2614,7 +2614,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 3) and (`t1`.`c1` < 8))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > "3.186" AND c1 < "8.1186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > '3.186' AND c1 < '8.1186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
@@ -2635,14 +2635,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 3) and (`t1`.`c1` < 8.1186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 3 AND c1 < "8.1186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 3 AND c1 < '8.1186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 3) and (`t1`.`c1` < '8.1186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 3.186 AND c1 < "8.1186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 3.186 AND c1 < '8.1186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
@@ -2656,7 +2656,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` >= 2) and (`t1`.`c2` <= 7))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 >= "2.186" AND c2 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 >= '2.186' AND c2 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 1	1.186	3.186	1.186	1.186	1.186000	7.186000
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
@@ -2677,14 +2677,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` >= 2) and (`t1`.`c2` <= 7.186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 >= 2 AND c2 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 >= 2 AND c2 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 1	1.186	3.186	1.186	1.186	1.186000	7.186000
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` >= 2) and (`t1`.`c2` <= '7.186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 >= 2.186 AND c2 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 >= 2.186 AND c2 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 1	1.186	3.186	1.186	1.186	1.186000	7.186000
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
@@ -2699,7 +2699,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c3` > 2) and (`t1`.`c3` < 8))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > "2.186" AND c3 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > '2.186' AND c3 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
 6	7.186	6.186	6.186	9.186	3.186000	5.186000
@@ -2720,14 +2720,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c3` > 2) and (`t1`.`c3` < 8.186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > 2 AND c3 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > 2 AND c3 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c3` > 2) and (`t1`.`c3` < '8.186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > 2.186 AND c3 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > 2.186 AND c3 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
 6	7.186	6.186	6.186	9.186	3.186000	5.186000
@@ -2741,7 +2741,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c4` >= 2) and (`t1`.`c4` <= 7))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 >= "2.186" AND c4 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 >= '2.186' AND c4 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 2	4.186	1.186	9.186	4.186	7.186000	3.186000
 4	3.186	9.186	7.186	5.186	2.186000	1.186000
@@ -2762,14 +2762,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c4` >= 2) and (`t1`.`c4` <= 7.186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 >= 2 AND c4 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 >= 2 AND c4 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 2	4.186	1.186	9.186	4.186	7.186000	3.186000
 4	3.186	9.186	7.186	5.186	2.186000	1.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c4` >= 2) and (`t1`.`c4` <= '7.186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 >= 2.186 AND c4 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 >= 2.186 AND c4 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 2	4.186	1.186	9.186	4.186	7.186000	3.186000
 4	3.186	9.186	7.186	5.186	2.186000	1.186000
@@ -2784,7 +2784,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 2) and (`t1`.`c5` < 8))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > "2.186" AND c5 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > '2.186' AND c5 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
@@ -2798,14 +2798,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 2.186) and (`t1`.`c5` < 8.186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > 2 AND c5 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > 2 AND c5 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 9	5.186	4.186	4.186	3.186	4.186000	8.186000
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c5` > 2) and (`t1`.`c5` < '8.186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c5 > 2.186 AND c5 < "8.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c5 > 2.186 AND c5 < '8.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 8	6.186	5.186	5.186	7.186	6.186000	6.186000
@@ -2819,7 +2819,7 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2) and (`t1`.`c6` <= 7))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= "2.186" AND c6 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= '2.186' AND c6 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 6	7.186	6.186	6.186	9.186	3.186000	5.186000
@@ -2833,14 +2833,14 @@ id	c1	c2	c3	c4	c5	c6
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2.186) and (`t1`.`c6` <= 7.186))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= 2 AND c6 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= 2 AND c6 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 6	7.186	6.186	6.186	9.186	3.186000	5.186000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c6` >= 2) and (`t1`.`c6` <= '7.186'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 <= "7.186" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c6 >= 2.186 AND c6 <= '7.186' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6
 7	8.186	2.186	3.186	8.186	5.186000	4.186000
 6	7.186	6.186	6.186	9.186	3.186000	5.186000
@@ -2886,7 +2886,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` <= 2) and (`td1`.`c1` >= 1))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 <= "2.0009" AND c1 >= "1.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 <= '2.0009' AND c1 >= '1.0003' LIMIT 2, 2;
 id	c1	c2
 9	2.0000100000	2.0004000000
 3	2.0006000000	49.0005000000
@@ -2900,12 +2900,12 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` <= 2.0009) and (`td1`.`c1` >= 1.0003))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 <= 2 AND c1 >= "1.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 <= 2 AND c1 >= '1.0003' LIMIT 2, 2;
 id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` <= 2) and (`td1`.`c1` >= '1.0003'))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 <= 2.0009 AND c1 >= "1.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 <= 2.0009 AND c1 >= '1.0003' LIMIT 2, 2;
 id	c1	c2
 9	2.0000100000	2.0004000000
 3	2.0006000000	49.0005000000
@@ -2917,7 +2917,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 3) and (`td1`.`c2` >= 2))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= "3.0006" AND c2 >= "2.00009" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= '3.0006' AND c2 >= '2.00009' LIMIT 2, 2;
 id	c1	c2
 11	3.0000000001	3.0000200008
 7	3.0000300000	3.0006000000
@@ -2931,12 +2931,12 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 3.0006) and (`td1`.`c2` >= 2.00009))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= 3 AND c2 >= "2.00009" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= 3 AND c2 >= '2.00009' LIMIT 2, 2;
 id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 3) and (`td1`.`c2` >= '2.00009'))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= 3.0006 AND c2 >= "2.00009" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= 3.0006 AND c2 >= '2.00009' LIMIT 2, 2;
 id	c1	c2
 11	3.0000000001	3.0000200008
 7	3.0000300000	3.0006000000
@@ -2951,7 +2951,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` < 4) and (`td1`.`c1` >= 2))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 < "4.0009" AND c1 >= "2.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 < '4.0009' AND c1 >= '2.0003' LIMIT 2, 2;
 id	c1	c2
 11	3.0000000001	3.0000200008
 7	3.0000300000	3.0006000000
@@ -2965,14 +2965,14 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` < 4.0009) and (`td1`.`c1` >= 2.0003))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 < 4 AND c1 >= "2.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 < 4 AND c1 >= '2.0003' LIMIT 2, 2;
 id	c1	c2
 11	3.0000000001	3.0000200008
 7	3.0000300000	3.0006000000
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` < 4) and (`td1`.`c1` >= '2.0003'))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 < 4.0009 AND c1 >= "2.0003" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 < 4.0009 AND c1 >= '2.0003' LIMIT 2, 2;
 id	c1	c2
 11	3.0000000001	3.0000200008
 7	3.0000300000	3.0006000000
@@ -2986,7 +2986,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 26) and (`td1`.`c2` > 3))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= "26.00006" AND c2 > "3.00002" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= '26.00006' AND c2 > '3.00002' LIMIT 2, 2;
 id	c1	c2
 8	6.0000200000	6.0005000000
 13	13.0000000003	13.0000000006
@@ -3000,14 +3000,14 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 26.00006) and (`td1`.`c2` > 3.00002))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= 26 AND c2 > "3.00002" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= 26 AND c2 > '3.00002' LIMIT 2, 2;
 id	c1	c2
 8	6.0000200000	6.0005000000
 13	13.0000000003	13.0000000006
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 26) and (`td1`.`c2` > '3.00002'))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= 26.00006 AND c2 > "3.00002" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= 26.00006 AND c2 > '3.00002' LIMIT 2, 2;
 id	c1	c2
 8	6.0000200000	6.0005000000
 13	13.0000000003	13.0000000006
@@ -3020,7 +3020,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c1` <= 2) and (`td1`.`c1` >= 1) and (`td1`.`c1` > 1))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c1 <= "2.0009" AND c1 >= "1.0003" AND c1 > "1.000" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c1 <= '2.0009' AND c1 >= '1.0003' AND c1 > '1.000' LIMIT 2, 2;
 id	c1	c2
 9	2.0000100000	2.0004000000
 3	2.0006000000	49.0005000000
@@ -3041,7 +3041,7 @@ id	c1	c2
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`td1`", "pushed_offset": false, "pushed_index_condition": "((`td1`.`c2` <= 26) and (`td1`.`c2` > 3) and (`td1`.`c2` < 26))", "table_condition_attached": null}]
-SELECT * FROM td1 WHERE c2 <= "26.00006" AND c2 > "3.00002" AND c2 < "26.000" LIMIT 2, 2;
+SELECT * FROM td1 WHERE c2 <= '26.00006' AND c2 > '3.00002' AND c2 < '26.000' LIMIT 2, 2;
 id	c1	c2
 8	6.0000200000	6.0005000000
 13	13.0000000003	13.0000000006
@@ -3259,28 +3259,28 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 1999) and (`t1`.`c2` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 1990 AND c1 < "2010" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 1990 AND c1 < '2010' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 1990) and (`t1`.`c1` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 1999 AND c2 < "2010" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 1999 AND c2 < '2010' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 6	2002	2002	2003-03-01	2003-03-01	17:17:00	17:17:01	2003-03-01 17:17:15	2003-03-01 17:17:15	2003-03-01 17:17:15	2003-03-01 17:17:15
 14	2003	2003	2003-02-21	2003-02-21	10:10:00	10:10:01	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 1999) and (`t1`.`c2` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 1990.001 AND c1 < "2010" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 1990.001 AND c1 < '2010' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 1990) and (`t1`.`c1` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 1999.001 AND c2 < "2010" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 1999.001 AND c2 < '2010' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 6	2002	2002	2003-03-01	2003-03-01	17:17:00	17:17:01	2003-03-01 17:17:15	2003-03-01 17:17:15	2003-03-01 17:17:15	2003-03-01 17:17:15
 14	2003	2003	2003-02-21	2003-02-21	10:10:00	10:10:01	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00
@@ -3330,14 +3330,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 1998) and (`t1`.`c2` < 2009))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 1990-01 AND c1 < "2010-01" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 1990-01 AND c1 < '2010-01' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 1989) and (`t1`.`c1` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 1999-01 AND c2 < "2010-01" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 1999-01 AND c2 < '2010-01' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
@@ -3372,14 +3372,14 @@ id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c2` > 1997) and (`t1`.`c2` < 2008))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c1 > 1990-01-01 AND c1 < "2010-01-01" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c1 > 1990-01-01 AND c1 < '2010-01-01' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c1` > 1988) and (`t1`.`c1` < 2010))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c2 > 1999-01-01 AND c2 < "2010-01-01" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c2 > 1999-01-01 AND c2 < '2010-01-01' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
@@ -3462,21 +3462,21 @@ Warning	1292	Incorrect date value: '20101212.0123' for column 'c4' at row 1
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c4` > '1999-01-01') and (`t1`.`c4` < '2010-12-12'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > 19900101 AND c3 < "20101212" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > 19900101 AND c3 < '20101212' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c3` > '1990-01-01') and (`t1`.`c3` < '20101212'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 > 19990101 AND c4 < "20101212" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 > 19990101 AND c4 < '20101212' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 14	2003	2003	2003-02-21	2003-02-21	10:10:00	10:10:01	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c4` > '1999-01-01') and (`t1`.`c4` < '20101212'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c3 > 19900101.0123 AND c3 < "20101212" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c3 > 19900101.0123 AND c3 < '20101212' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 15	2000	2000	2000-01-08	2000-01-08	09:09:00	09:09:01	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00	2000-01-08 09:09:00
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
@@ -3486,7 +3486,7 @@ Warning	1292	Incorrect date value: '19900101.0123' for column 'c3' at row 1
 SELECT json_extract(trace, '$.steps[*].join_optimization.steps[*].refine_plan[*]') AS trace FROM information_schema.optimizer_trace;
 trace
 [{"table": "`t1`", "pushed_offset": false, "pushed_index_condition": "((`t1`.`c3` > '1990-01-01') and (`t1`.`c3` < '20101212'))", "table_condition_attached": null}]
-SELECT * FROM t1 WHERE c4 > 19990101.0123 AND c4 < "20101212" LIMIT 2, 2;
+SELECT * FROM t1 WHERE c4 > 19990101.0123 AND c4 < '20101212' LIMIT 2, 2;
 id	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
 5	2001	2001	2001-02-01	2001-02-01	11:14:00	11:14:01	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00	2001-02-01 11:14:00
 14	2003	2003	2003-02-21	2003-02-21	10:10:00	10:10:01	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00	2003-02-21 10:10:00

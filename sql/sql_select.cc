@@ -2258,7 +2258,10 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
   Opt_trace_array trace_refine_plan(trace, "refine_plan");
 
   // started by fzx @20231207 about offset pushdown
-  bool has_multi_tables = join->has_multi_tables();
+  bool has_multi_tables = false;
+  if (opt_enable_offset_pushdown) {
+    has_multi_tables = join->has_multi_tables();
+  }
   // ended by fzx @20231207 about offset pushdown
 
   if (setup_semijoin_dups_elimination(join, no_jbuf_after))
