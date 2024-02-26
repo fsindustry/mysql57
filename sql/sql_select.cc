@@ -2258,9 +2258,9 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
   Opt_trace_array trace_refine_plan(trace, "refine_plan");
 
   // started by fzx @20231207 about offset pushdown
-  bool has_multi_tables = false;
+  bool try_push_offset = false;
   if (opt_enable_offset_pushdown) {
-    has_multi_tables = join->has_multi_tables();
+    try_push_offset = !join->has_multi_tables();
   }
   // ended by fzx @20231207 about offset pushdown
 
@@ -2320,7 +2320,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
       // started by fzx @20231207 about offset pushdown
       // if query have only one table, try to pushdown offset
-      if (!has_multi_tables)
+      if (try_push_offset)
       {
         qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
       }
@@ -2374,7 +2374,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
       // started by fzx @20231207 about offset pushdown
       // if query have only one table, try to pushdown offset
-      if (!has_multi_tables)
+      if (try_push_offset)
       {
         qep_tab->push_offset(tab, qep_tab->ref().key, &trace_refine_table);
       }
@@ -2402,7 +2402,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 
         // started by fzx @20231207 about offset pushdown
         // if query have only one table, try to pushdown offset
-        if (!has_multi_tables)
+        if (try_push_offset)
         {
           qep_tab->push_offset(tab, qep_tab->quick()->index, &trace_refine_table);
         }
